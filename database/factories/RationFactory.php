@@ -1,0 +1,33 @@
+<?php
+
+namespace Database\Factories;
+
+use App\Models\PlanRationnement;
+use Illuminate\Database\Eloquent\Factories\Factory;
+
+/**
+ * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Ration>
+ */
+class RationFactory extends Factory
+{
+    public function definition(): array
+    {
+        return [
+            'plan_rationnement_id' => PlanRationnement::factory(),
+            'nom' => fake()->words(2, true),
+            'effectif' => fake()->optional()->numberBetween(1, 200),
+            'lait_potentiel305j' => fake()->optional()->numberBetween(3000, 12000),
+            'poids_vif' => fake()->optional()->numberBetween(400, 800),
+            'pourcentage_primipare' => fake()->optional()->numberBetween(0, 100),
+            'nec' => fake()->optional()->randomFloat(1, 1, 5),
+            'tb_annuel' => fake()->optional()->randomFloat(1, 30, 50),
+            'tp_annuel' => fake()->optional()->randomFloat(1, 28, 40),
+            'activite' => fake()->optional()->randomElement(['stabulation', 'entravee', 'plaine', 'vallon', 'montagne']),
+            'temperature_ambiante' => fake()->optional()->randomFloat(1, -10, 35),
+            'race' => fake()->optional()->randomElement(['limousine', 'croiselaitiere', 'montbeliarde']),
+            'categorie_animal' => fake()->optional()->randomElement(['vacheLaitiere', 'vacheAllaitante']),
+            'mois_lactation' => fake()->optional()->randomFloat(2, 0, 10),
+            'mois_gestation' => fake()->optional()->randomFloat(2, 0, 9),
+        ];
+    }
+}
