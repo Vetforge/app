@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Console\Commands;
 
 use App\Models\Aliment;
@@ -1055,9 +1057,7 @@ class ImportWhrrdnbreportsCommand extends Command
 
     private function legacyPlainText(mixed $value): string
     {
-        $text = $this->str($value);
-
-        return $text !== null ? LegacyHtmlCleaner::plainText($text) : '';
+        return $this->str($value) ?? '';
     }
 
     /**
@@ -1630,7 +1630,7 @@ class ImportWhrrdnbreportsCommand extends Command
         $count = max(1, min(10, $this->int($row['nbDePages'] ?? null) ?? 1));
 
         for ($i = 1; $i <= $count; $i++) {
-            $pages[] = LegacyHtmlCleaner::plainTextWithBreaks($this->str($row["resultatsCompteRendu{$i}"] ?? null) ?? '');
+            $pages[] = $this->strWithBreaks($row["resultatsCompteRendu{$i}"] ?? null) ?? '';
         }
 
         return [
@@ -1878,7 +1878,35 @@ class ImportWhrrdnbreportsCommand extends Command
 
         $string = trim((string) $value);
 
-        return $string === '' || strtolower($string) === 'null' ? null : $string;
+        if ($string === '' || strtolower($string) === 'null') {
+            return null;
+        }
+
+        // Nettoyage uniquement si la chaine contient potentiellement du HTML,
+        // une entite (&...) ou un artefact d'extraction PDF (saut de ligne).
+        if (preg_match('/[<&]|\r|\n/', $string) === 1) {
+            $string = LegacyHtmlCleaner::plainTextWithBreaks($string);
+        }
+
+        return $string === '' ? null : $string;
+    }
+
+    private function strWithBreaks(mixed $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $string = LegacyHtmlCleaner::plainTextWithBreaks((string) $value);
+
+        return $this->isBlankLegacyString($string) ? null : $string;
+    }
+
+    private function isBlankLegacyString(string $value): bool
+    {
+        $string = trim($value);
+
+        return $string === '' || strtolower($string) === 'null';
     }
 
     private function int(mixed $value): ?int

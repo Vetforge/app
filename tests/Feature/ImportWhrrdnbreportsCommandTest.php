@@ -118,6 +118,69 @@ PHP);
         ->and(Schema::hasTable('legacy_import_mappings'))->toBeFalse();
 });
 
+it('sanitizes html from imported legacy strings', function () {
+    $user = User::factory()->create();
+    $path = tempnam(sys_get_temp_dir(), 'legacy_export_').'.php';
+
+    file_put_contents($path, <<<'PHP'
+<?php
+$clients_cabinets = array(
+  array('idEleveur' => '10', 'identification_cabinet' => 'rieupeyroux', 'nomEleveur' => '<span>GAEC&nbsp;<strong>HTML</strong></span>', 'adresseEleveur' => '<div>1<br>rue Test</div>', 'codePostalEleveur' => '<b>12000</b>', 'villeEleveur' => '<em>Rodez</em>')
+);
+$liste_animaux = array(
+  array('idAnimal' => '22', 'identification_cabinet' => 'rieupeyroux', 'nomAnimal' => 'Marguerite&nbsp;<span>II</span>', 'idEleveur' => '10')
+);
+$aliments_ration = array();
+$analyses_diverses = array(
+  array('idAnalyse' => '301', 'identification_cabinet' => 'rieupeyroux', 'dateAnalyse' => '2020-03-01', 'idEleveur' => '10', 'idAnimal' => '22', 'nomIntervenant' => '<b>Dr&nbsp;Clean</b>', 'especeAnalysesDiverses' => '<i>Bovin</i>', 'nbAnalysesDiverses' => '1', 'typeAnalysesDiverses1' => '<span>Biochimie&nbsp;A</span>', 'resultatsAnalysesDiverses1' => 'Resultat&nbsp;<strong>positif</strong>', 'commemoratifsAnalysesDiverses' => '<p>Memo&nbsp;<em>utile</em></p>', 'commentairesAnalysesDiverses' => 'Commentaire<br>final')
+);
+$compte_rendu = array(
+  array('idAnalyse' => '302', 'identification_cabinet' => 'rieupeyroux', 'dateAnalyse' => '2020-03-02', 'idEleveur' => '10', 'idAnimal' => '22', 'nomIntervenant' => '<i>Dr&nbsp;Report</i>', 'nbDePages' => '1', 'resultatsCompteRendu1' => '<p>Premiere&nbsp;<strong>ligne</strong></p><p>Deuxieme <em>ligne</em></p>')
+);
+$coproscopie_parasitaire = array();
+$diarrhee_neonatale = array();
+$gaz_sang = array();
+$tests_cellules = array();
+$bacteriologie_antibiogramme = array();
+$tests_rapides = array();
+$tests_biochimie = array();
+$hematologie = array();
+$autopsie = array();
+$bse_laitier = array();
+$bse_allaitant = array();
+PHP);
+
+    try {
+        $this->artisan('legacy:import-whrrdnbreports', [
+            'path' => $path,
+            '--user' => (string) $user->id,
+            '--cabinet' => 'rieupeyroux',
+        ])->assertSuccessful();
+    } finally {
+        @unlink($path);
+    }
+
+    $breeder = Breeder::query()->firstOrFail();
+    $miscAnalysis = Analysis::query()->where('module', 'analyse-diverse')->firstOrFail();
+    $report = Analysis::query()->where('module', 'compte-rendu')->firstOrFail();
+
+    expect($breeder->name)->toBe('GAEC HTML')
+        ->and($breeder->address)->toBe('1 rue Test')
+        ->and($breeder->postal_code)->toBe('12000')
+        ->and($breeder->city)->toBe('Rodez')
+        ->and($miscAnalysis->animal_nom)->toBe('Marguerite II')
+        ->and($miscAnalysis->intervenant)->toBe('Dr Clean')
+        ->and($miscAnalysis->payload['analyses'][0]['type'])->toBe('Biochimie A')
+        ->and($miscAnalysis->payload['analyses'][0]['results'])->toBe('Resultat positif')
+        ->and($miscAnalysis->payload['commemoratifs'])->toBe('Memo utile')
+        ->and($miscAnalysis->payload['commentaires'])->toBe('Commentaire final')
+        ->and($report->intervenant)->toBe('Dr Report')
+        ->and($report->payload['pages'][0])->toBe("Premiere ligne\nDeuxieme ligne");
+
+    expect(str_contains(json_encode($miscAnalysis->payload, JSON_THROW_ON_ERROR), '<'))->toBeFalse()
+        ->and(str_contains(json_encode($report->payload, JSON_THROW_ON_ERROR), '<'))->toBeFalse();
+});
+
 it('imports legacy veterinary module settings before creating analysis snapshots', function () {
     $user = User::factory()->create();
     $path = tempnam(sys_get_temp_dir(), 'legacy_export_').'.php';
