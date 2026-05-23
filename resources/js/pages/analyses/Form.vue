@@ -909,7 +909,7 @@ watch(
             >
                 <div class="analysis-section-heading">
                     <div>
-                        <h2>Diarrhee neonatale</h2>
+                        <h2>Diarrhée néonatale</h2>
                         <p>
                             Test, prelevement et lecture des agents recherches.
                         </p>

@@ -11,6 +11,7 @@ use App\Support\VeterinaryModules;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 use Spatie\LaravelPdf\Enums\Format;
@@ -208,7 +209,7 @@ class VeterinaryAnalysisController extends Controller
     {
         $wrappedColumn = $query->getQuery()->getGrammar()->wrap($column);
 
-        return match ($query->getConnection()->getDriverName()) {
+        return match (DB::getDriverName()) {
             'pgsql' => "LOWER(COALESCE(TO_CHAR({$wrappedColumn}, 'YYYY-MM-DD'), '')) LIKE ?",
             'sqlite' => "LOWER(COALESCE(CAST({$wrappedColumn} AS TEXT), '')) LIKE ?",
             'sqlsrv' => "LOWER(COALESCE(CONVERT(varchar(10), {$wrappedColumn}, 23), '')) LIKE ?",

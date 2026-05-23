@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3';
+import { Activity, Biohazard, ChartScatter, ClipboardCheck, ClipboardList, Columns4, Droplets, FlaskConical, NotebookPen, Salad, Scissors, Search, SquareActivity, TestTube2, Users, Worm, X, Zap } from 'lucide-vue-next';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
-import { Activity, Biohazard, ChartScatter, ClipboardCheck, ClipboardList, Columns4, Droplets, FlaskConical, Leaf, NotebookPen, Salad, Scissors, Search, SquareActivity, TestTube2, Users, Worm, X, Zap } from 'lucide-vue-next';
 import type { Component } from 'vue';
-import { search as dashboardSearch } from '@/actions/App/Http/Controllers/DashboardController';
 import { create as alimentCreate } from '@/actions/App/Http/Controllers/AlimentController';
+import { search as dashboardSearch } from '@/actions/App/Http/Controllers/DashboardController';
 import { create as planCreate } from '@/actions/App/Http/Controllers/PlanRationnementController';
 import { create as analysisCreate } from '@/actions/App/Http/Controllers/VeterinaryAnalysisController';
 import AppLayout from '@/layouts/AppLayout.vue';
@@ -22,6 +22,7 @@ interface AnalysisModule {
 interface RecentElement {
     type: 'analysis' | 'breeder' | 'plan' | 'ration' | 'aliment';
     type_label: string;
+    module?: string | null;
     id: number;
     label: string;
     sub: string | null;
@@ -104,7 +105,6 @@ function loadMore() {
     router.reload({
         only: ['recent_elements', 'recent_next_cursor'],
         data: { cursor: props.recent_next_cursor },
-        preserveScroll: true,
         onFinish: () => {
             isLoadingMore.value = false;
         },
@@ -125,15 +125,18 @@ const isSearchActive = computed(() => query.value.trim().length >= 2);
 const displayedElements = computed(() => (isSearchActive.value ? searchResults.value : props.recent_elements));
 
 const typeIconMap = {
-    analysis: Activity,
     breeder: Users,
     plan: ClipboardList,
-    ration: Salad,
-    aliment: Leaf,
+    ration: ClipboardList,
+    aliment: Salad,
 };
 
-function getTypeIcon(type: string) {
-    return typeIconMap[type as keyof typeof typeIconMap] ?? Activity;
+function getElementIcon(element: RecentElement): Component {
+    if (element.type === 'analysis' && element.module) {
+        return getModuleIcon(element.module);
+    }
+
+    return typeIconMap[element.type as keyof typeof typeIconMap] ?? Activity;
 }
 
 function typeBadgeClass(type: string): string {
@@ -277,7 +280,7 @@ function typeIconBgClass(type: string): string {
                             class="flex size-8 shrink-0 items-center justify-center rounded-full"
                             :class="typeIconBgClass(element.type)"
                         >
-                            <component :is="getTypeIcon(element.type)" class="size-4" />
+                            <component :is="getElementIcon(element)" class="size-4" />
                         </div>
                         <div class="min-w-0 flex-1">
                             <p class="truncate text-sm font-medium text-foreground">{{ element.label }}</p>

@@ -218,17 +218,17 @@ function submit(): void {
                         </thead>
                         <tbody>
                             <tr class="border-b border-border/50">
-                                <td class="px-3 py-1.5 font-medium">Diarrhee 0-4j</td>
+                                <td class="px-3 py-1.5 font-medium">Diarrhée 0-4j</td>
                                 <td class="px-3 py-1.5"><input v-model.number="form.payload.nb_malades_diar1" type="number" min="0" class="w-24 rounded border border-border bg-background px-2 py-1" /></td>
                                 <td class="px-3 py-1.5"><input v-model.number="form.payload.nb_morts_diar1" type="number" min="0" class="w-24 rounded border border-border bg-background px-2 py-1" /></td>
                             </tr>
                             <tr class="border-b border-border/50">
-                                <td class="px-3 py-1.5 font-medium">Diarrhee 5-21j</td>
+                                <td class="px-3 py-1.5 font-medium">Diarrhée 5-21j</td>
                                 <td class="px-3 py-1.5"><input v-model.number="form.payload.nb_malades_diar2et3" type="number" min="0" class="w-24 rounded border border-border bg-background px-2 py-1" /></td>
                                 <td class="px-3 py-1.5"><input v-model.number="form.payload.nb_morts_diar2et3" type="number" min="0" class="w-24 rounded border border-border bg-background px-2 py-1" /></td>
                             </tr>
                             <tr class="border-b border-border/50">
-                                <td class="px-3 py-1.5 font-medium">Diarrhee > 21j</td>
+                                <td class="px-3 py-1.5 font-medium">Diarrhée > 21j</td>
                                 <td class="px-3 py-1.5"><input v-model.number="form.payload.nb_malades_diar4" type="number" min="0" class="w-24 rounded border border-border bg-background px-2 py-1" /></td>
                                 <td class="px-3 py-1.5"><input v-model.number="form.payload.nb_morts_diar4" type="number" min="0" class="w-24 rounded border border-border bg-background px-2 py-1" /></td>
                             </tr>

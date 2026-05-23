@@ -20,8 +20,8 @@ final class VeterinaryModules
             'type' => 'analyse',
         ],
         'diarrhee-neonatale' => [
-            'label' => 'Diarrhee neonatale',
-            'short_label' => 'Diarrhee',
+            'label' => 'Diarrhée néonatale',
+            'short_label' => 'Diarrhée',
             'description' => 'Tests rapides et conseils preventifs/curatifs pour veaux nouveau-nes.',
             'type' => 'analyse',
         ],
@@ -94,7 +94,7 @@ final class VeterinaryModules
     ];
 
     /**
-     * @return array<string, array{label: string, short_label: string, description: string}>
+     * @return array<string, array{label: string, short_label: string, description: string, type: string}>
      */
     public static function all(): array
     {
@@ -133,7 +133,7 @@ final class VeterinaryModules
     }
 
     /**
-     * @return array{label: string, short_label: string, description: string}
+     * @return array{label: string, short_label: string, description: string, type: string}
      */
     public static function get(string $module): array
     {

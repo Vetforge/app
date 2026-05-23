@@ -91,7 +91,7 @@ it('creates a new analyse diverse through the browser form', function () {
         ->fill('animal_nom', 'Marguerite')
         ->fill('analyzed_at', '2026-05-18')
         ->fill('intervenant', 'Dr Coutrot')
-        ->fill('commemoratifs', 'Diarrhee aigue depuis 3 jours')
+        ->fill('commemoratifs', 'Diarrhée aigue depuis 3 jours')
         ->fill('commentaires', 'A surveiller - recontroler dans 15 jours')
         ->click("Enregistrer l'analyse")
         ->assertSee('Marguerite')

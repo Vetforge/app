@@ -107,6 +107,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::put('aliments/{aliment}', [App\Http\Controllers\Admin\AlimentController::class, 'update'])->name('aliments.update');
         Route::delete('aliments/{aliment}', [App\Http\Controllers\Admin\AlimentController::class, 'destroy'])->name('aliments.destroy');
         Route::get('users', [App\Http\Controllers\Admin\UserController::class, 'index'])->name('users.index');
+        Route::get('users/{user}', [App\Http\Controllers\Admin\UserController::class, 'show'])->name('users.show');
         Route::put('users/{user}', [App\Http\Controllers\Admin\UserController::class, 'update'])->name('users.update');
         Route::get('import', [App\Http\Controllers\Admin\ImportController::class, 'show'])->name('import.show');
         Route::post('import', [App\Http\Controllers\Admin\ImportController::class, 'import'])->name('import.store');

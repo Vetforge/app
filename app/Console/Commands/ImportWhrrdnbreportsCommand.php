@@ -31,29 +31,6 @@ class ImportWhrrdnbreportsCommand extends Command
 
     private const MAPPING_TABLE = 'legacy_import_mappings';
 
-    private const EXPORT_TABLES = [
-        'clients_cabinets',
-        'cabinets_veterinaires',
-        'config_vetoapplis',
-        'config_vetoapplis_bioch',
-        'config_vetoapplis_hemato',
-        'liste_animaux',
-        'aliments_ration',
-        'analyses_diverses',
-        'autopsie',
-        'bacteriologie_antibiogramme',
-        'bse_allaitant',
-        'bse_laitier',
-        'compte_rendu',
-        'coproscopie_parasitaire',
-        'diarrhee_neonatale',
-        'gaz_sang',
-        'hematologie',
-        'tests_biochimie',
-        'tests_cellules',
-        'tests_rapides',
-    ];
-
     private const ANALYSIS_TABLES = [
         'coproscopie_parasitaire' => 'coproscopie-parasitaire',
         'diarrhee_neonatale' => 'diarrhee-neonatale',
@@ -281,10 +258,7 @@ class ImportWhrrdnbreportsCommand extends Command
     /** @var array<string, string> */
     private array $animalNames = [];
 
-    /** @var array<string, int> */
-    private array $alimentMap = [];
-
-    /** @var array<string, true> */
+    /** @var array<string, bool> */
     private array $reservedBreederNames = [];
 
     /** @var array<string, Carbon> */
@@ -699,7 +673,6 @@ class ImportWhrrdnbreportsCommand extends Command
                 $this->applyArchiveTimestamps($aliment, $this->timestampForAliment($row));
             }
 
-            $this->alimentMap[$legacyId] = $aliment->id;
             $this->insertMapping('aliments_ration', $legacyId, 'aliments', $aliment->id);
             $count++;
         }
@@ -772,12 +745,16 @@ class ImportWhrrdnbreportsCommand extends Command
     private function legacyHoldingCandidates(string $path, array $clientRows, string $cabinet): array
     {
         $candidates = [];
-        $add = function (mixed $value) use (&$candidates): void {
+        $add = function (mixed $value) use (&$candidates): bool {
             $candidate = $this->str($value);
 
             if ($candidate !== null && ! in_array($candidate, $candidates, true)) {
                 $candidates[] = $candidate;
+
+                return true;
             }
+
+            return false;
         };
 
         foreach ($this->matchingRows($clientRows, $cabinet) as $row) {
@@ -791,9 +768,7 @@ class ImportWhrrdnbreportsCommand extends Command
         if ($candidates === []) {
             foreach (array_keys(self::ANALYSIS_TABLES) as $table) {
                 foreach ($this->matchingRows($this->loadTable($path, $table), $cabinet) as $row) {
-                    $add($row['nom_holding'] ?? null);
-
-                    if ($candidates !== []) {
+                    if ($add($row['nom_holding'] ?? null)) {
                         break 2;
                     }
                 }

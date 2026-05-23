@@ -1694,7 +1694,7 @@ function deleteCustomSettings(): void {
                         <div class="space-y-4">
                             <h2 class="font-semibold">Modeles de commentaires</h2>
                             <p class="text-sm text-muted-foreground">Textes affichés en commentaire selon que l'indicateur est satisfaisant (S) ou non satisfaisant (NS).</p>
-                            <div v-for="(item, key) in { tx_mortalite_total_veaux: 'Mortalite totale veaux', tx_diarrhee_veaux_total: 'Diarrhee veaux', tx_respi_veaux: 'Respiratoire veaux', tx_omphalite_veaux: 'Omphalite veaux', ivv: 'IVV', cout_alimentaire_vache: 'Cout alimentaire / vache' }" :key="key" class="rounded-lg border border-border p-3 space-y-2">
+                            <div v-for="(item, key) in { tx_mortalite_total_veaux: 'Mortalite totale veaux', tx_diarrhee_veaux_total: 'Diarrhée veaux', tx_respi_veaux: 'Respiratoire veaux', tx_omphalite_veaux: 'Omphalite veaux', ivv: 'IVV', cout_alimentaire_vache: 'Cout alimentaire / vache' }" :key="key" class="rounded-lg border border-border p-3 space-y-2">
                                 <p class="text-sm font-medium">{{ item }}</p>
                                 <div class="grid gap-2 sm:grid-cols-2">
                                     <label class="grid gap-1 text-xs">

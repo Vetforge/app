@@ -437,7 +437,7 @@ function pathogenResultClass(value: string | number | null | undefined): string 
                 </div>
             </section>
 
-            <!-- Diarrhee neonatale -->
+            <!-- Diarrhée néonatale -->
             <section
                 v-else-if="module.slug === 'diarrhee-neonatale'"
                 class="min-w-0 space-y-4 rounded-xl border border-border bg-card p-3 sm:p-5"

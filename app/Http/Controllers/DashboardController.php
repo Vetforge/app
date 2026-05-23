@@ -82,6 +82,7 @@ class DashboardController extends Controller
             ->map(fn (Analysis $a) => [
                 'type' => 'analysis',
                 'type_label' => 'Analyse',
+                'module' => $a->module,
                 'id' => $a->id,
                 'label' => data_get(VeterinaryModules::all(), "{$a->module}.short_label", $a->module).($a->animal_nom ? ' — '.$a->animal_nom : ''),
                 'sub' => $a->breeder?->name,
@@ -218,6 +219,7 @@ class DashboardController extends Controller
             ->map(fn (Analysis $a) => [
                 'type' => 'analysis',
                 'type_label' => 'Analyse',
+                'module' => $a->module,
                 'id' => $a->id,
                 'label' => data_get(VeterinaryModules::all(), "{$a->module}.short_label", $a->module).($a->animal_nom ? ' — '.$a->animal_nom : ''),
                 'sub' => $a->breeder?->name,

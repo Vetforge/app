@@ -51,7 +51,7 @@ it('displays the diarrhee neonatale list with module title and create button', f
     $this->actingAs($user);
 
     visit('/analyses/diarrhee-neonatale')
-        ->assertSee('Diarrhee neonatale')
+        ->assertSee('Diarrhée néonatale')
         ->assertSee('Nouvelle analyse')
         ->assertSee('GAEC du Val')
         ->assertSee('Jasmine')
@@ -68,7 +68,7 @@ it('does not show diarrhee neonatale analyses from other users', function () {
     $this->actingAs($user);
 
     visit('/analyses/diarrhee-neonatale')
-        ->assertSee('Diarrhee neonatale')
+        ->assertSee('Diarrhée néonatale')
         ->assertDontSee('Milka')
         ->assertNoJavaScriptErrors();
 });
@@ -85,7 +85,7 @@ it('creates a new diarrhee neonatale analysis through the browser form', functio
 
     visit('/analyses/diarrhee-neonatale/create')
         ->assertSee('Nouvelle analyse')
-        ->assertSee('Diarrhee neonatale')
+        ->assertSee('Diarrhée néonatale')
         ->fill('breeder_id', 'GAEC')
         ->click('GAEC du Val')
         ->fill('animal_nom', 'Marguerite')
@@ -127,7 +127,7 @@ it('displays a diarrhee neonatale analysis with breeder, animal and edit button'
     $this->actingAs($user);
 
     visit('/analyses/'.$analysis->id)
-        ->assertSee('Diarrhee neonatale')
+        ->assertSee('Diarrhée néonatale')
         ->assertSee('GAEC du Val')
         ->assertSee('Jasmine')
         ->assertSee('Dr Martin')
@@ -204,7 +204,7 @@ it('deletes a diarrhee neonatale analysis after confirming the dialog', function
     $page->waitForEvent('networkidle');
 
     $page->assertDontSee('Jasmine')
-        ->assertSee('Diarrhee neonatale')
+        ->assertSee('Diarrhée néonatale')
         ->assertNoJavaScriptErrors();
 });
 
