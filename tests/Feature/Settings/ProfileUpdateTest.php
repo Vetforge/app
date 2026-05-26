@@ -50,6 +50,58 @@ test('email verification status is unchanged when the email address is unchanged
     expect($user->refresh()->email_verified_at)->not->toBeNull();
 });
 
+test('clinic pdf header information can be updated', function () {
+    $user = User::factory()->create();
+
+    $response = $this
+        ->actingAs($user)
+        ->patch(route('profile.update'), [
+            'name' => 'Test User',
+            'email' => $user->email,
+            'clinic_profile' => [
+                'name' => ' Clinique des Prairies ',
+                'address' => '12 rue du Pré',
+                'postal_code' => '12000',
+                'city' => 'Rodez',
+                'phone' => '',
+                'email' => 'contact@prairies.test',
+            ],
+        ]);
+
+    $response
+        ->assertSessionHasNoErrors()
+        ->assertRedirect(route('profile.edit'));
+
+    expect($user->refresh()->clinic_profile)->toMatchArray([
+        'name' => 'Clinique des Prairies',
+        'address' => '12 rue du Pré',
+        'postal_code' => '12000',
+        'city' => 'Rodez',
+        'phone' => null,
+        'email' => 'contact@prairies.test',
+    ]);
+});
+
+test('clinic pdf header email must be valid', function () {
+    $user = User::factory()->create();
+
+    $response = $this
+        ->actingAs($user)
+        ->from(route('profile.edit'))
+        ->patch(route('profile.update'), [
+            'name' => 'Test User',
+            'email' => $user->email,
+            'clinic_profile' => [
+                'name' => 'Clinique des Prairies',
+                'email' => 'not-an-email',
+            ],
+        ]);
+
+    $response
+        ->assertSessionHasErrors('clinic_profile.email')
+        ->assertRedirect(route('profile.edit'));
+});
+
 test('user can delete their account', function () {
     $user = User::factory()->create();
 

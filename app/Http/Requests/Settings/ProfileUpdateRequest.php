@@ -12,6 +12,33 @@ class ProfileUpdateRequest extends FormRequest
 {
     use ProfileValidationRules;
 
+    protected function prepareForValidation(): void
+    {
+        $profile = $this->input('clinic_profile', []);
+
+        if (! is_array($profile)) {
+            $this->merge(['clinic_profile' => null]);
+
+            return;
+        }
+
+        $normalized = collect(['name', 'address', 'postal_code', 'city', 'phone', 'email'])
+            ->mapWithKeys(function (string $field) use ($profile): array {
+                $value = $profile[$field] ?? null;
+
+                if (is_string($value)) {
+                    $value = trim($value);
+                }
+
+                return [$field => $value === '' ? null : $value];
+            })
+            ->all();
+
+        $this->merge([
+            'clinic_profile' => collect($normalized)->every(fn ($value): bool => $value === null) ? null : $normalized,
+        ]);
+    }
+
     /**
      * Get the validation rules that apply to the request.
      *

@@ -9,6 +9,7 @@ use App\Http\Requests\UpdateAnalysisRequest;
 use App\Models\Analysis;
 use App\Models\Breeder;
 use App\Services\VeterinaryAnalysisCalculator;
+use App\Support\PdfClinicHeader;
 use App\Support\VeterinaryModules;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -144,6 +145,7 @@ class VeterinaryAnalysisController extends Controller
         return Pdf::view('pdf.analysis', [
             'analysis' => $analysis,
             'module' => VeterinaryModules::get($analysis->module),
+            'clinicHeader' => PdfClinicHeader::forUser($request->user()),
         ])
             ->format(Format::A4)
             ->margins(top: 10, right: 8, bottom: 10, left: 8, unit: 'mm')

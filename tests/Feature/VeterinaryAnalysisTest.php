@@ -561,7 +561,16 @@ it('allows per-user biochimie and hemogramme parameters to be created edited del
 it('downloads an analysis pdf for the owner only', function () {
     Pdf::fake();
 
-    $user = User::factory()->create();
+    $user = User::factory()->create([
+        'clinic_profile' => [
+            'name' => 'Clinique Analyses Conseil',
+            'address' => '3 rue du Laboratoire',
+            'postal_code' => '69000',
+            'city' => 'Lyon',
+            'phone' => '04 10 10 10 10',
+            'email' => 'analyses@example.test',
+        ],
+    ]);
     $breeder = Breeder::factory()->create(['user_id' => $user->id]);
     $analysis = Analysis::factory()->create([
         'user_id' => $user->id,
@@ -576,6 +585,10 @@ it('downloads an analysis pdf for the owner only', function () {
     Pdf::assertRespondedWithPdf(function ($pdf) use ($analysis) {
         expect($pdf->viewName)->toBe('pdf.analysis');
         expect($pdf->viewData['analysis']->is($analysis))->toBeTrue();
+        expect($pdf->viewData['clinicHeader'])->toMatchArray([
+            'name' => 'Clinique Analyses Conseil',
+            'city' => 'Lyon',
+        ]);
         expect($pdf->downloadName)->toContain('analyse-'.$analysis->id);
 
         return true;
@@ -700,11 +713,23 @@ it('renders result sections in pdf for every analysis module without a dedicated
         $html = view('pdf.analysis', [
             'analysis' => $analysis,
             'module' => VeterinaryModules::get($module),
+            'clinicHeader' => [
+                'name' => 'Clinique Analyses Conseil',
+                'address' => '3 rue du Laboratoire',
+                'postal_code' => '69000',
+                'city' => 'Lyon',
+                'phone' => '04 10 10 10 10',
+                'email' => 'analyses@example.test',
+            ],
         ])->render();
 
         foreach ($case['expected'] as $expected) {
             expect($html)->toContain($expected);
         }
+
+        expect($html)->toContain('Clinique Analyses Conseil')
+            ->and($html)->toContain('3 rue du Laboratoire')
+            ->and($html)->toContain('analyses@example.test');
 
         expect($html)->not->toContain('&lt;p&gt;')
             ->and($html)->not->toContain('Conseils preventifs');

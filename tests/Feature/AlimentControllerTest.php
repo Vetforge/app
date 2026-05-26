@@ -121,7 +121,16 @@ it('forbids copying another users aliment', function () {
 it('downloads the aliment pdf', function () {
     Pdf::fake();
 
-    $user = User::factory()->create();
+    $user = User::factory()->create([
+        'clinic_profile' => [
+            'name' => 'Clinique des Fourrages',
+            'address' => '4 route du Foin',
+            'postal_code' => '15000',
+            'city' => 'Aurillac',
+            'phone' => '04 00 00 00 00',
+            'email' => 'fourrages@example.test',
+        ],
+    ]);
     $aliment = Aliment::factory()->create([
         'user_id' => $user->id,
         'libelle0' => 'Mais ensilage',
@@ -135,6 +144,10 @@ it('downloads the aliment pdf', function () {
     Pdf::assertRespondedWithPdf(function ($pdf) use ($aliment) {
         expect($pdf->viewName)->toBe('pdf.aliment');
         expect($pdf->viewData['aliment']->is($aliment))->toBeTrue();
+        expect($pdf->viewData['clinicHeader'])->toMatchArray([
+            'name' => 'Clinique des Fourrages',
+            'city' => 'Aurillac',
+        ]);
         expect($pdf->downloadName)->toContain('aliment-mais-ensilage');
 
         return true;
@@ -169,10 +182,23 @@ it('renders the aliment pdf with two 2018 pages and one 2007 page', function () 
         'pdin2007' => 74.1,
     ]);
 
-    $html = view('pdf.aliment', ['aliment' => $aliment])->render();
+    $html = view('pdf.aliment', [
+        'aliment' => $aliment,
+        'clinicHeader' => [
+            'name' => 'Clinique des Fourrages',
+            'address' => '4 route du Foin',
+            'postal_code' => '15000',
+            'city' => 'Aurillac',
+            'phone' => '04 00 00 00 00',
+            'email' => 'fourrages@example.test',
+        ],
+    ])->render();
 
     expect($html)->toContain('Page 1/3 - Référentiel INRA 2018')
         ->toContain('Page 2/3 - Référentiel INRA 2018')
         ->toContain('Page 3/3 - Référentiel INRA 2007')
+        ->toContain('Clinique des Fourrages')
+        ->toContain('4 route du Foin')
+        ->toContain('fourrages@example.test')
         ->toContain('Référentiel INRA 2007');
 });

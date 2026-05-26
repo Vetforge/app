@@ -19,6 +19,13 @@ trait ProfileValidationRules
         return [
             'name' => $this->nameRules(),
             'email' => $this->emailRules($userId),
+            'clinic_profile' => ['nullable', 'array'],
+            'clinic_profile.name' => ['nullable', 'string', 'max:255'],
+            'clinic_profile.address' => ['nullable', 'string', 'max:255'],
+            'clinic_profile.postal_code' => ['nullable', 'string', 'max:20'],
+            'clinic_profile.city' => ['nullable', 'string', 'max:255'],
+            'clinic_profile.phone' => ['nullable', 'string', 'max:50'],
+            'clinic_profile.email' => ['nullable', 'string', 'email', 'max:255'],
         ];
     }
 

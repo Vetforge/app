@@ -175,7 +175,7 @@ PHP);
         ->and($miscAnalysis->payload['commemoratifs'])->toBe('Memo utile')
         ->and($miscAnalysis->payload['commentaires'])->toBe('Commentaire final')
         ->and($report->intervenant)->toBe('Dr Report')
-        ->and($report->payload['pages'][0])->toBe("Premiere ligne\nDeuxieme ligne");
+        ->and($report->payload['pages'][0])->toBe("Premiere ligne\n\nDeuxieme ligne");
 
     expect(str_contains(json_encode($miscAnalysis->payload, JSON_THROW_ON_ERROR), '<'))->toBeFalse()
         ->and(str_contains(json_encode($report->payload, JSON_THROW_ON_ERROR), '<'))->toBeFalse();

@@ -1770,6 +1770,8 @@
     @endphp
 
     <div class="report">
+        <x-pdf.clinic-header :clinic-header="$clinicHeader ?? null" />
+
         <section class="hero">
             <div class="hero-head">
                 <div class="hero-copy">

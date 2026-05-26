@@ -88,7 +88,8 @@ const user = computed(() => page.props.auth.user);
                                 as="button"
                                 class="text-foreground underline decoration-neutral-300 underline-offset-4 transition-colors duration-300 ease-out hover:decoration-current! dark:decoration-neutral-500"
                             >
-                                Cliquez ici pour renvoyer l’e-mail de vérification.
+                                Cliquez ici pour renvoyer l’e-mail de
+                                vérification.
                             </Link>
                         </p>
 
@@ -98,6 +99,136 @@ const user = computed(() => page.props.auth.user);
                         >
                             Un nouveau lien de vérification a été envoyé à votre
                             adresse e-mail.
+                        </div>
+                    </div>
+
+                    <div class="space-y-4 border-t border-border pt-6">
+                        <div>
+                            <h2 class="text-base font-medium">Entête PDF</h2>
+                            <p class="text-sm text-muted-foreground">
+                                Coordonnées de la clinique
+                            </p>
+                        </div>
+
+                        <div class="grid gap-2">
+                            <Label for="clinic_profile_name"
+                                >Nom de la clinique</Label
+                            >
+                            <Input
+                                id="clinic_profile_name"
+                                class="mt-1 block w-full"
+                                name="clinic_profile[name]"
+                                :default-value="user.clinic_profile?.name ?? ''"
+                                autocomplete="organization"
+                                placeholder="Clinique vétérinaire"
+                            />
+                            <InputError
+                                class="mt-2"
+                                :message="errors['clinic_profile.name']"
+                            />
+                        </div>
+
+                        <div class="grid gap-2">
+                            <Label for="clinic_profile_address">Adresse</Label>
+                            <Input
+                                id="clinic_profile_address"
+                                class="mt-1 block w-full"
+                                name="clinic_profile[address]"
+                                :default-value="
+                                    user.clinic_profile?.address ?? ''
+                                "
+                                autocomplete="street-address"
+                                placeholder="Adresse"
+                            />
+                            <InputError
+                                class="mt-2"
+                                :message="errors['clinic_profile.address']"
+                            />
+                        </div>
+
+                        <div class="grid gap-4 md:grid-cols-2">
+                            <div class="grid gap-2">
+                                <Label for="clinic_profile_postal_code"
+                                    >Code postal</Label
+                                >
+                                <Input
+                                    id="clinic_profile_postal_code"
+                                    class="mt-1 block w-full"
+                                    name="clinic_profile[postal_code]"
+                                    :default-value="
+                                        user.clinic_profile?.postal_code ?? ''
+                                    "
+                                    autocomplete="postal-code"
+                                    placeholder="Code postal"
+                                />
+                                <InputError
+                                    class="mt-2"
+                                    :message="
+                                        errors['clinic_profile.postal_code']
+                                    "
+                                />
+                            </div>
+
+                            <div class="grid gap-2">
+                                <Label for="clinic_profile_city">Ville</Label>
+                                <Input
+                                    id="clinic_profile_city"
+                                    class="mt-1 block w-full"
+                                    name="clinic_profile[city]"
+                                    :default-value="
+                                        user.clinic_profile?.city ?? ''
+                                    "
+                                    autocomplete="address-level2"
+                                    placeholder="Ville"
+                                />
+                                <InputError
+                                    class="mt-2"
+                                    :message="errors['clinic_profile.city']"
+                                />
+                            </div>
+                        </div>
+
+                        <div class="grid gap-4 md:grid-cols-2">
+                            <div class="grid gap-2">
+                                <Label for="clinic_profile_phone"
+                                    >Téléphone</Label
+                                >
+                                <Input
+                                    id="clinic_profile_phone"
+                                    class="mt-1 block w-full"
+                                    name="clinic_profile[phone]"
+                                    :default-value="
+                                        user.clinic_profile?.phone ?? ''
+                                    "
+                                    autocomplete="tel"
+                                    placeholder="Téléphone"
+                                />
+                                <InputError
+                                    class="mt-2"
+                                    :message="errors['clinic_profile.phone']"
+                                />
+                            </div>
+
+                            <div class="grid gap-2">
+                                <Label for="clinic_profile_email"
+                                    >E-mail clinique</Label
+                                >
+                                <Input
+                                    id="clinic_profile_email"
+                                    type="email"
+                                    class="mt-1 block w-full"
+                                    name="clinic_profile[email]"
+                                    :default-value="
+                                        user.clinic_profile?.email ?? ''
+                                    "
+                                    autocomplete="email"
+                                    placeholder="contact@clinique.fr"
+                                />
+                                <InputError
+                                    class="mt-2"
+                                    :message="errors['clinic_profile.email']"
+                                />
+                            </div>
                         </div>
                     </div>
 

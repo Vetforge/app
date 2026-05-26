@@ -525,6 +525,8 @@
     @endphp
 
     <section class="page page--2018">
+        <x-pdf.clinic-header :clinic-header="$clinicHeader ?? null" />
+
         <header class="hero">
             <div>
                 <span class="hero-kicker">Fiche aliment</span>

@@ -8,6 +8,7 @@ use App\Http\Requests\StoreAlimentRequest;
 use App\Http\Requests\UpdateAlimentRequest;
 use App\Models\Aliment;
 use App\Models\User;
+use App\Support\PdfClinicHeader;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -126,7 +127,10 @@ class AlimentController extends Controller
     {
         $this->authorize('view', $aliment);
 
-        return Pdf::view('pdf.aliment', ['aliment' => $aliment])
+        return Pdf::view('pdf.aliment', [
+            'aliment' => $aliment,
+            'clinicHeader' => PdfClinicHeader::forUser($request->user()),
+        ])
             ->format(Format::A4)
             ->margins(top: 10, right: 8, bottom: 10, left: 8, unit: 'mm')
             ->name('aliment-'.str($aliment->libelle0)->slug().'.pdf')

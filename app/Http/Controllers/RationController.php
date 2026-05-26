@@ -17,6 +17,7 @@ use App\Services\Equations2007\Besoin as Besoin2007;
 use App\Services\Equations2018\Apport as Apport2018;
 use App\Services\Equations2018\Besoin as Besoin2018;
 use App\Services\RationCalculator;
+use App\Support\PdfClinicHeader;
 use App\Support\RationNormes;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
@@ -193,6 +194,7 @@ class RationController extends Controller
             'resultats' => $resultats,
             'iterations_volonte' => $iterationsVolonte,
             'normes' => RationNormes::payloadForUser(request()->user()),
+            'clinicHeader' => PdfClinicHeader::forUser(request()->user()),
         ])
             ->format(Format::A4)
             ->margins(top: 12, right: 10, bottom: 12, left: 10)

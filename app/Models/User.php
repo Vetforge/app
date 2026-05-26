@@ -22,6 +22,7 @@ class User extends Authenticatable
         'is_admin',
         'last_login_at',
         'normes_personnalisees',
+        'clinic_profile',
     ];
 
     protected $hidden = [
@@ -40,6 +41,7 @@ class User extends Authenticatable
             'two_factor_confirmed_at' => 'datetime',
             'is_admin' => 'boolean',
             'normes_personnalisees' => 'array',
+            'clinic_profile' => 'array',
         ];
     }
 

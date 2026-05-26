@@ -206,6 +206,14 @@ it('downloads the ration pdf', function () {
         'normes_personnalisees' => [
             'ph_ruminal' => ['min' => 6.4, 'max' => null],
         ],
+        'clinic_profile' => [
+            'name' => 'Clinique Ration Conseil',
+            'address' => '8 avenue des Rations',
+            'postal_code' => '31000',
+            'city' => 'Toulouse',
+            'phone' => '05 00 00 00 00',
+            'email' => 'ration@example.test',
+        ],
     ]);
     [$plan, $ration] = createWorkspaceRation($user);
 
@@ -220,6 +228,10 @@ it('downloads the ration pdf', function () {
         expect($pdf->viewData['resultats']['inra'])->toBe('2018');
         expect($pdf->viewData['iterations_volonte'])->toBeInt();
         expect($pdf->viewData['normes']['active']['ph_ruminal']['min'])->toBe(6.4);
+        expect($pdf->viewData['clinicHeader'])->toMatchArray([
+            'name' => 'Clinique Ration Conseil',
+            'city' => 'Toulouse',
+        ]);
         expect($pdf->downloadName)->toContain('ration-');
 
         return true;
@@ -265,12 +277,23 @@ it('renders the cost and water summary below the balance table in the ration pdf
         'ration' => $ration,
         'resultats' => RationCalculator::calculer($ration),
         'iterations_volonte' => 0,
+        'clinicHeader' => [
+            'name' => 'Clinique Ration Conseil',
+            'address' => '8 avenue des Rations',
+            'postal_code' => '31000',
+            'city' => 'Toulouse',
+            'phone' => '05 00 00 00 00',
+            'email' => 'ration@example.test',
+        ],
     ])->render();
 
     expect($html)->toContain('Apports vs besoins');
     expect($html)->toContain('Coût / animal / jour');
     expect($html)->toContain('Coût / 1 000 L');
     expect($html)->toContain('Eau bue estimée');
+    expect($html)->toContain('Clinique Ration Conseil');
+    expect($html)->toContain('8 avenue des Rations');
+    expect($html)->toContain('ration@example.test');
 });
 
 it('renders updated rumen-health wording in the ration pdf', function () {

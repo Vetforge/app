@@ -1876,19 +1876,9 @@ class ImportWhrrdnbreportsCommand extends Command
             return null;
         }
 
-        $string = trim((string) $value);
+        $string = LegacyHtmlCleaner::plainText((string) $value);
 
-        if ($string === '' || strtolower($string) === 'null') {
-            return null;
-        }
-
-        // Nettoyage uniquement si la chaine contient potentiellement du HTML,
-        // une entite (&...) ou un artefact d'extraction PDF (saut de ligne).
-        if (preg_match('/[<&]|\r|\n/', $string) === 1) {
-            $string = LegacyHtmlCleaner::plainTextWithBreaks($string);
-        }
-
-        return $string === '' ? null : $string;
+        return $this->isBlankLegacyString($string) ? null : $string;
     }
 
     private function strWithBreaks(mixed $value): ?string

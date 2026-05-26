@@ -235,6 +235,8 @@
     };
 @endphp
 
+<x-pdf.clinic-header :clinic-header="$clinicHeader ?? null" />
+
 <div class="header">
     <div class="header-main">
         <h1 class="title">{{ $module['label'] }}</h1>
