@@ -36,8 +36,17 @@ interface Analysis {
     settings_snapshot: Record<string, unknown> | null;
 }
 
+interface ComparisonAnalysis {
+    id: number;
+    breeder: Analysis['breeder'];
+    analyzed_at: string | null;
+    payload: Record<string, unknown>;
+    results: Record<string, unknown> | null;
+}
+
 const props = defineProps<{
     analysis: Analysis;
+    comparisonAnalysis?: ComparisonAnalysis | null;
     module: ModuleInfo;
 }>();
 
@@ -49,6 +58,8 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 const results = computed<Record<string, any>>(() => (props.analysis.results ?? {}) as Record<string, any>);
 const payload = computed<Record<string, any>>(() => props.analysis.payload as Record<string, any>);
+const comparisonResults = computed<Record<string, any>>(() => (props.comparisonAnalysis?.results ?? {}) as Record<string, any>);
+const comparisonPayload = computed<Record<string, any>>(() => (props.comparisonAnalysis?.payload ?? {}) as Record<string, any>);
 const commentaires = computed<Record<string, { s: string; ns: string }>>(() => (results.value.commentaires ?? {}) as Record<string, { s: string; ns: string }>);
 
 function formatDate(value: string | null): string {
@@ -75,6 +86,62 @@ function num(value: unknown): number | null {
     const n = Number(value);
     return isNaN(n) ? null : n;
 }
+
+function compResult(key: string): number | null {
+    return num(comparisonResults.value[key]);
+}
+
+function compPayload(key: string): number | null {
+    return num(comparisonPayload.value[key]);
+}
+
+const comparisonLabel = computed(() => {
+    if (!props.comparisonAnalysis) return '';
+    return `Ancien bilan du ${formatDate(props.comparisonAnalysis.analyzed_at)}`;
+});
+
+interface ComparisonRow {
+    label: string;
+    current: string;
+    previous: string;
+}
+
+const comparisonRows = computed((): ComparisonRow[] => {
+    if (!props.comparisonAnalysis) return [];
+
+    return [
+        {
+            label: 'Mortalité néonatale',
+            current: fmt(results.value.tx_mortalite_neonatale, 1, '%'),
+            previous: fmt(comparisonResults.value.tx_mortalite_neonatale, 1, '%'),
+        },
+        {
+            label: 'Mammites',
+            current: fmt(results.value.tx_mammites, 1, '%'),
+            previous: fmt(comparisonResults.value.tx_mammites, 1, '%'),
+        },
+        {
+            label: 'CCI > 250 000',
+            current: fmt(results.value.tx_cci250, 1, '%'),
+            previous: fmt(comparisonResults.value.tx_cci250, 1, '%'),
+        },
+        {
+            label: 'Boiteries',
+            current: fmt(results.value.tx_boiteries, 1, '%'),
+            previous: fmt(comparisonResults.value.tx_boiteries, 1, '%'),
+        },
+        {
+            label: 'IVV',
+            current: fmtInt(payload.value.ivv, 'j'),
+            previous: fmtInt(comparisonPayload.value.ivv, 'j'),
+        },
+        {
+            label: 'Coût mammites',
+            current: fmtInt(results.value.cout_mammites, '€'),
+            previous: fmtInt(comparisonResults.value.cout_mammites, '€'),
+        },
+    ];
+});
 
 function plainText(value: string): string {
     return value
@@ -158,6 +225,8 @@ interface CostCard {
     value: number | null;
     rateLabel: string;
     rateValue: string;
+    comparisonValue?: number | null;
+    comparisonRateValue?: string;
     commentKey: string;
     description: string;
     isGain?: boolean;
@@ -169,6 +238,8 @@ const costCards = computed((): CostCard[] => [
         value: num(results.value.cout_mortalite_neonatale),
         rateLabel: 'Mortalité',
         rateValue: fmt(results.value.tx_mortalite_neonatale, 1, '%'),
+        comparisonValue: compResult('cout_mortalite_neonatale'),
+        comparisonRateValue: fmt(comparisonResults.value.tx_mortalite_neonatale, 1, '%'),
         commentKey: 'tx_mortalite_neonatale',
         description:
             "Le plan diarrhées néonatales étudie les facteurs de risque et met en place les solutions adaptées : alimentation des mères, gestion sanitaire, vaccination, qualité des colostrums. Réduction du coût de traitement, du temps de soins, des pertes de croissance et de la mortalité.",
@@ -178,6 +249,8 @@ const costCards = computed((): CostCard[] => [
         value: num(results.value.cout_mammites),
         rateLabel: 'Tx mammites',
         rateValue: fmt(results.value.tx_mammites, 1, '%'),
+        comparisonValue: compResult('cout_mammites'),
+        comparisonRateValue: fmt(comparisonResults.value.tx_mammites, 1, '%'),
         commentKey: 'tx_mammites',
         description:
             "Seule une approche globale par votre vétérinaire peut maîtriser les contaminations : diagnostic épidémiologique, diagnostic étiologique, visite de traite pour identifier les points critiques et établir un plan d'action ciblé.",
@@ -187,6 +260,8 @@ const costCards = computed((): CostCard[] => [
         value: num(results.value.cout_boiteries),
         rateLabel: 'Tx boiteries',
         rateValue: fmt(results.value.tx_boiteries, 1, '%'),
+        comparisonValue: compResult('cout_boiteries'),
+        comparisonRateValue: fmt(comparisonResults.value.tx_boiteries, 1, '%'),
         commentKey: 'tx_boiteries',
         description:
             "Seul un diagnostic précis associé à la visite conjointe d'un pareur et de votre vétérinaire peut permettre d'objectiver les causes des boiteries et établir un plan de lutte personnalisé.",
@@ -196,6 +271,8 @@ const costCards = computed((): CostCard[] => [
         value: num(results.value.cout_metaboliques),
         rateLabel: 'Tx métaboliques',
         rateValue: fmt(results.value.tx_metaboliques, 1, '%'),
+        comparisonValue: compResult('cout_metaboliques'),
+        comparisonRateValue: fmt(comparisonResults.value.tx_metaboliques, 1, '%'),
         commentKey: 'tx_metaboliques',
         description:
             "Solutions préventives grâce à un diagnostic nutritionnel précis, un plan de prévention efficace puis un suivi régulier adapté à votre situation.",
@@ -205,6 +282,8 @@ const costCards = computed((): CostCard[] => [
         value: num(results.value.cout_reproduction),
         rateLabel: 'IVV',
         rateValue: fmtInt(payload.value.ivv, 'j'),
+        comparisonValue: compResult('cout_reproduction'),
+        comparisonRateValue: fmtInt(comparisonPayload.value.ivv, 'j'),
         commentKey: 'cout_reproduction',
         description:
             "Examens échographiques et gestion régulière de la reproduction. L'alimentation des vaches est la principale cause d'infertilité : un diagnostic nutritionnel précis puis un suivi régulier.",
@@ -214,6 +293,8 @@ const costCards = computed((): CostCard[] => [
         value: num(results.value.cout_alimentaire),
         rateLabel: '€/t lait',
         rateValue: fmt(results.value.cout_alimentaire_vache, 0, '€/t'),
+        comparisonValue: compResult('cout_alimentaire'),
+        comparisonRateValue: fmt(comparisonResults.value.cout_alimentaire_vache, 0, '€/t'),
         commentKey: 'cout_alimentaire_vache_l',
         description:
             "L'alimentation est le poste le plus élevé et à l'origine de très nombreux problèmes. Diagnostic nutritionnel, analyse des fourrages, plan de rationnement et suivi régulier.",
@@ -287,6 +368,31 @@ const costCards = computed((): CostCard[] => [
                 </div>
             </section>
 
+            <section v-if="comparisonAnalysis" class="rounded-xl border border-blue-200 bg-blue-50/60 p-3 sm:p-5 dark:border-blue-900 dark:bg-blue-950/20">
+                <div class="mb-3 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+                    <div>
+                        <h2 class="text-sm font-semibold uppercase tracking-wide text-blue-700 dark:text-blue-300">Comparaison ancien bilan</h2>
+                        <p class="text-xs text-blue-700/80 dark:text-blue-200/80">{{ comparisonLabel }}</p>
+                    </div>
+                    <p class="text-xs text-blue-700/80 dark:text-blue-200/80">{{ comparisonAnalysis.breeder.name }}</p>
+                </div>
+                <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                    <div v-for="row in comparisonRows" :key="row.label" class="rounded-lg bg-background/80 p-3 text-sm">
+                        <p class="text-xs uppercase text-muted-foreground">{{ row.label }}</p>
+                        <div class="mt-1 grid grid-cols-2 gap-2">
+                            <div>
+                                <p class="text-[10px] uppercase text-muted-foreground">Actuel</p>
+                                <p class="font-semibold">{{ row.current }}</p>
+                            </div>
+                            <div>
+                                <p class="text-[10px] uppercase text-blue-700 dark:text-blue-300">Ancien</p>
+                                <p class="font-semibold text-blue-700 dark:text-blue-300">{{ row.previous }}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
             <!-- Taux de mammites -->
             <section class="rounded-xl border border-border bg-card p-3 sm:p-5">
                 <h2 class="mb-4 text-sm font-semibold uppercase tracking-wide text-blue-700 dark:text-blue-400">Taux de mammites</h2>
@@ -300,6 +406,9 @@ const costCards = computed((): CostCard[] => [
                             {{ fmt(results.tx_cci250, 1) }}%
                         </div>
                         <p class="text-center text-xs text-muted-foreground">Vaches &gt; 250 000 cells</p>
+                        <p v-if="compResult('tx_cci250') !== null" class="text-center text-[10px] text-blue-700">
+                            Ancien: {{ fmt(compResult('tx_cci250'), 1, '%') }}
+                        </p>
                     </div>
 
                     <!-- Gauge: Tx mammites -->
@@ -311,6 +420,9 @@ const costCards = computed((): CostCard[] => [
                             {{ fmt(results.tx_mammites, 1) }}%
                         </div>
                         <p class="text-center text-xs text-muted-foreground">Taux de mammites</p>
+                        <p v-if="compResult('tx_mammites') !== null" class="text-center text-[10px] text-blue-700">
+                            Ancien: {{ fmt(compResult('tx_mammites'), 1, '%') }}
+                        </p>
                     </div>
 
                     <div class="flex-1 rounded-lg bg-muted/40 p-3 text-xs text-muted-foreground">
@@ -370,17 +482,17 @@ const costCards = computed((): CostCard[] => [
                     Taux de morbidité : nombre de vaches atteintes d'une pathologie par rapport au nombre total de vaches du troupeau.
                 </p>
                 <div class="flex flex-wrap gap-4">
-                    <BseMetricBar :value="num(results.tx_mortalite_neonatale)" :thresholds="[5, 10]" unit="%" label="Mortalité néonatale" />
-                    <BseMetricBar :value="num(results.tx_boiteries)" :thresholds="[5, 10]" unit="%" label="Boiteries" />
-                    <BseMetricBar :value="num(results.tx_fievres_de_lait)" :thresholds="[5, 10]" unit="%" label="Fièvres de lait" />
-                    <BseMetricBar :value="num(results.tx_non_delivrances)" :thresholds="[5, 10]" unit="%" label="Non-délivrances" />
-                    <BseMetricBar :value="num(results.tx_metrites)" :thresholds="[5, 10]" unit="%" label="Métrites" />
-                    <BseMetricBar :value="num(results.tx_mammites_locales)" :thresholds="[30, 50]" unit="%" label="Mammites locales" />
-                    <BseMetricBar :value="num(results.tx_mammites_aigues)" :thresholds="[5, 10]" unit="%" label="Mammites aiguës" />
-                    <BseMetricBar :value="num(results.tx_cci250)" :thresholds="[20, 40]" unit="%" label="CCI > 250 000" />
-                    <BseMetricBar :value="num(results.tx_cetoses)" :thresholds="[5, 10]" unit="%" label="Cétoses" />
-                    <BseMetricBar :value="num(results.tx_acidoses)" :thresholds="[5, 10]" unit="%" label="Acidoses" />
-                    <BseMetricBar :value="num(results.tx_caillettes)" :thresholds="[1, 2]" unit="%" label="Caillettes" />
+                    <BseMetricBar :value="num(results.tx_mortalite_neonatale)" :thresholds="[5, 10]" unit="%" label="Mortalité néonatale" :comparison-value="compResult('tx_mortalite_neonatale')" />
+                    <BseMetricBar :value="num(results.tx_boiteries)" :thresholds="[5, 10]" unit="%" label="Boiteries" :comparison-value="compResult('tx_boiteries')" />
+                    <BseMetricBar :value="num(results.tx_fievres_de_lait)" :thresholds="[5, 10]" unit="%" label="Fièvres de lait" :comparison-value="compResult('tx_fievres_de_lait')" />
+                    <BseMetricBar :value="num(results.tx_non_delivrances)" :thresholds="[5, 10]" unit="%" label="Non-délivrances" :comparison-value="compResult('tx_non_delivrances')" />
+                    <BseMetricBar :value="num(results.tx_metrites)" :thresholds="[5, 10]" unit="%" label="Métrites" :comparison-value="compResult('tx_metrites')" />
+                    <BseMetricBar :value="num(results.tx_mammites_locales)" :thresholds="[30, 50]" unit="%" label="Mammites locales" :comparison-value="compResult('tx_mammites_locales')" />
+                    <BseMetricBar :value="num(results.tx_mammites_aigues)" :thresholds="[5, 10]" unit="%" label="Mammites aiguës" :comparison-value="compResult('tx_mammites_aigues')" />
+                    <BseMetricBar :value="num(results.tx_cci250)" :thresholds="[20, 40]" unit="%" label="CCI > 250 000" :comparison-value="compResult('tx_cci250')" />
+                    <BseMetricBar :value="num(results.tx_cetoses)" :thresholds="[5, 10]" unit="%" label="Cétoses" :comparison-value="compResult('tx_cetoses')" />
+                    <BseMetricBar :value="num(results.tx_acidoses)" :thresholds="[5, 10]" unit="%" label="Acidoses" :comparison-value="compResult('tx_acidoses')" />
+                    <BseMetricBar :value="num(results.tx_caillettes)" :thresholds="[1, 2]" unit="%" label="Caillettes" :comparison-value="compResult('tx_caillettes')" />
                 </div>
                 <p v-if="commentForKey('tx_mammites')" class="mt-3 rounded-md bg-muted/40 p-3 text-sm italic text-muted-foreground">
                     Mammites : {{ commentForKey('tx_mammites') }}
@@ -400,19 +512,20 @@ const costCards = computed((): CostCard[] => [
                     Facteurs de risque : alimentation (équilibre énergétique et azoté), détection des chaleurs, agents infectieux, carences oligovitaminiques.
                 </p>
                 <div class="flex flex-wrap gap-4">
-                    <BseMetricBar :value="num(payload.iv_ia1)" :thresholds="[85, 100]" unit="j" :decimals="0" label="IV-IA1" />
-                    <BseMetricBar :value="num(payload.iv_iaf)" :thresholds="[110, 140]" unit="j" :decimals="0" label="IV-IAF" />
+                    <BseMetricBar :value="num(payload.nb_ivia1)" :thresholds="[85, 100]" unit="j" :decimals="0" label="IV-IA1" :comparison-value="compPayload('nb_ivia1')" />
+                    <BseMetricBar :value="num(payload.nb_iviaf)" :thresholds="[110, 140]" unit="j" :decimals="0" label="IV-IAF" :comparison-value="compPayload('nb_iviaf')" />
                     <BseMetricBar
                         :value="num(payload.tx_reussite_ia1)"
                         :thresholds="[50, 65]"
                         unit="%"
                         label="Réussite 1ère IA"
+                        :comparison-value="compPayload('tx_reussite_ia1')"
                         :higher-is-better="true"
                     />
-                    <BseMetricBar :value="num(payload.tx_ia3)" :thresholds="[15, 30]" unit="%" label="3 IA et plus" />
-                    <BseMetricBar :value="num(payload.ivv)" :thresholds="[400, 420]" unit="j" :decimals="0" label="IVV" />
-                    <BseMetricBar :value="num(results.veau_par_vache)" :thresholds="[1]" unit="" :decimals="2" label="Veau / Vache" :higher-is-better="true" />
-                    <BseMetricBar :value="num(results.tx_avortements)" :thresholds="[1]" unit="%" label="Avortements" />
+                    <BseMetricBar :value="num(payload.tx_ia3)" :thresholds="[15, 30]" unit="%" label="3 IA et plus" :comparison-value="compPayload('tx_ia3')" />
+                    <BseMetricBar :value="num(payload.ivv)" :thresholds="[400, 420]" unit="j" :decimals="0" label="IVV" :comparison-value="compPayload('ivv')" />
+                    <BseMetricBar :value="num(results.veau_par_vache)" :thresholds="[1]" unit="" :decimals="2" label="Veau / Vache" :comparison-value="compResult('veau_par_vache')" :higher-is-better="true" />
+                    <BseMetricBar :value="num(results.tx_avortements)" :thresholds="[1]" unit="%" label="Avortements" :comparison-value="compResult('tx_avortements')" />
                 </div>
             </section>
 
@@ -469,6 +582,9 @@ const costCards = computed((): CostCard[] => [
                                 :class="card.value !== null && card.value > 0 ? 'text-red-700 dark:text-red-400' : 'text-green-700 dark:text-green-400'"
                             >
                                 {{ card.value !== null ? fmtInt(card.value, '€') : '-' }}
+                            </p>
+                            <p v-if="card.comparisonValue !== null && card.comparisonValue !== undefined" class="text-center text-[10px] leading-tight text-blue-700">
+                                Ancien {{ fmtInt(card.comparisonValue, '€') }} · {{ card.comparisonRateValue }}
                             </p>
                         </div>
                         <!-- Description -->

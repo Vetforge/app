@@ -6,6 +6,7 @@ namespace App\Http\Requests;
 
 use App\Models\Analysis;
 use App\Models\Breeder;
+use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -23,9 +24,17 @@ class UpdateAnalysisRequest extends FormRequest
     }
 
     /**
+     * Renvoyer un 404 plutôt qu'un 403 pour ne pas révéler l'existence de la ressource.
+     */
+    protected function failedAuthorization(): void
+    {
+        abort(404);
+    }
+
+    /**
      * Get the validation rules that apply to the request.
      *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
+     * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array
     {
@@ -51,7 +60,49 @@ class UpdateAnalysisRequest extends FormRequest
                 if (! $belongsToUser) {
                     $validator->errors()->add('breeder_id', 'Cet eleveur est introuvable.');
                 }
+
+                $this->validateComparisonAnalysis($validator);
             },
         ];
+    }
+
+    private function validateComparisonAnalysis(Validator $validator): void
+    {
+        $analysis = $this->route('analysis');
+
+        if (! $analysis instanceof Analysis || ! in_array($analysis->module, ['bse-laitier', 'bse-allaitant'], true)) {
+            return;
+        }
+
+        $comparisonId = $this->input('payload.comparison_analysis_id');
+
+        if ($comparisonId === null || $comparisonId === '' || $comparisonId === 0 || $comparisonId === '0') {
+            return;
+        }
+
+        if (! is_numeric($comparisonId)) {
+            $validator->errors()->add('payload.comparison_analysis_id', 'Ancien bilan invalide.');
+
+            return;
+        }
+
+        $comparisonId = (int) $comparisonId;
+
+        if ($comparisonId === $analysis->id) {
+            $validator->errors()->add('payload.comparison_analysis_id', 'Un bilan ne peut pas etre compare a lui-meme.');
+
+            return;
+        }
+
+        $exists = Analysis::query()
+            ->where('id', $comparisonId)
+            ->where('user_id', $this->user()->id)
+            ->where('module', $analysis->module)
+            ->where('breeder_id', $this->input('breeder_id'))
+            ->exists();
+
+        if (! $exists) {
+            $validator->errors()->add('payload.comparison_analysis_id', 'Ancien bilan introuvable pour cet eleveur.');
+        }
     }
 }

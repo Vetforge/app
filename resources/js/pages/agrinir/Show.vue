@@ -122,11 +122,11 @@ const loadingTypes = ref(false);
 
 const requiredFields: ParamField[] = [
     { key: 'humidite', label: 'Humidité', unit: '%' },
-    { key: 'proteine', label: 'MAT brute', unit: '% MS' },
-    { key: 'ndf', label: 'NDF', unit: '% MS' },
-    { key: 'adf', label: 'ADF', unit: '% MS' },
-    { key: 'cendres', label: 'Cendres', unit: '% MS' },
-    { key: 'matiere_grasse', label: 'Matière grasse', unit: '% MS' },
+    { key: 'proteine', label: 'MAT brute', unit: '% MB' },
+    { key: 'ndf', label: 'NDF', unit: '% MB' },
+    { key: 'adf', label: 'ADF', unit: '% MB' },
+    { key: 'cendres', label: 'Cendres', unit: '% MB' },
+    { key: 'matiere_grasse', label: 'Matière grasse', unit: '% MB' },
 ];
 
 const mineralFields: ParamField[] = [
@@ -677,7 +677,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
                     <div v-if="needsAmidon" class="flex flex-col gap-1">
                         <label class="text-xs font-medium text-foreground">
                             Amidon
-                            <span class="text-muted-foreground">(% MS)</span>
+                            <span class="text-muted-foreground">(% MB)</span>
                             <span class="ml-1 text-xs text-primary">*</span>
                         </label>
                         <input

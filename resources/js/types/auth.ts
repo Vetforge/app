@@ -15,9 +15,9 @@ export type User = {
     is_admin: boolean;
     avatar?: string;
     email_verified_at: string | null;
-    last_login_at: string | null;
-    created_at: string;
-    updated_at: string;
+    last_login_at?: string | null;
+    created_at?: string;
+    updated_at?: string;
     [key: string]: unknown;
 };
 

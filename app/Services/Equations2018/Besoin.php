@@ -353,7 +353,7 @@ class Besoin
         $poidsVif = (float) ($ration->poids_vif ?? 650);
         $lait = (float) ($ration->lait_objectif ?? 0);
         $semGest = RationHelper::calculerSemainesGestation($ration);
-        $entretien = $lait > 0 ? 0.115 * $poidsVif : 0.07 * $poidsVif;
+        $entretien = $lait > 0 ? 0.150 * $poidsVif : 0.105 * $poidsVif;
 
         return $entretien
             + ($semGest >= 27 ? 1.0 : 0.0)
@@ -369,7 +369,7 @@ class Besoin
 
         return $entretien
             + ($semGest >= 27 ? 1.0 : 0.0)
-            + 0.15 * $lait;
+            + 1.15 * $lait;
     }
 
     public static function calculerBesoinS(Ration $ration): float

@@ -7,11 +7,15 @@ const props = withDefaults(
         thresholds: number[];
         unit?: string;
         label: string;
+        comparisonValue?: number | null;
+        comparisonLabel?: string;
         higherIsBetter?: boolean;
         decimals?: number;
     }>(),
     {
         unit: '%',
+        comparisonValue: null,
+        comparisonLabel: 'Ancien',
         higherIsBetter: false,
         decimals: 1,
     },
@@ -28,7 +32,8 @@ const LABEL_X = 34;
 const displayMax = computed(() => {
     const maxThresh = props.thresholds.length > 0 ? Math.max(...props.thresholds) : 10;
     const v = props.value ?? 0;
-    return Math.max(v * 1.3, maxThresh * 1.5, 0.01);
+    const comparison = props.comparisonValue ?? 0;
+    return Math.max(v * 1.3, comparison * 1.3, maxThresh * 1.5, 0.01);
 });
 
 function yOf(v: number): number {
@@ -38,6 +43,8 @@ function yOf(v: number): number {
 
 const barY = computed(() => (props.value !== null ? yOf(props.value) : PLOT_BOTTOM));
 const barH = computed(() => PLOT_BOTTOM - barY.value);
+const hasComparison = computed(() => props.comparisonValue !== null && props.comparisonValue !== undefined);
+const comparisonY = computed(() => (hasComparison.value ? yOf(props.comparisonValue as number) : PLOT_BOTTOM));
 
 const fillColor = computed((): string => {
     const v = props.value;
@@ -63,6 +70,11 @@ const fillColor = computed((): string => {
 const formattedValue = computed(() => {
     if (props.value === null || props.value === undefined) return '–';
     return props.value.toFixed(props.decimals) + (props.unit ? ' ' + props.unit : '');
+});
+
+const formattedComparisonValue = computed(() => {
+    if (!hasComparison.value) return '';
+    return (props.comparisonValue as number).toFixed(props.decimals) + (props.unit ? ' ' + props.unit : '');
 });
 </script>
 
@@ -91,6 +103,20 @@ const formattedValue = computed(() => {
             <!-- Value bar -->
             <rect v-if="value !== null && barH > 0" :x="BAR_X" :y="barY" :width="BAR_W" :height="barH" :fill="fillColor" rx="2" />
 
+            <!-- Previous report marker -->
+            <template v-if="hasComparison">
+                <line
+                    :x1="BAR_X - 5"
+                    :y1="comparisonY"
+                    :x2="BAR_X + BAR_W + 5"
+                    :y2="comparisonY"
+                    stroke="#2563eb"
+                    stroke-width="1.3"
+                    stroke-dasharray="2,2"
+                />
+                <circle :cx="BAR_X + BAR_W + 7" :cy="comparisonY" r="2" fill="#2563eb" />
+            </template>
+
             <!-- Value label above bar -->
             <text
                 v-if="value !== null"
@@ -108,5 +134,8 @@ const formattedValue = computed(() => {
             <text v-else :x="BAR_X + BAR_W / 2" :y="PLOT_BOTTOM - 20" text-anchor="middle" font-size="9" fill="#94a3b8"> – </text>
         </svg>
         <p class="max-w-[88px] text-center text-[11px] leading-tight text-muted-foreground">{{ label }}</p>
+        <p v-if="hasComparison" class="max-w-[88px] text-center text-[10px] leading-tight text-blue-700">
+            {{ comparisonLabel }}: {{ formattedComparisonValue }}
+        </p>
     </div>
 </template>

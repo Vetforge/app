@@ -687,7 +687,16 @@ final class VeterinaryAnalysisCalculator
         $achatComplEuros = self::float($payload['achat_complementaire_euros'] ?? 0);
         $achatAmvEuros = self::float($payload['achat_amv_euros'] ?? 0);
 
-        $nbMorts = $nbAccidentsVelage + $nbMortsPost24h;
+        // Legacy data can contain either a post-24h total, a cause breakdown, or both.
+        $nbMortsParCause = $nbMortsDiar1
+            + $nbMortsDiar2et3
+            + $nbMortsDiar4
+            + $nbMortsRespi
+            + $nbMortsOmphalite
+            + $nbMortsAutres
+            + $nbMortsSubites;
+        $nbMortsPost24hRetenus = max($nbMortsPost24h, $nbMortsParCause, max(0.0, $nbMortsAvant3Mois - $nbAccidentsVelage));
+        $nbMorts = $nbAccidentsVelage + $nbMortsPost24hRetenus;
         $nbMortinatalite = $nbAccidentsVelage + $nbAvortons;
         $nbVivants24h = $nbVeauxNes - $nbAccidentsVelage;
         $nbVeauxSevres = $nbSevres;
@@ -701,7 +710,7 @@ final class VeterinaryAnalysisCalculator
 
         $txMortaliteTotalVeaux = $nbVeauxNes > 0 ? ($nbMorts / $nbVeauxNes * 100) : null;
         $txMortinataliteVeaux = $nbVeauxNes > 0 ? (($nbAccidentsVelage + $nbAvortons) / $nbVeauxNes * 100) : null;
-        $txMortalite24hVeaux = $nbVeauxNes > 0 ? ($nbMortsPost24h / $nbVeauxNes * 100) : null;
+        $txMortalite24hVeaux = $nbVeauxNes > 0 ? ($nbMortsPost24hRetenus / $nbVeauxNes * 100) : null;
         $txVenduSevreVeaux = $nbVeauxNes > 0 ? ($nbSevres / $nbVeauxNes * 100) : null;
         $txMaladesDiarTotal = $nbVeauxNes > 0 ? (($nbMaladesDiar1 + $nbMaladesDiar2et3 + $nbMaladesDiar4) / $nbVeauxNes * 100) : null;
         $txMaladesRespi = $nbVeauxNes > 0 ? ($nbMaladesRespi / $nbVeauxNes * 100) : null;
@@ -745,7 +754,8 @@ final class VeterinaryAnalysisCalculator
         $prixHaEnsilageMais = self::float($settings['prix_ha_ensilage_mais'] ?? 1000);
         $prixProductionCereales = self::float($settings['prix_production_cereales_tonnes'] ?? 150);
 
-        $coutMortalite = ($nbAvortons * $prixVeauAvortement) + ($nbAccidentsVelage * $prixVeauAccidentVelage) + ($nbMortsDiar1 * $prixMortDiar1) + ($nbMortsDiar2et3 * $prixMortDiar2et3) + ($nbMortsDiar4 * $prixMortDiar4) + ($nbMortsRespi * $prixMortRespi) + ($nbMortsOmphalite * $prixMortOmphalite) + ($nbMortsAutres * $prixMortAutres) + ($nbMortsSubites * $prixMortSubite);
+        $nbMortsPost24hNonDetaillees = max(0.0, $nbMortsPost24hRetenus - $nbMortsParCause);
+        $coutMortalite = ($nbAvortons * $prixVeauAvortement) + ($nbAccidentsVelage * $prixVeauAccidentVelage) + ($nbMortsDiar1 * $prixMortDiar1) + ($nbMortsDiar2et3 * $prixMortDiar2et3) + ($nbMortsDiar4 * $prixMortDiar4) + ($nbMortsRespi * $prixMortRespi) + ($nbMortsOmphalite * $prixMortOmphalite) + ($nbMortsAutres * $prixMortAutres) + ($nbMortsSubites * $prixMortSubite) + ($nbMortsPost24hNonDetaillees * $prixMortAutres);
         $coutIvv = ((($ivv - 365) * $nbVaches) / 270) * $prixVeauIvv;
         $coutDiarrhee = ($nbMaladesDiar1 * $prixMalDiar1) + ($nbMortsDiar1 * $prixMortDiar1) + ($nbMaladesDiar2et3 * $prixMalDiar2et3) + ($nbMortsDiar2et3 * $prixMortDiar2et3) + ($nbMaladesDiar4 * $prixMalDiar4) + ($nbMortsDiar4 * $prixMortDiar4) + ($nbDiarPerf * $prixPerfDiar);
         $coutRespi = ($nbMaladesRespi * $prixMalRespi) + ($nbMortsRespi * $prixMortRespi);
@@ -755,6 +765,8 @@ final class VeterinaryAnalysisCalculator
 
         return [
             'nb_morts' => $nbMorts,
+            'nb_morts_post24h_retenus' => $nbMortsPost24hRetenus,
+            'nb_morts_post24h_non_detaillees' => $nbMortsPost24hNonDetaillees,
             'nb_mortinatalite' => $nbMortinatalite,
             'nb_vivants24h' => $nbVivants24h,
             'nb_veaux_sevres' => $nbVeauxSevres,

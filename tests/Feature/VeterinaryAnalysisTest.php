@@ -149,6 +149,136 @@ it('rejects breeders owned by another user when creating analyses', function () 
         ->assertSessionHasErrors('breeder_id');
 });
 
+it('stores a bse comparison only for the same breeder and module', function () {
+    $user = User::factory()->create();
+    $breeder = Breeder::factory()->create(['user_id' => $user->id]);
+    $otherBreeder = Breeder::factory()->create(['user_id' => $user->id]);
+    $settings = VeterinaryModules::defaultSettings('bse-laitier');
+    $payload = VeterinaryModules::payloadTemplate('bse-laitier', $settings);
+
+    $previousAnalysis = Analysis::factory()->create([
+        'user_id' => $user->id,
+        'breeder_id' => $breeder->id,
+        'module' => 'bse-laitier',
+        'analyzed_at' => '2025-06-01',
+        'payload' => $payload,
+        'settings_snapshot' => $settings,
+    ]);
+    $otherBreederAnalysis = Analysis::factory()->create([
+        'user_id' => $user->id,
+        'breeder_id' => $otherBreeder->id,
+        'module' => 'bse-laitier',
+        'payload' => $payload,
+        'settings_snapshot' => $settings,
+    ]);
+    $otherModuleAnalysis = Analysis::factory()->create([
+        'user_id' => $user->id,
+        'breeder_id' => $breeder->id,
+        'module' => 'bse-allaitant',
+        'payload' => VeterinaryModules::payloadTemplate('bse-allaitant', VeterinaryModules::defaultSettings('bse-allaitant')),
+    ]);
+
+    $data = [
+        'breeder_id' => $breeder->id,
+        'animal_nom' => null,
+        'sampled_at' => null,
+        'analyzed_at' => '2026-06-02',
+        'intervenant' => 'Dr Martin',
+        'payload' => [...$payload, 'comparison_analysis_id' => $previousAnalysis->id],
+    ];
+
+    $this->actingAs($user)
+        ->post(route('analyses.store', ['module' => 'bse-laitier']), $data)
+        ->assertRedirect();
+
+    $createdAnalysis = Analysis::query()
+        ->where('user_id', $user->id)
+        ->where('module', 'bse-laitier')
+        ->whereKeyNot($previousAnalysis->id)
+        ->whereKeyNot($otherBreederAnalysis->id)
+        ->firstOrFail();
+
+    expect(data_get($createdAnalysis->payload, 'comparison_analysis_id'))->toBe($previousAnalysis->id);
+
+    $this->actingAs($user)
+        ->post(route('analyses.store', ['module' => 'bse-laitier']), [
+            ...$data,
+            'payload' => [...$payload, 'comparison_analysis_id' => $otherBreederAnalysis->id],
+        ])
+        ->assertSessionHasErrors('payload.comparison_analysis_id');
+
+    $this->actingAs($user)
+        ->post(route('analyses.store', ['module' => 'bse-laitier']), [
+            ...$data,
+            'payload' => [...$payload, 'comparison_analysis_id' => $otherModuleAnalysis->id],
+        ])
+        ->assertSessionHasErrors('payload.comparison_analysis_id');
+});
+
+it('rejects bse comparison to itself when updating', function () {
+    $user = User::factory()->create();
+    $breeder = Breeder::factory()->create(['user_id' => $user->id]);
+    $settings = VeterinaryModules::defaultSettings('bse-allaitant');
+    $payload = VeterinaryModules::payloadTemplate('bse-allaitant', $settings);
+    $analysis = Analysis::factory()->create([
+        'user_id' => $user->id,
+        'breeder_id' => $breeder->id,
+        'module' => 'bse-allaitant',
+        'payload' => $payload,
+        'settings_snapshot' => $settings,
+    ]);
+
+    $this->actingAs($user)
+        ->put(route('analyses.update', $analysis), [
+            'breeder_id' => $breeder->id,
+            'animal_nom' => null,
+            'sampled_at' => null,
+            'analyzed_at' => '2026-06-02',
+            'intervenant' => 'Dr Martin',
+            'payload' => [...$payload, 'comparison_analysis_id' => $analysis->id],
+        ])
+        ->assertSessionHasErrors('payload.comparison_analysis_id');
+});
+
+it('loads the selected bse comparison analysis on the show page', function () {
+    $user = User::factory()->create();
+    $breeder = Breeder::factory()->create(['user_id' => $user->id, 'name' => 'GAEC du Val']);
+    $settings = VeterinaryModules::defaultSettings('bse-allaitant');
+    $previousPayload = [
+        ...VeterinaryModules::payloadTemplate('bse-allaitant', $settings),
+        'nb_vaches_reproductrices' => 50,
+        'nb_veaux_nes_vivants' => 45,
+        'nb_morts_post24h' => 5,
+    ];
+    $previousAnalysis = Analysis::factory()->create([
+        'user_id' => $user->id,
+        'breeder_id' => $breeder->id,
+        'module' => 'bse-allaitant',
+        'analyzed_at' => '2025-06-01',
+        'payload' => $previousPayload,
+        'settings_snapshot' => $settings,
+    ]);
+    $analysis = Analysis::factory()->create([
+        'user_id' => $user->id,
+        'breeder_id' => $breeder->id,
+        'module' => 'bse-allaitant',
+        'payload' => [
+            ...VeterinaryModules::payloadTemplate('bse-allaitant', $settings),
+            'comparison_analysis_id' => $previousAnalysis->id,
+        ],
+        'settings_snapshot' => $settings,
+    ]);
+
+    $this->actingAs($user)
+        ->get(route('analyses.show', $analysis))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('analyses/bse-allaitant/Show')
+            ->where('comparisonAnalysis.id', $previousAnalysis->id)
+            ->where('comparisonAnalysis.results.tx_mortalite_total_veaux', 11.1)
+        );
+});
+
 it('stores a settings snapshot when an analysis is created', function () {
     $user = User::factory()->create();
     $breeder = Breeder::factory()->create(['user_id' => $user->id]);

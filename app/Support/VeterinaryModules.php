@@ -367,6 +367,7 @@ final class VeterinaryModules
                 'advice' => '',
             ],
             'bse-laitier' => [
+                'comparison_analysis_id' => null,
                 'race' => 'Prim Holstein',
                 'annee_reference' => (int) date('Y') - 1,
                 'nb_vaches_productrices' => null,
@@ -416,6 +417,7 @@ final class VeterinaryModules
                 'boolean_depistage_metrite' => false,
             ],
             'bse-allaitant' => [
+                'comparison_analysis_id' => null,
                 'race' => 'Charolaise',
                 'annee_reference' => (int) date('Y') - 1,
                 'nb_vaches_reproductrices' => null,

@@ -173,6 +173,40 @@ describe('BSE Allaitant calculator', function () {
         expect($result['tx_mortalite_total_veaux'])->toBe(6.0);
     });
 
+    it('uses detailed mortality causes when post24h total is missing', function () {
+        $result = VeterinaryAnalysisCalculator::calculate('bse-allaitant', [
+            'nb_veaux_nes_vivants' => 77,
+            'nb_accidents_velage' => 0,
+            'nb_morts_post24h' => 0,
+            'nb_morts_diar1' => 1,
+            'nb_morts_subites' => 1,
+        ], []);
+
+        expect($result['nb_morts'])->toBe(2.0)
+            ->and($result['nb_morts_post24h_retenus'])->toBe(2.0)
+            ->and($result['tx_mortalite_total_veaux'])->toBe(2.6)
+            ->and($result['tx_mortalite24h_veaux'])->toBe(2.6);
+    });
+
+    it('does not double count detailed mortality causes already included in post24h total', function () {
+        $result = VeterinaryAnalysisCalculator::calculate('bse-allaitant', [
+            'nb_veaux_nes_vivants' => 100,
+            'nb_accidents_velage' => 1,
+            'nb_morts_post24h' => 5,
+            'nb_morts_diar1' => 2,
+            'nb_morts_subites' => 1,
+        ], [
+            'prix_veau_accident_velage' => 30,
+            'prix_mort_diar1' => 10,
+            'prix_mort_subite' => 20,
+            'prix_mort_autres' => 100,
+        ]);
+
+        expect($result['nb_morts'])->toBe(6.0)
+            ->and($result['nb_morts_post24h_non_detaillees'])->toBe(2.0)
+            ->and($result['cout_mortalite'])->toEqual(270);
+    });
+
     it('calculates letalite per pathology', function () {
         $result = VeterinaryAnalysisCalculator::calculate('bse-allaitant', [
             'nb_malades_diar1' => 20,

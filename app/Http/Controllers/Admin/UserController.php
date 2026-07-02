@@ -9,6 +9,7 @@ use App\Models\Analysis;
 use App\Models\Melange;
 use App\Models\Ration;
 use App\Models\User;
+use App\Support\SearchTerm;
 use App\Support\VeterinaryModules;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -25,12 +26,12 @@ class UserController extends Controller
             ->orderBy('email');
 
         if ($request->filled('search')) {
-            $search = '%'.mb_strtolower(trim((string) $request->input('search'))).'%';
+            $search = SearchTerm::likeContains(mb_strtolower(trim((string) $request->input('search'))));
 
             $query->where(function (Builder $searchQuery) use ($search): void {
                 $searchQuery
-                    ->whereRaw('LOWER(name) LIKE ?', [$search])
-                    ->orWhereRaw('LOWER(email) LIKE ?', [$search]);
+                    ->whereRaw("LOWER(name) LIKE ? ESCAPE '\\'", [$search])
+                    ->orWhereRaw("LOWER(email) LIKE ? ESCAPE '\\'", [$search]);
             });
         }
 

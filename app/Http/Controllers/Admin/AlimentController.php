@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Aliment;
 use App\Models\User;
+use App\Support\SearchTerm;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -19,7 +20,7 @@ class AlimentController extends Controller
         $query = Aliment::query()->with('user:id,name');
 
         if ($request->filled('search')) {
-            $query->where('libelle0', 'ilike', '%'.$request->search.'%');
+            $query->where('libelle0', 'ilike', SearchTerm::likeContains((string) $request->search));
         }
 
         if ($request->filled('type')) {

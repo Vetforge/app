@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Http\Requests;
 
+use App\Models\Analysis;
 use App\Models\Breeder;
 use App\Support\VeterinaryModules;
+use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -23,7 +25,7 @@ class StoreAnalysisRequest extends FormRequest
     /**
      * Get the validation rules that apply to the request.
      *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
+     * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array
     {
@@ -49,7 +51,41 @@ class StoreAnalysisRequest extends FormRequest
                 if (! $belongsToUser) {
                     $validator->errors()->add('breeder_id', 'Cet eleveur est introuvable.');
                 }
+
+                $this->validateComparisonAnalysis($validator);
             },
         ];
+    }
+
+    private function validateComparisonAnalysis(Validator $validator): void
+    {
+        $module = (string) $this->route('module');
+
+        if (! in_array($module, ['bse-laitier', 'bse-allaitant'], true)) {
+            return;
+        }
+
+        $comparisonId = $this->input('payload.comparison_analysis_id');
+
+        if ($comparisonId === null || $comparisonId === '' || $comparisonId === 0 || $comparisonId === '0') {
+            return;
+        }
+
+        if (! is_numeric($comparisonId)) {
+            $validator->errors()->add('payload.comparison_analysis_id', 'Ancien bilan invalide.');
+
+            return;
+        }
+
+        $exists = Analysis::query()
+            ->where('id', (int) $comparisonId)
+            ->where('user_id', $this->user()->id)
+            ->where('module', $module)
+            ->where('breeder_id', $this->input('breeder_id'))
+            ->exists();
+
+        if (! $exists) {
+            $validator->errors()->add('payload.comparison_analysis_id', 'Ancien bilan introuvable pour cet eleveur.');
+        }
     }
 }

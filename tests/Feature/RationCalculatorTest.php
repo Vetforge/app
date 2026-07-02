@@ -893,3 +893,33 @@ test('inra 2018 result outputs expose limiting milk, expected milk and bil ufl l
         Apport2018::calculerApportTotalPDIA($ration) / Apport2018::calculerApportTotalMS($ration)
     );
 });
+
+test('inra 2018 potassium and chlorine requirements follow table 8.1', function () {
+    // Vache laitière en lactation, hors dernier tiers de gestation.
+    $lactante = createCalculationRation();
+    $lactante->poids_vif = 650.0;
+    $lactante->lait_objectif = 30.0;
+    $lactante->mois_gestation = 2.0;
+
+    $semGestLactante = RationHelper::calculerSemainesGestation($lactante);
+    expect($semGestLactante)->toBeLessThan(27.0);
+
+    // Table 8.1 : K entretien lactation = 0.150 × PV, lactation = 1.5 g/L, dernier tiers = +1.0.
+    expect(Besoin2018::calculerBesoinK($lactante))->toBe(0.150 * 650.0 + 1.5 * 30.0);
+    // Table 8.1 : Cl entretien lactation = 0.035 × PV, lactation = 1.15 g/L, dernier tiers = +1.0.
+    expect(Besoin2018::calculerBesoinCl($lactante))->toBe(0.035 * 650.0 + 1.15 * 30.0);
+
+    // Vache tarie (non lactante) dans le dernier tiers de gestation.
+    $tarie = createCalculationRation();
+    $tarie->poids_vif = 700.0;
+    $tarie->lait_objectif = 0.0;
+    $tarie->mois_gestation = 8.0;
+
+    $semGestTarie = RationHelper::calculerSemainesGestation($tarie);
+    expect($semGestTarie)->toBeGreaterThanOrEqual(27.0);
+
+    // Table 8.1 : K entretien hors lactation = 0.105 × PV, + terme dernier tiers de gestation.
+    expect(Besoin2018::calculerBesoinK($tarie))->toBe(0.105 * 700.0 + 1.0);
+    // Table 8.1 : Cl entretien hors lactation = 0.023 × PV, + terme dernier tiers de gestation.
+    expect(Besoin2018::calculerBesoinCl($tarie))->toBe(0.023 * 700.0 + 1.0);
+});

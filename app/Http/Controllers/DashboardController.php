@@ -10,6 +10,7 @@ use App\Models\Breeder;
 use App\Models\PlanRationnement;
 use App\Models\Ration;
 use App\Models\User;
+use App\Support\SearchTerm;
 use App\Support\VeterinaryModules;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -51,15 +52,15 @@ class DashboardController extends Controller
         $terms = preg_split('/\s+/', $q, -1, PREG_SPLIT_NO_EMPTY) ?: [$q];
 
         $il = DB::getDriverName() === 'pgsql'
-            ? fn (string $col) => "unaccent(COALESCE({$col}, '')) ILIKE unaccent(?)"
-            : fn (string $col) => "LOWER(COALESCE({$col}, '')) LIKE LOWER(?)";
+            ? fn (string $col) => "unaccent(COALESCE({$col}, '')) ILIKE unaccent(?) ESCAPE '\\'"
+            : fn (string $col) => "LOWER(COALESCE({$col}, '')) LIKE LOWER(?) ESCAPE '\\'";
 
         $analyses = Analysis::query()
             ->with('breeder:id,name')
             ->where('user_id', $user->id)
             ->where(function ($query) use ($il, $terms) {
                 foreach ($terms as $term) {
-                    $v = ["%{$term}%"];
+                    $v = [SearchTerm::likeContains($term)];
                     $matchingSlugs = collect(VeterinaryModules::all())
                         ->filter(fn ($m) => str_contains(mb_strtolower($m['label']), mb_strtolower($term))
                             || str_contains(mb_strtolower($m['short_label']), mb_strtolower($term)))
@@ -96,7 +97,7 @@ class DashboardController extends Controller
             ->where('user_id', $user->id)
             ->where(function ($query) use ($il, $terms) {
                 foreach ($terms as $term) {
-                    $v = ["%{$term}%"];
+                    $v = [SearchTerm::likeContains($term)];
                     $query->where(function ($q2) use ($il, $v) {
                         $q2->whereRaw($il('name'), $v)
                             ->orWhereRaw($il('city'), $v)
@@ -124,7 +125,7 @@ class DashboardController extends Controller
             ->where('user_id', $user->id)
             ->where(function ($query) use ($il, $terms) {
                 foreach ($terms as $term) {
-                    $v = ["%{$term}%"];
+                    $v = [SearchTerm::likeContains($term)];
                     $query->where(function ($q2) use ($il, $v) {
                         $q2->whereRaw($il('nom'), $v)
                             ->orWhereHas('breeder', fn ($q3) => $q3->whereRaw($il('name'), $v));
@@ -149,7 +150,7 @@ class DashboardController extends Controller
             ->whereHas('planRationnement', fn ($q2) => $q2->where('user_id', $user->id))
             ->where(function ($query) use ($il, $terms) {
                 foreach ($terms as $term) {
-                    $query->whereRaw($il('nom'), ["%{$term}%"]);
+                    $query->whereRaw($il('nom'), [SearchTerm::likeContains($term)]);
                 }
             })
             ->latest()
@@ -169,7 +170,7 @@ class DashboardController extends Controller
             ->where('user_id', $user->id)
             ->where(function ($query) use ($il, $terms) {
                 foreach ($terms as $term) {
-                    $v = ["%{$term}%"];
+                    $v = [SearchTerm::likeContains($term)];
                     $query->where(function ($q2) use ($il, $v) {
                         $q2->whereRaw($il('libelle0'), $v)
                             ->orWhereRaw($il('libelle1'), $v)

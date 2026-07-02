@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\Admin\ImportController;
+use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\AgrinirController;
 use App\Http\Controllers\AlimentController;
 use App\Http\Controllers\BreederController;
@@ -33,7 +35,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('aliments/{aliment}/edit', [AlimentController::class, 'edit'])->name('aliments.edit');
     Route::put('aliments/{aliment}', [AlimentController::class, 'update'])->name('aliments.update');
     Route::post('aliments/{aliment}/copy', [AlimentController::class, 'copy'])->name('aliments.copy');
-    Route::get('aliments/{aliment}/pdf', [AlimentController::class, 'pdf'])->name('aliments.pdf');
+    Route::get('aliments/{aliment}/pdf', [AlimentController::class, 'pdf'])->middleware('throttle:10,1')->name('aliments.pdf');
     Route::delete('aliments/{aliment}', [AlimentController::class, 'destroy'])->name('aliments.destroy');
 
     // Plans
@@ -67,13 +69,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::patch('plans/{plan}/rations/{ration}/melanges/{melange}/aliments/{melangeAliment}/valeurs', [MelangeController::class, 'updateAlimentValeurs'])->name('plans.rations.melanges.aliments.valeurs');
         Route::delete('plans/{plan}/rations/{ration}/melanges/{melange}/aliments/{melangeAliment}', [MelangeController::class, 'removeAliment'])->name('plans.rations.melanges.aliments.remove');
         Route::get('plans/{plan}/rations/{ration}/resultats', [RationController::class, 'resultats'])->name('plans.rations.resultats');
-        Route::get('plans/{plan}/rations/{ration}/pdf', [RationController::class, 'pdf'])->name('plans.rations.pdf');
+        Route::get('plans/{plan}/rations/{ration}/pdf', [RationController::class, 'pdf'])->middleware('throttle:10,1')->name('plans.rations.pdf');
         Route::delete('plans/{plan}/rations/{ration}', [RationController::class, 'destroy'])->name('plans.rations.destroy');
     });
 
     // AgriNIR
     Route::get('agrinir', [AgrinirController::class, 'show'])->name('agrinir.show');
-    Route::post('agrinir/calculer', [AgrinirController::class, 'calculer'])->name('agrinir.calculer');
+    Route::post('agrinir/calculer', [AgrinirController::class, 'calculer'])->middleware('throttle:30,1')->name('agrinir.calculer');
     Route::get('agrinir/types/{inra}', [AgrinirController::class, 'types'])->name('agrinir.types');
     Route::post('agrinir/sauvegarder', [AgrinirController::class, 'sauvegarder'])->name('agrinir.sauvegarder');
 
@@ -83,7 +85,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('eleveurs', [BreederController::class, 'store'])->name('breeders.store');
     Route::post('eleveurs/quick', [BreederController::class, 'quickStore'])->name('breeders.quick-store');
     Route::get('eleveurs/import/exemple', [BreederController::class, 'importExample'])->name('breeders.import-example');
-    Route::post('eleveurs/import', [BreederController::class, 'importCsv'])->name('breeders.import');
+    Route::post('eleveurs/import', [BreederController::class, 'importCsv'])->middleware('throttle:5,1')->name('breeders.import');
     Route::get('eleveurs/{breeder}/edit', [BreederController::class, 'edit'])->name('breeders.edit');
     Route::put('eleveurs/{breeder}', [BreederController::class, 'update'])->name('breeders.update');
     Route::delete('eleveurs/{breeder}', [BreederController::class, 'destroy'])->name('breeders.destroy');
@@ -96,7 +98,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('analyses/{analysis}/edit', [VeterinaryAnalysisController::class, 'edit'])->whereNumber('analysis')->name('analyses.edit');
     Route::put('analyses/{analysis}', [VeterinaryAnalysisController::class, 'update'])->whereNumber('analysis')->name('analyses.update');
     Route::delete('analyses/{analysis}', [VeterinaryAnalysisController::class, 'destroy'])->whereNumber('analysis')->name('analyses.destroy');
-    Route::get('analyses/{analysis}/pdf', [VeterinaryAnalysisController::class, 'pdf'])->whereNumber('analysis')->name('analyses.pdf');
+    Route::get('analyses/{analysis}/pdf', [VeterinaryAnalysisController::class, 'pdf'])->whereNumber('analysis')->middleware('throttle:10,1')->name('analyses.pdf');
 
     // Admin
     Route::prefix('admin')->name('admin.')->middleware(EnsureUserIsAdmin::class)->group(function () {
@@ -106,11 +108,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('aliments/{aliment}/edit', [App\Http\Controllers\Admin\AlimentController::class, 'edit'])->name('aliments.edit');
         Route::put('aliments/{aliment}', [App\Http\Controllers\Admin\AlimentController::class, 'update'])->name('aliments.update');
         Route::delete('aliments/{aliment}', [App\Http\Controllers\Admin\AlimentController::class, 'destroy'])->name('aliments.destroy');
-        Route::get('users', [App\Http\Controllers\Admin\UserController::class, 'index'])->name('users.index');
-        Route::get('users/{user}', [App\Http\Controllers\Admin\UserController::class, 'show'])->name('users.show');
-        Route::put('users/{user}', [App\Http\Controllers\Admin\UserController::class, 'update'])->name('users.update');
-        Route::get('import', [App\Http\Controllers\Admin\ImportController::class, 'show'])->name('import.show');
-        Route::post('import', [App\Http\Controllers\Admin\ImportController::class, 'import'])->name('import.store');
+        Route::get('users', [UserController::class, 'index'])->name('users.index');
+        Route::get('users/{user}', [UserController::class, 'show'])->name('users.show');
+        Route::put('users/{user}', [UserController::class, 'update'])->name('users.update');
+        Route::get('import', [ImportController::class, 'show'])->name('import.show');
+        Route::post('import', [ImportController::class, 'import'])->middleware('throttle:5,1')->name('import.store');
     });
 });
 

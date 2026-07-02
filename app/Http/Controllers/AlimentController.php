@@ -9,6 +9,7 @@ use App\Http\Requests\UpdateAlimentRequest;
 use App\Models\Aliment;
 use App\Models\User;
 use App\Support\PdfClinicHeader;
+use App\Support\SearchTerm;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -167,14 +168,14 @@ class AlimentController extends Controller
 
         $query->where(function (Builder $searchQuery) use ($tokens): void {
             foreach ($tokens as $token) {
-                $like = '%'.mb_strtolower($token).'%';
+                $like = SearchTerm::likeContains(mb_strtolower($token));
 
                 $searchQuery->where(function (Builder $tokenQuery) use ($like): void {
                     $tokenQuery
-                        ->whereRaw("LOWER(COALESCE(libelle0, '')) LIKE ?", [$like])
-                        ->orWhereRaw("LOWER(COALESCE(libelle1, '')) LIKE ?", [$like])
-                        ->orWhereRaw("LOWER(COALESCE(type, '')) LIKE ?", [$like])
-                        ->orWhereRaw("LOWER(COALESCE(code_inra, '')) LIKE ?", [$like]);
+                        ->whereRaw("LOWER(COALESCE(libelle0, '')) LIKE ? ESCAPE '\\'", [$like])
+                        ->orWhereRaw("LOWER(COALESCE(libelle1, '')) LIKE ? ESCAPE '\\'", [$like])
+                        ->orWhereRaw("LOWER(COALESCE(type, '')) LIKE ? ESCAPE '\\'", [$like])
+                        ->orWhereRaw("LOWER(COALESCE(code_inra, '')) LIKE ? ESCAPE '\\'", [$like]);
                 });
             }
         });

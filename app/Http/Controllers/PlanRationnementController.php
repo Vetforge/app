@@ -8,6 +8,7 @@ use App\Http\Requests\StorePlanRationnementRequest;
 use App\Http\Requests\UpdatePlanRationnementRequest;
 use App\Models\Breeder;
 use App\Models\PlanRationnement;
+use App\Support\SearchTerm;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -133,18 +134,18 @@ class PlanRationnementController extends Controller
 
         $query->where(function (Builder $searchQuery) use ($dateSearchSql, $tokens): void {
             foreach ($tokens as $token) {
-                $like = '%'.mb_strtolower($token).'%';
+                $like = SearchTerm::likeContains(mb_strtolower($token));
 
                 $searchQuery->where(function (Builder $tokenQuery) use ($dateSearchSql, $like): void {
                     $tokenQuery
-                        ->whereRaw("LOWER(COALESCE(nom, '')) LIKE ?", [$like])
-                        ->orWhereRaw("LOWER(COALESCE(inra, '')) LIKE ?", [$like])
+                        ->whereRaw("LOWER(COALESCE(nom, '')) LIKE ? ESCAPE '\\'", [$like])
+                        ->orWhereRaw("LOWER(COALESCE(inra, '')) LIKE ? ESCAPE '\\'", [$like])
                         ->orWhereRaw($dateSearchSql, [$like])
                         ->orWhereHas('breeder', function (Builder $breederQuery) use ($like): void {
                             $breederQuery
-                                ->whereRaw("LOWER(COALESCE(name, '')) LIKE ?", [$like])
-                                ->orWhereRaw("LOWER(COALESCE(city, '')) LIKE ?", [$like])
-                                ->orWhereRaw("LOWER(COALESCE(herd_number, '')) LIKE ?", [$like]);
+                                ->whereRaw("LOWER(COALESCE(name, '')) LIKE ? ESCAPE '\\'", [$like])
+                                ->orWhereRaw("LOWER(COALESCE(city, '')) LIKE ? ESCAPE '\\'", [$like])
+                                ->orWhereRaw("LOWER(COALESCE(herd_number, '')) LIKE ? ESCAPE '\\'", [$like]);
                         });
                 });
             }
@@ -156,8 +157,8 @@ class PlanRationnementController extends Controller
         $wrappedColumn = $query->getQuery()->getGrammar()->wrap($column);
 
         return match (DB::getDriverName()) {
-            'pgsql' => "LOWER(COALESCE(TO_CHAR({$wrappedColumn}, 'YYYY-MM-DD'), '')) LIKE ?",
-            'sqlite' => "LOWER(COALESCE(CAST({$wrappedColumn} AS TEXT), '')) LIKE ?",
+            'pgsql' => "LOWER(COALESCE(TO_CHAR({$wrappedColumn}, 'YYYY-MM-DD'), '')) LIKE ? ESCAPE '\\'",
+            'sqlite' => "LOWER(COALESCE(CAST({$wrappedColumn} AS TEXT), '')) LIKE ? ESCAPE '\\'",
             'sqlsrv' => "LOWER(COALESCE(CONVERT(varchar(10), {$wrappedColumn}, 23), '')) LIKE ?",
             default => "LOWER(COALESCE(CAST({$wrappedColumn} AS CHAR), '')) LIKE ?",
         };

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3';
 import { Minus, Save, Settings } from 'lucide-vue-next';
-import { computed, reactive, ref } from 'vue';
+import { computed, reactive, ref, watch } from 'vue';
 import { edit as moduleSettingsEdit } from '@/actions/App/Http/Controllers/Settings/ModuleSettingsController';
 import {
     index as analysesIndex,
@@ -40,6 +40,12 @@ interface Analysis {
     payload: Record<string, any>;
 }
 
+interface ComparisonOption {
+    id: number;
+    breeder_id: number;
+    label: string;
+}
+
 interface FormState {
     breeder_id: string | number;
     animal_nom: string;
@@ -58,6 +64,7 @@ const props = defineProps<{
     quickBreederStoreUrl: string;
     settings: Record<string, any>;
     payloadTemplate: Record<string, any>;
+    comparisonAnalyses: ComparisonOption[];
 }>();
 
 const isEdit = computed(() => !!props.analysis);
@@ -73,6 +80,10 @@ const form = reactive<FormState>({
     payload: clonePlain(props.analysis?.payload ?? props.payloadTemplate),
 });
 
+if (form.payload.comparison_analysis_id === undefined) {
+    form.payload.comparison_analysis_id = null;
+}
+
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Accueil', href: dashboard() },
     { title: props.module.short_label, href: analysesIndex({ module: props.module.slug }).url },
@@ -80,6 +91,23 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 const raceOptions = ['Prim Holstein', 'Normande', 'Autre'];
+
+const filteredComparisonAnalyses = computed(() => {
+    if (!form.breeder_id) return [];
+    const breederId = Number(form.breeder_id);
+    return props.comparisonAnalyses.filter((analysis) => analysis.breeder_id === breederId);
+});
+
+watch(
+    () => form.breeder_id,
+    () => {
+        const selectedComparisonId = Number(form.payload.comparison_analysis_id);
+        if (!selectedComparisonId) return;
+        if (!filteredComparisonAnalyses.value.some((analysis) => analysis.id === selectedComparisonId)) {
+            form.payload.comparison_analysis_id = null;
+        }
+    },
+);
 
 function submit(): void {
     processing.value = true;
@@ -149,6 +177,21 @@ function submit(): void {
                         <label class="text-sm font-medium" for="intervenant">Intervenant</label>
                         <input id="intervenant" v-model="form.intervenant" class="h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" />
                         <InputError :message="errors.intervenant" />
+                    </div>
+                    <div class="grid gap-1 xl:col-span-4">
+                        <label class="text-sm font-medium" for="comparison_analysis_id">Comparer avec</label>
+                        <select
+                            id="comparison_analysis_id"
+                            v-model="form.payload.comparison_analysis_id"
+                            class="h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                            :disabled="!form.breeder_id || filteredComparisonAnalyses.length === 0"
+                        >
+                            <option :value="null">Aucun ancien bilan</option>
+                            <option v-for="comparison in filteredComparisonAnalyses" :key="comparison.id" :value="comparison.id">
+                                {{ comparison.label }}
+                            </option>
+                        </select>
+                        <InputError :message="errors['payload.comparison_analysis_id']" />
                     </div>
                 </div>
             </section>
@@ -239,11 +282,11 @@ function submit(): void {
                 </div>
                 <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
                     <div class="grid gap-1">
-                        <label class="text-sm font-medium" for="nb_ivia1">Nb IVIa1</label>
+                        <label class="text-sm font-medium" for="nb_ivia1">IV-IA1 (jours)</label>
                         <input id="nb_ivia1" v-model.number="form.payload.nb_ivia1" type="number" min="0" class="rounded border border-border bg-background px-2 py-1 text-sm" />
                     </div>
                     <div class="grid gap-1">
-                        <label class="text-sm font-medium" for="nb_iviaf">Nb IVIaf</label>
+                        <label class="text-sm font-medium" for="nb_iviaf">IV-IAF (jours)</label>
                         <input id="nb_iviaf" v-model.number="form.payload.nb_iviaf" type="number" min="0" class="rounded border border-border bg-background px-2 py-1 text-sm" />
                     </div>
                     <div class="grid gap-1">

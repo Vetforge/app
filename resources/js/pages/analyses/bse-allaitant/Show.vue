@@ -36,8 +36,17 @@ interface Analysis {
     settings_snapshot: Record<string, unknown> | null;
 }
 
+interface ComparisonAnalysis {
+    id: number;
+    breeder: Analysis['breeder'];
+    analyzed_at: string | null;
+    payload: Record<string, unknown>;
+    results: Record<string, unknown> | null;
+}
+
 const props = defineProps<{
     analysis: Analysis;
+    comparisonAnalysis?: ComparisonAnalysis | null;
     module: ModuleInfo;
 }>();
 
@@ -49,6 +58,8 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 const results = computed<Record<string, any>>(() => (props.analysis.results ?? {}) as Record<string, any>);
 const payload = computed<Record<string, any>>(() => props.analysis.payload as Record<string, any>);
+const comparisonResults = computed<Record<string, any>>(() => (props.comparisonAnalysis?.results ?? {}) as Record<string, any>);
+const comparisonPayload = computed<Record<string, any>>(() => (props.comparisonAnalysis?.payload ?? {}) as Record<string, any>);
 const commentaires = computed<Record<string, { s: string; ns: string }>>(() => (results.value.commentaires ?? {}) as Record<string, { s: string; ns: string }>);
 
 function formatDate(value: string | null): string {
@@ -75,6 +86,62 @@ function num(value: unknown): number | null {
     const n = Number(value);
     return isNaN(n) ? null : n;
 }
+
+function compResult(key: string): number | null {
+    return num(comparisonResults.value[key]);
+}
+
+function compPayload(key: string): number | null {
+    return num(comparisonPayload.value[key]);
+}
+
+const comparisonLabel = computed(() => {
+    if (!props.comparisonAnalysis) return '';
+    return `Ancien bilan du ${formatDate(props.comparisonAnalysis.analyzed_at)}`;
+});
+
+interface ComparisonRow {
+    label: string;
+    current: string;
+    previous: string;
+}
+
+const comparisonRows = computed((): ComparisonRow[] => {
+    if (!props.comparisonAnalysis) return [];
+
+    return [
+        {
+            label: 'Mortalité totale',
+            current: fmt(results.value.tx_mortalite_total_veaux, 1, '%'),
+            previous: fmt(comparisonResults.value.tx_mortalite_total_veaux, 1, '%'),
+        },
+        {
+            label: 'Veaux 90j / vache',
+            current: fmt(results.value.tx_vivants3_mois, 2),
+            previous: fmt(comparisonResults.value.tx_vivants3_mois, 2),
+        },
+        {
+            label: 'IVV',
+            current: fmtInt(payload.value.ivv, 'j'),
+            previous: fmtInt(comparisonPayload.value.ivv, 'j'),
+        },
+        {
+            label: 'Diarrhées',
+            current: fmt(results.value.tx_malades_diar_total, 1, '%'),
+            previous: fmt(comparisonResults.value.tx_malades_diar_total, 1, '%'),
+        },
+        {
+            label: 'Respiratoire',
+            current: fmt(results.value.tx_malades_respi, 1, '%'),
+            previous: fmt(comparisonResults.value.tx_malades_respi, 1, '%'),
+        },
+        {
+            label: 'Coût mortalité',
+            current: fmtInt(results.value.cout_mortalite, '€'),
+            previous: fmtInt(comparisonResults.value.cout_mortalite, '€'),
+        },
+    ];
+});
 
 function plainText(value: string): string {
     return value
@@ -205,6 +272,8 @@ interface CostCard {
     value: number | null;
     rateLabel: string;
     rateValue: string;
+    comparisonValue?: number | null;
+    comparisonRateValue?: string;
     commentKey: string;
     description: string;
 }
@@ -215,6 +284,8 @@ const costCards = computed((): CostCard[] => [
         value: num(results.value.cout_mortalite),
         rateLabel: 'Mortalité',
         rateValue: fmt(results.value.tx_mortalite_total_veaux, 1, '%'),
+        comparisonValue: compResult('cout_mortalite'),
+        comparisonRateValue: fmt(comparisonResults.value.tx_mortalite_total_veaux, 1, '%'),
         commentKey: 'tx_mortalite_total_veaux',
         description:
             "L'audit maladies néonatales bovines permet de réduire le coût de traitement, les pertes de croissance et la mortalité. Une approche globale : conduite d'élevage, alimentation des mères et des veaux, vermifugation et vaccinations.",
@@ -224,6 +295,8 @@ const costCards = computed((): CostCard[] => [
         value: num(results.value.cout_diarrhee),
         rateLabel: 'Tx diarrhées',
         rateValue: fmt(results.value.tx_malades_diar_total, 1, '%'),
+        comparisonValue: compResult('cout_diarrhee'),
+        comparisonRateValue: fmt(comparisonResults.value.tx_malades_diar_total, 1, '%'),
         commentKey: 'tx_diarrhee_veaux_total',
         description:
             'Le plan diarrhées néonatales étudie les facteurs de risque et met en place les solutions adaptées : alimentation des mères, gestion sanitaire, vaccination, qualité des colostrums.',
@@ -233,6 +306,8 @@ const costCards = computed((): CostCard[] => [
         value: num(results.value.cout_respi),
         rateLabel: 'Tx respiratoire',
         rateValue: fmt(results.value.tx_malades_respi, 1, '%'),
+        comparisonValue: compResult('cout_respi'),
+        comparisonRateValue: fmt(comparisonResults.value.tx_malades_respi, 1, '%'),
         commentKey: 'tx_respi_veaux',
         description:
             'Mise en place ou redéfinition d\'un protocole de vaccination efficace contre la grippe adapté à votre situation. L\'alimentation des veaux et le bâtiment demandent également une gestion particulière.',
@@ -242,6 +317,8 @@ const costCards = computed((): CostCard[] => [
         value: num(results.value.cout_omphalite),
         rateLabel: 'Tx omphalites',
         rateValue: fmt(results.value.tx_malades_omphalite, 1, '%'),
+        comparisonValue: compResult('cout_omphalite'),
+        comparisonRateValue: fmt(comparisonResults.value.tx_malades_omphalite, 1, '%'),
         commentKey: 'tx_omphalite_veaux',
         description: 'Solutions préventives efficaces : hygiène, désinfection, oligoéléments.',
     },
@@ -250,6 +327,8 @@ const costCards = computed((): CostCard[] => [
         value: num(results.value.cout_ivv),
         rateLabel: 'IVV',
         rateValue: fmtInt(payload.value.ivv, 'j'),
+        comparisonValue: compResult('cout_ivv'),
+        comparisonRateValue: fmtInt(comparisonPayload.value.ivv, 'j'),
         commentKey: 'ivv',
         description:
             "Examens échographiques et gestion régulière de la reproduction. L'alimentation des vaches est la principale cause d'infertilité : un diagnostic nutritionnel précis puis un suivi régulier.",
@@ -259,6 +338,8 @@ const costCards = computed((): CostCard[] => [
         value: num(results.value.cout_alimentaire),
         rateLabel: 'Coût / vache',
         rateValue: fmt(results.value.cout_alimentaire_vache, 0, '€'),
+        comparisonValue: compResult('cout_alimentaire'),
+        comparisonRateValue: fmt(comparisonResults.value.cout_alimentaire_vache, 0, '€'),
         commentKey: 'cout_alimentaire_vache',
         description:
             "L'alimentation est le poste de dépenses le plus élevé et à l'origine de très nombreux problèmes. Diagnostic nutritionnel précis, analyse des fourrages, plan de rationnement et suivi régulier.",
@@ -332,6 +413,31 @@ const costCards = computed((): CostCard[] => [
                 </div>
             </section>
 
+            <section v-if="comparisonAnalysis" class="rounded-xl border border-blue-200 bg-blue-50/60 p-3 sm:p-5 dark:border-blue-900 dark:bg-blue-950/20">
+                <div class="mb-3 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+                    <div>
+                        <h2 class="text-sm font-semibold uppercase tracking-wide text-blue-700 dark:text-blue-300">Comparaison ancien bilan</h2>
+                        <p class="text-xs text-blue-700/80 dark:text-blue-200/80">{{ comparisonLabel }}</p>
+                    </div>
+                    <p class="text-xs text-blue-700/80 dark:text-blue-200/80">{{ comparisonAnalysis.breeder.name }}</p>
+                </div>
+                <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                    <div v-for="row in comparisonRows" :key="row.label" class="rounded-lg bg-background/80 p-3 text-sm">
+                        <p class="text-xs uppercase text-muted-foreground">{{ row.label }}</p>
+                        <div class="mt-1 grid grid-cols-2 gap-2">
+                            <div>
+                                <p class="text-[10px] uppercase text-muted-foreground">Actuel</p>
+                                <p class="font-semibold">{{ row.current }}</p>
+                            </div>
+                            <div>
+                                <p class="text-[10px] uppercase text-blue-700 dark:text-blue-300">Ancien</p>
+                                <p class="font-semibold text-blue-700 dark:text-blue-300">{{ row.previous }}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
             <!-- Niveau de mortalité des veaux -->
             <section class="rounded-xl border border-border bg-card p-3 sm:p-5">
                 <h2 class="mb-4 text-sm font-semibold uppercase tracking-wide text-blue-700 dark:text-blue-400">Niveau de mortalité des veaux</h2>
@@ -345,6 +451,9 @@ const costCards = computed((): CostCard[] => [
                             {{ fmt(results.tx_mortalite_total_veaux, 1) }}%
                         </div>
                         <p class="text-xs text-muted-foreground">Mortalité totale</p>
+                        <p v-if="compResult('tx_mortalite_total_veaux') !== null" class="text-[10px] text-blue-700">
+                            Ancien: {{ fmt(compResult('tx_mortalite_total_veaux'), 1, '%') }}
+                        </p>
                     </div>
 
                     <!-- Zone description -->
@@ -389,7 +498,7 @@ const costCards = computed((): CostCard[] => [
                         </div>
                         <div class="flex justify-between gap-6">
                             <span class="text-muted-foreground">Morts au-delà de 24h</span>
-                            <span class="font-medium">{{ fmtInt(payload.nb_morts_post24h) }}</span>
+                            <span class="font-medium">{{ fmtInt(results.nb_morts_post24h_retenus ?? payload.nb_morts_post24h) }}</span>
                         </div>
                         <div class="flex justify-between gap-6">
                             <span class="text-muted-foreground">Avortements</span>
@@ -470,6 +579,7 @@ const costCards = computed((): CostCard[] => [
                         unit=""
                         :decimals="2"
                         label="Veau / Vache"
+                        :comparison-value="compResult('veau_par_vache')"
                         :higher-is-better="true"
                     />
                     <BseMetricBar
@@ -478,6 +588,7 @@ const costCards = computed((): CostCard[] => [
                         unit=""
                         :decimals="2"
                         label="Veaux 90j / Vache"
+                        :comparison-value="compResult('tx_vivants3_mois')"
                         :higher-is-better="true"
                     />
                     <BseMetricBar
@@ -486,12 +597,14 @@ const costCards = computed((): CostCard[] => [
                         unit="j"
                         :decimals="0"
                         label="IVV"
+                        :comparison-value="compPayload('ivv')"
                     />
                     <BseMetricBar
                         :value="num(results.tx_avortements)"
                         :thresholds="[2]"
                         unit="%"
                         label="Avortements"
+                        :comparison-value="compResult('tx_avortements')"
                     />
                 </div>
                 <p v-if="commentForKey('ivv')" class="mt-3 rounded-md bg-muted/40 p-3 text-sm italic text-muted-foreground">
@@ -511,30 +624,35 @@ const costCards = computed((): CostCard[] => [
                         :thresholds="[3, 6]"
                         unit="%"
                         label="Vêlages longs"
+                        :comparison-value="compResult('tx_velages_longs')"
                     />
                     <BseMetricBar
                         :value="num(results.tx_cesariennes)"
                         :thresholds="[5, 10]"
                         unit="%"
                         label="Césariennes"
+                        :comparison-value="compResult('tx_cesariennes')"
                     />
                     <BseMetricBar
                         :value="num(results.tx_non_delivrances)"
                         :thresholds="[5, 10]"
                         unit="%"
                         label="Non-délivrances"
+                        :comparison-value="compResult('tx_non_delivrances')"
                     />
                     <BseMetricBar
                         :value="num(results.tx_torsions_retournements_matrices)"
                         :thresholds="[2, 4]"
                         unit="%"
                         label="Torsions / retournements"
+                        :comparison-value="compResult('tx_torsions_retournements_matrices')"
                     />
                     <BseMetricBar
                         :value="num(results.tx_metrites)"
                         :thresholds="[5, 10]"
                         unit="%"
                         label="Métrites"
+                        :comparison-value="compResult('tx_metrites')"
                     />
                 </div>
             </section>
@@ -551,36 +669,42 @@ const costCards = computed((): CostCard[] => [
                         :thresholds="[1, 2]"
                         unit="%"
                         label="Mortinatalité"
+                        :comparison-value="compResult('tx_mortinatalite')"
                     />
                     <BseMetricBar
                         :value="num(results.tx_malades_diar_total)"
                         :thresholds="[15, 30]"
                         unit="%"
                         label="Diarrhées (tx malades)"
+                        :comparison-value="compResult('tx_malades_diar_total')"
                     />
                     <BseMetricBar
                         :value="num(results.tx_morts_diar1)"
                         :thresholds="[1, 3]"
                         unit="%"
                         label="Morts diar 0-4j"
+                        :comparison-value="compResult('tx_morts_diar1')"
                     />
                     <BseMetricBar
                         :value="num(results.tx_malades_respi)"
                         :thresholds="[5, 15]"
                         unit="%"
                         label="Respiratoire (tx malades)"
+                        :comparison-value="compResult('tx_malades_respi')"
                     />
                     <BseMetricBar
                         :value="num(results.tx_morts_respi)"
                         :thresholds="[2, 4]"
                         unit="%"
                         label="Morts respiratoire"
+                        :comparison-value="compResult('tx_morts_respi')"
                     />
                     <BseMetricBar
                         :value="num(results.tx_malades_omphalite)"
                         :thresholds="[2, 4]"
                         unit="%"
                         label="Omphalites (tx malades)"
+                        :comparison-value="compResult('tx_malades_omphalite')"
                     />
                 </div>
             </section>
@@ -611,6 +735,9 @@ const costCards = computed((): CostCard[] => [
                                 :class="card.value !== null && card.value > 0 ? 'text-red-700 dark:text-red-400' : 'text-green-700 dark:text-green-400'"
                             >
                                 {{ card.value !== null ? fmtInt(card.value, '€') : '-' }}
+                            </p>
+                            <p v-if="card.comparisonValue !== null && card.comparisonValue !== undefined" class="text-center text-[10px] leading-tight text-blue-700">
+                                Ancien {{ fmtInt(card.comparisonValue, '€') }} · {{ card.comparisonRateValue }}
                             </p>
                         </div>
                         <!-- Description -->

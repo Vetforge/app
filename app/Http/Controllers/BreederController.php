@@ -9,6 +9,7 @@ use App\Http\Requests\StoreBreederRequest;
 use App\Http\Requests\UpdateBreederRequest;
 use App\Models\Breeder;
 use App\Services\BreederImporter;
+use App\Support\SearchTerm;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -159,12 +160,12 @@ class BreederController extends Controller
         }
 
         $il = DB::getDriverName() === 'pgsql'
-            ? fn (string $col) => "unaccent(COALESCE({$col}, '')) ILIKE unaccent(?)"
-            : fn (string $col) => "LOWER(COALESCE({$col}, '')) LIKE LOWER(?)";
+            ? fn (string $col) => "unaccent(COALESCE({$col}, '')) ILIKE unaccent(?) ESCAPE '\\'"
+            : fn (string $col) => "LOWER(COALESCE({$col}, '')) LIKE LOWER(?) ESCAPE '\\'";
 
         $query->where(function (Builder $searchQuery) use ($tokens, $il): void {
             foreach ($tokens as $token) {
-                $v = ["%{$token}%"];
+                $v = [SearchTerm::likeContains($token)];
 
                 $searchQuery->where(function (Builder $tokenQuery) use ($il, $v): void {
                     $tokenQuery

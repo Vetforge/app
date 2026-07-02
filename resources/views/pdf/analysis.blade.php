@@ -105,8 +105,14 @@
 </head>
 <body>
 @php
+    $comparisonAnalysis = $comparisonAnalysis ?? null;
     $payload = $analysis->payload ?? [];
     $results = $analysis->results ?? [];
+    $comparisonPayload = $comparisonAnalysis?->payload ?? [];
+    $comparisonResults = $comparisonAnalysis?->results ?? [];
+    $comparisonTitle = $comparisonAnalysis
+        ? 'Ancien bilan du ' . ($comparisonAnalysis->analyzed_at?->format('d/m/Y') ?? 'date non renseignée')
+        : null;
     $settings = $analysis->settings_snapshot ?? [];
     $enabled = fn (string $key) => collect(data_get($settings, $key, []))
         ->filter(fn ($item) => is_array($item) && ($item['enabled'] ?? true) !== false);
@@ -939,6 +945,20 @@
             ['Létalité respiratoire',   $r('letalite_malades_respi')],
             ['Létalité omphalite',      $r('letalite_malades_omphalite')],
         ], fn ($l) => $l[1] !== null);
+
+        $cr = fn (string $k) => data_get($comparisonResults, $k);
+        $cp = fn (string $k) => data_get($comparisonPayload, $k);
+        $pct = fn ($v) => $v !== null ? number_format((float) $v, 1, ',', '') . ' %' : '–';
+        $num2 = fn ($v) => $v !== null ? number_format((float) $v, 2, ',', '') : '–';
+        $intUnit = fn ($v, string $unit = '') => $v !== null ? number_format((float) $v, 0, ',', ' ') . ($unit ? ' ' . $unit : '') : '–';
+        $comparisonRows = $comparisonAnalysis ? [
+            ['Mortalité totale', $pct($r('tx_mortalite_total_veaux')), $pct($cr('tx_mortalite_total_veaux'))],
+            ['Veaux 90j / vache', $num2($r('tx_vivants3_mois')), $num2($cr('tx_vivants3_mois'))],
+            ['IVV', $intUnit($p('ivv'), 'j'), $intUnit($cp('ivv'), 'j')],
+            ['Diarrhées', $pct($r('tx_malades_diar_total')), $pct($cr('tx_malades_diar_total'))],
+            ['Respiratoire', $pct($r('tx_malades_respi')), $pct($cr('tx_malades_respi'))],
+            ['Coût mortalité', $intUnit($r('cout_mortalite'), '€'), $intUnit($cr('cout_mortalite'), '€')],
+        ] : [];
     @endphp
 
     <div class="section">
@@ -962,6 +982,21 @@
             </div>
         </div>
     </div>
+
+    @if($comparisonAnalysis)
+        <div class="section">
+            <h2>Comparaison ancien bilan</h2>
+            <p class="muted" style="margin-bottom:6px;">{{ $comparisonTitle }} - {{ $comparisonAnalysis->breeder?->name }}</p>
+            <table>
+                <thead><tr><th>Indicateur</th><th>Bilan actuel</th><th>Ancien bilan</th></tr></thead>
+                <tbody>
+                    @foreach($comparisonRows as [$label, $current, $previous])
+                        <tr><td>{{ $label }}</td><td>{{ $current }}</td><td>{{ $previous }}</td></tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+    @endif
 
     <div class="section">
         <h2>Mortalité globale des veaux</h2>
@@ -1027,6 +1062,8 @@
                     'cost'       => $r('cout_mortalite'),
                     'rateLabel'  => 'Mortalité',
                     'rateValue'  => ($n1d($r('tx_mortalite_total_veaux')) ?? '–') . ($r('tx_mortalite_total_veaux') !== null ? ' %' : ''),
+                    'comparisonCost' => $cr('cout_mortalite'),
+                    'comparisonRateValue' => ($n1d($cr('tx_mortalite_total_veaux')) ?? '–') . ($cr('tx_mortalite_total_veaux') !== null ? ' %' : ''),
                     'commentKey' => 'tx_mortalite_total_veaux',
                     'desc'       => "L'audit maladies néonatales bovines permet de réduire le coût de traitement, les pertes de croissance et la mortalité. Une approche globale : conduite d'élevage, alimentation des mères et des veaux, vermifugation et vaccinations.",
                 ],
@@ -1035,6 +1072,8 @@
                     'cost'       => $r('cout_diarrhee'),
                     'rateLabel'  => 'Tx diarrhées',
                     'rateValue'  => ($n1d($r('tx_malades_diar_total')) ?? '–') . ($r('tx_malades_diar_total') !== null ? ' %' : ''),
+                    'comparisonCost' => $cr('cout_diarrhee'),
+                    'comparisonRateValue' => ($n1d($cr('tx_malades_diar_total')) ?? '–') . ($cr('tx_malades_diar_total') !== null ? ' %' : ''),
                     'commentKey' => 'tx_diarrhee_veaux_total',
                     'desc'       => "Le plan diarrhées néonatales étudie les facteurs de risque et met en place les solutions adaptées : alimentation des mères, gestion sanitaire, vaccination, qualité des colostrums.",
                 ],
@@ -1043,6 +1082,8 @@
                     'cost'       => $r('cout_respi'),
                     'rateLabel'  => 'Tx respiratoire',
                     'rateValue'  => ($n1d($r('tx_malades_respi')) ?? '–') . ($r('tx_malades_respi') !== null ? ' %' : ''),
+                    'comparisonCost' => $cr('cout_respi'),
+                    'comparisonRateValue' => ($n1d($cr('tx_malades_respi')) ?? '–') . ($cr('tx_malades_respi') !== null ? ' %' : ''),
                     'commentKey' => 'tx_respi_veaux',
                     'desc'       => "Mise en place ou redéfinition d'un protocole de vaccination efficace contre la grippe adapté à votre situation. L'alimentation des veaux et le bâtiment demandent également une gestion particulière.",
                 ],
@@ -1051,6 +1092,8 @@
                     'cost'       => $r('cout_omphalite'),
                     'rateLabel'  => 'Tx omphalites',
                     'rateValue'  => ($n1d($r('tx_malades_omphalite')) ?? '–') . ($r('tx_malades_omphalite') !== null ? ' %' : ''),
+                    'comparisonCost' => $cr('cout_omphalite'),
+                    'comparisonRateValue' => ($n1d($cr('tx_malades_omphalite')) ?? '–') . ($cr('tx_malades_omphalite') !== null ? ' %' : ''),
                     'commentKey' => 'tx_omphalite_veaux',
                     'desc'       => 'Solutions préventives efficaces : hygiène, désinfection, oligoéléments.',
                 ],
@@ -1059,6 +1102,8 @@
                     'cost'       => $r('cout_ivv'),
                     'rateLabel'  => 'IVV',
                     'rateValue'  => $p('ivv') !== null ? $p('ivv') . ' j' : '–',
+                    'comparisonCost' => $cr('cout_ivv'),
+                    'comparisonRateValue' => $cp('ivv') !== null ? $cp('ivv') . ' j' : '–',
                     'commentKey' => 'ivv',
                     'desc'       => "Examens échographiques et gestion régulière de la reproduction. L'alimentation des vaches est la principale cause d'infertilité : un diagnostic nutritionnel précis puis un suivi régulier.",
                 ],
@@ -1067,6 +1112,8 @@
                     'cost'       => $r('cout_alimentaire'),
                     'rateLabel'  => 'Coût / vache',
                     'rateValue'  => ($n0($r('cout_alimentaire_vache')) ?? '–') . ($r('cout_alimentaire_vache') !== null ? ' €' : ''),
+                    'comparisonCost' => $cr('cout_alimentaire'),
+                    'comparisonRateValue' => ($n0($cr('cout_alimentaire_vache')) ?? '–') . ($cr('cout_alimentaire_vache') !== null ? ' €' : ''),
                     'commentKey' => 'cout_alimentaire_vache',
                     'desc'       => "L'alimentation est le poste de dépenses le plus élevé et à l'origine de très nombreux problèmes. Diagnostic nutritionnel précis, analyse des fourrages, plan de rationnement et suivi régulier.",
                 ],
@@ -1081,6 +1128,7 @@
                     : 'display:flex;align-items:center;justify-content:center;width:54px;height:54px;border-radius:50%;border:2px solid #86efac;background:#f0fdf4;color:#15803d;font-size:9px;font-weight:700;text-align:center;line-height:1.2;padding:4px;';
                 $costStyle    = 'font-size:11px;font-weight:600;margin:0;color:' . ($isRed ? '#b91c1c' : '#15803d') . ';';
                 $costFmt      = $cost !== null ? number_format($cost, 0, ',', ' ') . ' €' : '–';
+                $comparisonCost = is_numeric($card['comparisonCost'] ?? null) ? number_format((float) $card['comparisonCost'], 0, ',', ' ') . ' €' : null;
                 $comment      = $comText($card['commentKey']);
             @endphp
             <div style="display:flex;gap:10px;padding:8px;border:1px solid #dbe3ef;border-radius:8px;margin-bottom:6px;page-break-inside:avoid;">
@@ -1088,6 +1136,9 @@
                     <div style="{{ $circleStyle }}"><span>{{ $card['rateValue'] }}</span></div>
                     <p style="font-size:8px;color:#64748b;text-align:center;margin:0;line-height:1.2;">{{ $card['rateLabel'] }}</p>
                     <p style="{{ $costStyle }}">{{ $costFmt }}</p>
+                    @if($comparisonCost)
+                        <p style="font-size:8px;color:#2563eb;text-align:center;margin:0;line-height:1.2;">Ancien {{ $comparisonCost }} · {{ $card['comparisonRateValue'] }}</p>
+                    @endif
                 </div>
                 <div style="flex:1;min-width:0;">
                     <p style="font-weight:600;margin:0 0 3px 0;">{{ $card['label'] }}</p>
@@ -1167,6 +1218,19 @@
             ['Fièvres de lait',  $r('tx_non_guerison_fievres_de_lait')],
             ['Caillettes',       $r('tx_non_guerison_caillettes')],
         ], fn ($g) => $g[1] !== null);
+
+        $cr = fn (string $k) => data_get($comparisonResults, $k);
+        $cp = fn (string $k) => data_get($comparisonPayload, $k);
+        $pct = fn ($v) => $v !== null ? number_format((float) $v, 1, ',', '') . ' %' : '–';
+        $intUnit = fn ($v, string $unit = '') => $v !== null ? number_format((float) $v, 0, ',', ' ') . ($unit ? ' ' . $unit : '') : '–';
+        $comparisonRows = $comparisonAnalysis ? [
+            ['Mortalité néonatale', $pct($r('tx_mortalite_neonatale')), $pct($cr('tx_mortalite_neonatale'))],
+            ['Mammites', $pct($r('tx_mammites')), $pct($cr('tx_mammites'))],
+            ['CCI > 250 000', $pct($r('tx_cci250')), $pct($cr('tx_cci250'))],
+            ['Boiteries', $pct($r('tx_boiteries')), $pct($cr('tx_boiteries'))],
+            ['IVV', $intUnit($p('ivv'), 'j'), $intUnit($cp('ivv'), 'j')],
+            ['Coût mammites', $intUnit($r('cout_mammites'), '€'), $intUnit($cr('cout_mammites'), '€')],
+        ] : [];
     @endphp
 
     <div class="section">
@@ -1190,6 +1254,21 @@
             </div>
         </div>
     </div>
+
+    @if($comparisonAnalysis)
+        <div class="section">
+            <h2>Comparaison ancien bilan</h2>
+            <p class="muted" style="margin-bottom:6px;">{{ $comparisonTitle }} - {{ $comparisonAnalysis->breeder?->name }}</p>
+            <table>
+                <thead><tr><th>Indicateur</th><th>Bilan actuel</th><th>Ancien bilan</th></tr></thead>
+                <tbody>
+                    @foreach($comparisonRows as [$label, $current, $previous])
+                        <tr><td>{{ $label }}</td><td>{{ $current }}</td><td>{{ $previous }}</td></tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+    @endif
 
     <div class="section">
         <h2>Pathologies adultes</h2>
@@ -1223,8 +1302,8 @@
         <div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:space-around;padding:8px 0;">
             {!! $bar($fv('tx_mortalite_neonatale'), [5, 10],   '%',   'Mortalité néonatale') !!}
             {!! $bar($fv('tx_avortements'),         [2, 5],    '%',   'Avortements') !!}
-            {!! $bar($fp('iv_ia1'),                 [85, 100], 'j',   'IV-IA1', false, 0) !!}
-            {!! $bar($fp('iv_iaf'),                 [110,140], 'j',   'IV-IAF', false, 0) !!}
+            {!! $bar($fp('nb_ivia1'),               [85, 100], 'j',   'IV-IA1', false, 0) !!}
+            {!! $bar($fp('nb_iviaf'),               [110,140], 'j',   'IV-IAF', false, 0) !!}
             {!! $bar($fp('tx_reussite_ia1'),        [50, 65],  '%',   'Réussite IA1', true, 1) !!}
             {!! $bar($fp('tx_ia3'),                 [15, 30],  '%',   '≥ 3 IA') !!}
             {!! $bar($fp('ivv'),                    [400,420], 'j',   'IVV', false, 0) !!}
@@ -1257,6 +1336,8 @@
                     'cost'       => $r('cout_mortalite_neonatale'),
                     'rateLabel'  => 'Mortalité',
                     'rateValue'  => ($n1d($r('tx_mortalite_neonatale')) ?? '–') . ($r('tx_mortalite_neonatale') !== null ? ' %' : ''),
+                    'comparisonCost' => $cr('cout_mortalite_neonatale'),
+                    'comparisonRateValue' => ($n1d($cr('tx_mortalite_neonatale')) ?? '–') . ($cr('tx_mortalite_neonatale') !== null ? ' %' : ''),
                     'commentKey' => 'tx_mortalite_neonatale',
                     'desc'       => "Le plan diarrhées néonatales étudie les facteurs de risque et met en place les solutions adaptées : alimentation des mères, gestion sanitaire, vaccination, qualité des colostrums. Réduction du coût de traitement, du temps de soins, des pertes de croissance et de la mortalité.",
                 ],
@@ -1265,6 +1346,8 @@
                     'cost'       => $r('cout_mammites'),
                     'rateLabel'  => 'Tx mammites',
                     'rateValue'  => ($n1d($r('tx_mammites')) ?? '–') . ($r('tx_mammites') !== null ? ' %' : ''),
+                    'comparisonCost' => $cr('cout_mammites'),
+                    'comparisonRateValue' => ($n1d($cr('tx_mammites')) ?? '–') . ($cr('tx_mammites') !== null ? ' %' : ''),
                     'commentKey' => 'tx_mammites',
                     'desc'       => "Seule une approche globale par votre vétérinaire peut maîtriser les contaminations : diagnostic épidémiologique, diagnostic étiologique, visite de traite pour identifier les points critiques et établir un plan d'action ciblé.",
                 ],
@@ -1273,6 +1356,8 @@
                     'cost'       => $r('cout_boiteries'),
                     'rateLabel'  => 'Tx boiteries',
                     'rateValue'  => ($n1d($r('tx_boiteries')) ?? '–') . ($r('tx_boiteries') !== null ? ' %' : ''),
+                    'comparisonCost' => $cr('cout_boiteries'),
+                    'comparisonRateValue' => ($n1d($cr('tx_boiteries')) ?? '–') . ($cr('tx_boiteries') !== null ? ' %' : ''),
                     'commentKey' => 'tx_boiteries',
                     'desc'       => "Seul un diagnostic précis associé à la visite conjointe d'un pareur et de votre vétérinaire peut permettre d'objectiver les causes des boiteries et établir un plan de lutte personnalisé.",
                 ],
@@ -1281,6 +1366,8 @@
                     'cost'       => $r('cout_metaboliques'),
                     'rateLabel'  => 'Tx métaboliques',
                     'rateValue'  => ($n1d($r('tx_metaboliques')) ?? '–') . ($r('tx_metaboliques') !== null ? ' %' : ''),
+                    'comparisonCost' => $cr('cout_metaboliques'),
+                    'comparisonRateValue' => ($n1d($cr('tx_metaboliques')) ?? '–') . ($cr('tx_metaboliques') !== null ? ' %' : ''),
                     'commentKey' => 'tx_metaboliques',
                     'desc'       => "Solutions préventives grâce à un diagnostic nutritionnel précis, un plan de prévention efficace puis un suivi régulier adapté à votre situation.",
                 ],
@@ -1289,6 +1376,8 @@
                     'cost'       => $r('cout_reproduction'),
                     'rateLabel'  => 'IVV',
                     'rateValue'  => $p('ivv') !== null ? $p('ivv') . ' j' : '–',
+                    'comparisonCost' => $cr('cout_reproduction'),
+                    'comparisonRateValue' => $cp('ivv') !== null ? $cp('ivv') . ' j' : '–',
                     'commentKey' => 'cout_reproduction',
                     'desc'       => "Examens échographiques et gestion régulière de la reproduction. L'alimentation des vaches est la principale cause d'infertilité : un diagnostic nutritionnel précis puis un suivi régulier.",
                 ],
@@ -1297,6 +1386,8 @@
                     'cost'       => $r('cout_alimentaire'),
                     'rateLabel'  => '€/t lait',
                     'rateValue'  => ($n0($r('cout_alimentaire_vache')) ?? '–') . ($r('cout_alimentaire_vache') !== null ? ' €/t' : ''),
+                    'comparisonCost' => $cr('cout_alimentaire'),
+                    'comparisonRateValue' => ($n0($cr('cout_alimentaire_vache')) ?? '–') . ($cr('cout_alimentaire_vache') !== null ? ' €/t' : ''),
                     'commentKey' => 'cout_alimentaire_vache_l',
                     'desc'       => "L'alimentation est le poste le plus élevé et à l'origine de très nombreux problèmes. Diagnostic nutritionnel, analyse des fourrages, plan de rationnement et suivi régulier.",
                 ],
@@ -1311,6 +1402,7 @@
                     : 'display:flex;align-items:center;justify-content:center;width:54px;height:54px;border-radius:50%;border:2px solid #86efac;background:#f0fdf4;color:#15803d;font-size:9px;font-weight:700;text-align:center;line-height:1.2;padding:4px;';
                 $costStyle    = 'font-size:11px;font-weight:600;margin:0;color:' . ($isRed ? '#b91c1c' : '#15803d') . ';';
                 $costFmt      = $cost !== null ? number_format($cost, 0, ',', ' ') . ' €' : '–';
+                $comparisonCost = is_numeric($card['comparisonCost'] ?? null) ? number_format((float) $card['comparisonCost'], 0, ',', ' ') . ' €' : null;
                 $comment      = $comText($card['commentKey']);
             @endphp
             <div style="display:flex;gap:10px;padding:8px;border:1px solid #dbe3ef;border-radius:8px;margin-bottom:6px;page-break-inside:avoid;">
@@ -1318,6 +1410,9 @@
                     <div style="{{ $circleStyle }}"><span>{{ $card['rateValue'] }}</span></div>
                     <p style="font-size:8px;color:#64748b;text-align:center;margin:0;line-height:1.2;">{{ $card['rateLabel'] }}</p>
                     <p style="{{ $costStyle }}">{{ $costFmt }}</p>
+                    @if($comparisonCost)
+                        <p style="font-size:8px;color:#2563eb;text-align:center;margin:0;line-height:1.2;">Ancien {{ $comparisonCost }} · {{ $card['comparisonRateValue'] }}</p>
+                    @endif
                 </div>
                 <div style="flex:1;min-width:0;">
                     <p style="font-weight:600;margin:0 0 3px 0;">{{ $card['label'] }}</p>

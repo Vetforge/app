@@ -24,8 +24,7 @@ class ImportController extends Controller
             'file' => ['required', 'file', 'mimes:csv,txt', 'max:10240'],
         ]);
 
-        $path = $request->file('file')->store('imports');
-        $result = AlimentImporter::import(storage_path('app/'.$path));
+        $result = AlimentImporter::import($request->file('file')->getRealPath());
 
         return back()->with('success', "Import terminé : {$result['created']} créés, {$result['updated']} mis à jour, {$result['errors']} erreurs.");
     }
