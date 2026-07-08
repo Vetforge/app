@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\CategorieAnimal;
 use App\Models\Ration;
 use App\Services\Equations2007\Apport as Apport2007;
 use App\Services\Equations2007\Besoin as Besoin2007;
@@ -262,11 +263,12 @@ class RationCalculator
         $TP = Besoin2018::calculerTP($ration);
 
         // Impacts
-        $categorie = RationHelper::normalizeCategorieAnimal($ration->categorie_animal ?? '');
+        $categorie = RationHelper::categorie($ration->categorie_animal ?? '');
         $laitParUFL = Impact2018::calculerLaitPermisParUF($ration);
         $laitParPDI = Impact2018::calculerLaitPermisParPDI($ration);
         $laitLimitant = min($laitParUFL, $laitParPDI);
-        $productionLaitAttendue = $categorie === 'vacheLaitiere'
+        // La production laitière attendue repose sur une formule spécifique à la vache laitière (ch. 17).
+        $productionLaitAttendue = $categorie === CategorieAnimal::VacheLaitiere
             ? Impact2018::calculerPL($ration)
             : null;
         $eauBue = Impact2018::calculerEauBue($ration);
@@ -286,16 +288,28 @@ class RationCalculator
         $butyrate = Impact2018::calculerPourcentageButyrate($ration);
         $productionPotentielle = RationHelper::calculerProductionLaitPotentielle($ration);
 
+        // Les impacts « lait permis », bilan UFL de production et eau bue reposent sur des formules
+        // spécifiques aux bovins reproducteurs (ch. 17-18) ; ils ne sont pas exposés pour les autres
+        // espèces, dont le bilan pertinent reste apport - besoin (bloc « bilans »).
+        $estBovinReproducteur = in_array(
+            $categorie,
+            [CategorieAnimal::VacheLaitiere, CategorieAnimal::VacheAllaitante],
+            true,
+        );
+
         $impacts = [
-            'lait_par_ufl' => round($laitParUFL, 2),
-            'lait_par_pdi' => round($laitParPDI, 2),
-            'lait_limitant' => round($laitLimitant, 2),
-            'eau_bue' => round($eauBue, 1),
             'cout_animal' => round($coutParAnimal, 2),
             'cout_1000l' => round($coutPar1000, 2),
             'ch4' => round($productionCH4, 1),
-            'bil_ufl' => round($bilUFL, 2),
         ];
+
+        if ($estBovinReproducteur) {
+            $impacts['lait_par_ufl'] = round($laitParUFL, 2);
+            $impacts['lait_par_pdi'] = round($laitParPDI, 2);
+            $impacts['lait_limitant'] = round($laitLimitant, 2);
+            $impacts['eau_bue'] = round($eauBue, 1);
+            $impacts['bil_ufl'] = round($bilUFL, 2);
+        }
 
         if ($productionLaitAttendue !== null) {
             $impacts['production_lait_attendue'] = round($productionLaitAttendue, 2);

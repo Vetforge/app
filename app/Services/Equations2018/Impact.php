@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Equations2018;
 
+use App\Enums\CategorieAnimal;
 use App\Models\Ration;
 use App\Services\RationHelper;
 
@@ -88,7 +89,7 @@ class Impact
     public static function calculerEauBueTH(Ration $ration): float
     {
         $temperature = (float) ($ration->temperature_ambiante ?? 15);
-        $poidsVif = (float) ($ration->poids_vif ?? 650);
+        $poidsVif = RationHelper::poidsVif($ration);
 
         if ($temperature <= 15) {
             return 0.0;
@@ -164,12 +165,12 @@ class Impact
 
     public static function calculerNU(Ration $ration): float
     {
-        $categorie = RationHelper::normalizeCategorieAnimal($ration->categorie_animal ?? '');
-        if (! in_array($categorie, ['vacheLaitiere', 'vacheAllaitante'], true)) {
+        $categorie = RationHelper::categorie($ration->categorie_animal ?? '');
+        if (! in_array($categorie, [CategorieAnimal::VacheLaitiere, CategorieAnimal::VacheAllaitante], true)) {
             return 0.0;
         }
 
-        $poidsVif = (float) ($ration->poids_vif ?? 650);
+        $poidsVif = RationHelper::poidsVif($ration);
         $bpr = Apport::calculerBPR($ration);
         $apportPDI = Apport::calculerApportTotalPDI($ration);
         $apportMS = Apport::calculerApportTotalMS($ration);
@@ -265,8 +266,8 @@ class Impact
 
     public static function calculerPourcentageAcetate(Ration $ration): float
     {
-        $categorie = RationHelper::normalizeCategorieAnimal($ration->categorie_animal ?? '');
-        if (! in_array($categorie, ['vacheLaitiere', 'vacheAllaitante'], true)) {
+        $categorie = RationHelper::categorie($ration->categorie_animal ?? '');
+        if (! in_array($categorie, [CategorieAnimal::VacheLaitiere, CategorieAnimal::VacheAllaitante], true)) {
             return 0.0;
         }
 
@@ -281,8 +282,8 @@ class Impact
 
     public static function calculerPourcentagePropionate(Ration $ration): float
     {
-        $categorie = RationHelper::normalizeCategorieAnimal($ration->categorie_animal ?? '');
-        if (! in_array($categorie, ['vacheLaitiere', 'vacheAllaitante'], true)) {
+        $categorie = RationHelper::categorie($ration->categorie_animal ?? '');
+        if (! in_array($categorie, [CategorieAnimal::VacheLaitiere, CategorieAnimal::VacheAllaitante], true)) {
             return 0.0;
         }
 
@@ -297,8 +298,8 @@ class Impact
 
     public static function calculerPourcentageButyrate(Ration $ration): float
     {
-        $categorie = RationHelper::normalizeCategorieAnimal($ration->categorie_animal ?? '');
-        if (! in_array($categorie, ['vacheLaitiere', 'vacheAllaitante'], true)) {
+        $categorie = RationHelper::categorie($ration->categorie_animal ?? '');
+        if (! in_array($categorie, [CategorieAnimal::VacheLaitiere, CategorieAnimal::VacheAllaitante], true)) {
             return 0.0;
         }
 
@@ -312,8 +313,8 @@ class Impact
 
     public static function calculerDeltaUFprod(Ration $ration): float
     {
-        $categorie = RationHelper::normalizeCategorieAnimal($ration->categorie_animal ?? '');
-        if (! in_array($categorie, ['vacheLaitiere', 'vacheAllaitante'], true)) {
+        $categorie = RationHelper::categorie($ration->categorie_animal ?? '');
+        if (! in_array($categorie, [CategorieAnimal::VacheLaitiere, CategorieAnimal::VacheAllaitante], true)) {
             return 0.0;
         }
 

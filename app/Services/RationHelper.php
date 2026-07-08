@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Enums\CategorieAnimal;
 use App\Models\Aliment;
 use App\Models\Melange;
 use App\Models\Ration;
@@ -207,6 +208,9 @@ class RationHelper
 
     /**
      * Normaliser categorie_animal vers un identifiant canonique pour le routage conditionnel.
+     *
+     * Conservé pour le moteur INRA 2007, limité aux bovins laitiers/allaitants.
+     * Le moteur 2018 s'appuie sur {@see self::categorie()} (enum multi-espèces).
      */
     public static function normalizeCategorieAnimal(string $categorie): string
     {
@@ -216,6 +220,24 @@ class RationHelper
         }
 
         return 'vacheLaitiere';
+    }
+
+    /**
+     * Résoudre la catégorie d'animal en enum, source de vérité du routage multi-espèces (INRA 2018).
+     */
+    public static function categorie(?string $categorie): CategorieAnimal
+    {
+        return CategorieAnimal::fromLoose($categorie);
+    }
+
+    /**
+     * Poids vif (kg) à utiliser dans les calculs : la valeur saisie, ou à défaut le poids
+     * de référence de l'espèce ({@see CategorieAnimal::poidsParDefaut()}). Évite qu'une brebis
+     * ou une chèvre sans poids renseigné soit calculée comme une vache de 650 kg.
+     */
+    public static function poidsVif(Ration $ration): float
+    {
+        return (float) ($ration->poids_vif ?? self::categorie($ration->categorie_animal)->poidsParDefaut());
     }
 
     public static function normalizeActivite2018(?string $activite): string
@@ -276,10 +298,9 @@ class RationHelper
 
     public static function calculerProductionLaitPotentielle(Ration $ration): float
     {
-        $categorie = self::normalizeCategorieAnimal((string) ($ration->categorie_animal ?? ''));
         $fallback = max(0.0, (float) ($ration->lait_objectif ?? 0));
 
-        if ($categorie !== 'vacheLaitiere') {
+        if (self::categorie($ration->categorie_animal) !== CategorieAnimal::VacheLaitiere) {
             return $fallback;
         }
 

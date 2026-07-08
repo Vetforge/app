@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use Database\Factories\MelangeFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -11,7 +12,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Melange extends Model
 {
-    /** @use HasFactory<\Database\Factories\MelangeFactory> */
+    /** @use HasFactory<MelangeFactory> */
     use HasFactory;
 
     protected $fillable = ['ration_id', 'nom', 'quantite', 'is_volonte', 'is_mb', 'ordre'];

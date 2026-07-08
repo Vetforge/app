@@ -117,6 +117,21 @@ class CalculValeur
     }
 
     /**
+     * UFV de l'aliment (unité fourragère viande) en UFV/kg MS.
+     *
+     * v1 : valeur tabulée INRA lue depuis la colonne `ufv` (comme INRAtion®). Le calcul dynamique
+     * complet de l'UFV (efficience d'engraissement kmf) pourra être ajouté ultérieurement.
+     */
+    public function calculerUFVAliment(): float
+    {
+        if ($this->aliment->type === 'Mineral') {
+            return 0.0;
+        }
+
+        return (float) ($this->aliment->ufv ?? 0);
+    }
+
+    /**
      * PDI de l'aliment en g/kg MS.
      */
     public function calculerPDIAliment(): float

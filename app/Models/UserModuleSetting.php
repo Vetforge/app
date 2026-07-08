@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use Database\Factories\UserModuleSettingFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -13,7 +14,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  */
 class UserModuleSetting extends Model
 {
-    /** @use HasFactory<\Database\Factories\UserModuleSettingFactory> */
+    /** @use HasFactory<UserModuleSettingFactory> */
     use HasFactory;
 
     protected $fillable = [

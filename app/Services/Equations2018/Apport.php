@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Equations2018;
 
+use App\Enums\CategorieAnimal;
 use App\Models\Aliment;
 use App\Models\Ration;
 use App\Services\RationHelper;
@@ -62,7 +63,7 @@ class Apport
             }
         }
 
-        $poidsVif = (float) ($ration->poids_vif ?? 650);
+        $poidsVif = RationHelper::poidsVif($ration);
         self::$ctxIngredients = $items;
         self::$ctxNI = $poidsVif > 0 ? $totalMS / $poidsVif * 100 : 0.0;
         self::$ctxPCO = $totalMS > 0 ? $concentresMS / $totalMS : 0.0;
@@ -167,7 +168,7 @@ class Apport
             return self::$ctxNI;
         }
         $MSI = self::calculerApportTotalMS($ration);
-        $poidsVif = (float) ($ration->poids_vif ?? 650);
+        $poidsVif = RationHelper::poidsVif($ration);
 
         return $poidsVif > 0 ? $MSI / $poidsVif * 100 : 0.0;
     }
@@ -187,8 +188,7 @@ class Apport
 
     public static function calculerApportFourragesUE(Ration $ration): float
     {
-        $cat = RationHelper::normalizeCategorieAnimal($ration->categorie_animal ?? '');
-        $champUE = $cat === 'vacheLaitiere' ? 'uel' : 'ueb';
+        $champUE = RationHelper::categorie($ration->categorie_animal ?? '')->uniteEncombrement();
         $total = 0.0;
         foreach (self::getIngredients($ration) as $item) {
             if ($item['type'] === 'Fourrage') {
@@ -204,8 +204,7 @@ class Apport
         $total = 0.0;
         foreach (self::getIngredients($ration) as $item) {
             if ($item['type'] === 'Fourrage') {
-                $cv = new CalculValeur($ration, $item['aliment']);
-                $total += $item['qty_ms'] * $cv->calculerUFLAliment();
+                $total += $item['qty_ms'] * self::ufAliment($ration, $item['aliment']);
             }
         }
 
@@ -217,8 +216,7 @@ class Apport
         $total = 0.0;
         foreach (self::getIngredients($ration) as $item) {
             if ($item['type'] === 'Conc') {
-                $cv = new CalculValeur($ration, $item['aliment']);
-                $total += $item['qty_ms'] * $cv->calculerUFLAliment();
+                $total += $item['qty_ms'] * self::ufAliment($ration, $item['aliment']);
             }
         }
 
@@ -230,12 +228,24 @@ class Apport
         $total = 0.0;
         foreach (self::getIngredients($ration) as $item) {
             if ($item['type'] === 'Fourrage' || $item['type'] === 'Conc') {
-                $cv = new CalculValeur($ration, $item['aliment']);
-                $total += $item['qty_ms'] * $cv->calculerUFLAliment();
+                $total += $item['qty_ms'] * self::ufAliment($ration, $item['aliment']);
             }
         }
 
         return $total;
+    }
+
+    /**
+     * Valeur énergétique d'un aliment dans l'unité fourragère de la catégorie :
+     * UFL calculée dynamiquement, ou UFV tabulée pour les catégories à l'engraissement.
+     */
+    private static function ufAliment(Ration $ration, Aliment $aliment): float
+    {
+        $cv = new CalculValeur($ration, $aliment);
+
+        return RationHelper::categorie($ration->categorie_animal)->uniteFourragere() === 'ufv'
+            ? $cv->calculerUFVAliment()
+            : $cv->calculerUFLAliment();
     }
 
     // ─── TSg / Sg / VEC / UE ───────────────────────────────────────────────────
@@ -449,7 +459,7 @@ class Apport
 
     public static function calculerEffPDI_LysMet(Ration $ration): float
     {
-        $poidsVif = (float) ($ration->poids_vif ?? 650);
+        $poidsVif = RationHelper::poidsVif($ration);
         $PPha = 0.2 * pow($poidsVif, 0.6);
         $MOND = self::calculerApportMOND($ration);
         $totalMS = self::calculerApportTotalMS($ration);
@@ -496,8 +506,8 @@ class Apport
         $EffPDI_PDIMS = self::calculerEffPDI_PDIMS($ration);
         $EffPDI_LysMet = 0.0;
 
-        $cat = RationHelper::normalizeCategorieAnimal($ration->categorie_animal ?? '');
-        if ($cat === 'vacheLaitiere') {
+        $cat = RationHelper::categorie($ration->categorie_animal ?? '');
+        if ($cat === CategorieAnimal::VacheLaitiere) {
             $EffPDI_LysMet = self::calculerEffPDI_LysMet($ration);
         }
 

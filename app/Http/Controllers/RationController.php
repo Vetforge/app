@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Enums\CategorieAnimal;
 use App\Http\Requests\StoreRationRequest;
 use App\Http\Requests\UpdateAlimentRequest;
 use App\Http\Requests\UpdateRationDescriptionRequest;
@@ -35,6 +36,7 @@ class RationController extends Controller
 
         return Inertia::render('rations/Create', [
             'plan' => $plan,
+            'categorie_options' => CategorieAnimal::optionsGroupedBySpecies(),
         ]);
     }
 
@@ -58,6 +60,7 @@ class RationController extends Controller
         return Inertia::render('rations/Description', [
             'plan' => $plan,
             'ration' => $ration,
+            'categorie_options' => CategorieAnimal::optionsGroupedBySpecies(),
         ]);
     }
 
@@ -216,6 +219,7 @@ class RationController extends Controller
 
         $iterationsVolonte = $this->calculerVolonte($ration);
         $resultats = RationCalculator::calculer($ration);
+        $categorie = $ration->categorie();
 
         return [
             'plan' => $plan,
@@ -224,6 +228,17 @@ class RationController extends Controller
             'resultats' => $resultats,
             'iterations_volonte' => $iterationsVolonte,
             'normes' => RationNormes::payloadForUser(request()->user()),
+            'categorie_meta' => [
+                'value' => $categorie->value,
+                'label' => $categorie->label(),
+                'espece' => $categorie->espece()->value,
+                'espece_label' => $categorie->espece()->label(),
+                'est_laitiere' => $categorie->estLaitiere(),
+                'est_croissance' => $categorie->estEnCroissance(),
+                'est_implementee' => $categorie->estImplementee(),
+                'unite_encombrement' => $categorie->uniteEncombrementLabel(),
+                'unite_fourragere' => $categorie->uniteFourragereLabel(),
+            ],
         ];
     }
 

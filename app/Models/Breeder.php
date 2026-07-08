@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use Database\Factories\BreederFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -11,7 +12,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Breeder extends Model
 {
-    /** @use HasFactory<\Database\Factories\BreederFactory> */
+    /** @use HasFactory<BreederFactory> */
     use HasFactory;
 
     protected $fillable = [

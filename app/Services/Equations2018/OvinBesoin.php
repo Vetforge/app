@@ -1,0 +1,361 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Services\Equations2018;
+
+use App\Enums\CategorieAnimal;
+use App\Models\Ration;
+use App\Services\RationHelper;
+
+/**
+ * Besoins nutritionnels des ovins (INRA 2018, chapitre 20 — Bocquier, Hassoun et al.).
+ *
+ * Trois catégories :
+ *  - brebis laitière ({@see CategorieAnimal::BrebisLaitiere}) — UFL, encombrement UEM ;
+ *  - brebis allaitante / suitée ({@see CategorieAnimal::BrebisAllaitante}) — UFL, UEM ;
+ *  - agneau / agnelle en croissance ({@see CategorieAnimal::AgneauCroissance}) — UFV, UEM.
+ *
+ * Les numéros d'équation renvoient au chapitre 20. L'énergie de l'agneau (Éq. 20.53) a été validée
+ * contre la Table 20.3 (ex. 20 kg + 100 g/j → 0,57 UFV ; 20 kg + 300 g/j → 0,97 UFV).
+ */
+class OvinBesoin
+{
+    private const GESTATION_DAYS = 147.0; // durée de gestation ovine (~147 j)
+
+    private const PDIEFF_LACTATION = 0.58; // efficience PDI des brebis en lactation (ch. 20)
+
+    // ─── Capacité d'ingestion (UEM) ──────────────────────────────────────────────
+
+    public static function calculerCapaciteIngestion(Ration $ration): float
+    {
+        $cat = self::cat($ration);
+        $bw = self::bw($ration);
+
+        if ($cat === CategorieAnimal::AgneauCroissance) {
+            return 0.080 * pow($bw, 0.75); // agnelle de renouvellement (Part 20.2)
+        }
+
+        $base = (0.100 - 0.010 * self::bcs($ration)) * pow($bw, 0.75); // Éq. 20.37
+
+        if ($cat === CategorieAnimal::BrebisLaitiere) {
+            $smy = self::smy($ration);
+
+            return self::estLacaune($ration)
+                ? 0.900 * $smy + 0.0240 * $bw   // Éq. 20.48
+                : 0.754 * $smy + 0.0255 * $bw;  // Éq. 20.49
+        }
+
+        // Brebis allaitante / suitée.
+        if (self::enLactation($ration)) {
+            $dim = self::dim($ration);
+            $adglit = self::adgLit($ration);
+            $semaines = $dim / 7.0;
+            $ic46 = 3.0 * $adglit + $base; // Éq. 20.42
+
+            if ($semaines <= 3) {
+                return 0.8 * $ic46; // Éq. 20.41
+            }
+            if ($semaines <= 6) {
+                return $ic46;
+            }
+
+            // Semaines 7 à 20 (Éq. 20.46).
+            return -0.027 * $dim * $adglit + 3.244 * $adglit - 0.001 * $dim + $base;
+        }
+
+        if (self::enFinGestation($ration)) {
+            // Éq. 20.39 (6 dernières semaines).
+            return $base + 0.0503 * self::bwLit($ration) - 0.152 * self::nlit($ration) - 0.272;
+        }
+
+        return $base; // tarie / début de gestation (Éq. 20.37)
+    }
+
+    // ─── Énergie ─────────────────────────────────────────────────────────────────
+
+    public static function besoinUFEntretien(Ration $ration): float
+    {
+        if (self::cat($ration) === CategorieAnimal::AgneauCroissance) {
+            return 0.01802 * self::bw($ration); // maintenance UFV (Éq. 20.53)
+        }
+
+        return 0.0345 * pow(self::bw($ration), 0.75); // Éq. 20.10 (laine incluse)
+    }
+
+    public static function besoinUFLait(Ration $ration): float
+    {
+        $cat = self::cat($ration);
+
+        if ($cat === CategorieAnimal::BrebisLaitiere) {
+            return 0.686 * self::smy($ration); // Éq. 20.14
+        }
+
+        if ($cat === CategorieAnimal::BrebisAllaitante && self::enLactation($ration)) {
+            $dim = self::dim($ration);
+            $adglit = self::adgLit($ration);
+
+            // Éq. 20.13 (allaitement jusqu'au sevrage).
+            return max(0.0, -0.0274 * $adglit * $dim - 0.0007 * $dim + 3.66 * $adglit + 0.0602);
+        }
+
+        return 0.0;
+    }
+
+    public static function besoinUFGestation(Ration $ration): float
+    {
+        if (self::cat($ration) === CategorieAnimal::AgneauCroissance || ! self::enFinGestation($ration)) {
+            return 0.0;
+        }
+        $wbl = self::wbl($ration);
+        $bwlit = self::bwLit($ration);
+
+        // Éq. 20.12 (6 dernières semaines de gestation).
+        return max(0.0, -0.0145 * $wbl * $bwlit + 0.0896 * $bwlit - 0.0096 * $wbl + 0.0751);
+    }
+
+    public static function besoinUFGain(Ration $ration): float
+    {
+        if (self::cat($ration) === CategorieAnimal::AgneauCroissance) {
+            return 0.00205 * self::adg($ration); // gain UFV (Éq. 20.53)
+        }
+
+        return 0.0;
+    }
+
+    // ─── Protéines (PDI) ─────────────────────────────────────────────────────────
+
+    public static function besoinPDINonProductif(Ration $ration): float
+    {
+        $effPdi = self::effPdi($ration);
+        if ($effPdi <= 0) {
+            return 0.0;
+        }
+        $bw = self::bw($ration);
+        $dmi = Apport::calculerApportTotalMS($ration);
+        $ndom = Apport::calculerApportMOND($ration);
+
+        $efp = $dmi * (0.5 * (5.7 + 0.074 * $ndom)) / $effPdi; // Éq. 20.18
+        $eup = 0.312 * $bw;                                    // Éq. 20.19
+        $scurf = 0.2 * pow($bw, 0.6) / $effPdi;                // Éq. 20.20
+        $wool = 0.22 * pow($bw, 0.75) / $effPdi;               // Éq. 20.21
+
+        return $efp + $eup + $scurf + $wool;
+    }
+
+    public static function besoinPDILait(Ration $ration): float
+    {
+        $cat = self::cat($ration);
+        $effPdi = self::effPdi($ration);
+        if ($effPdi <= 0) {
+            return 0.0;
+        }
+
+        if ($cat === CategorieAnimal::BrebisLaitiere) {
+            return self::my($ration) * (float) ($ration->mpc ?? 55) / $effPdi; // Éq. 20.24
+        }
+
+        if ($cat === CategorieAnimal::BrebisAllaitante && self::enLactation($ration)) {
+            $dim = self::dim($ration);
+            $adglit = self::adgLit($ration);
+
+            // Éq. 20.23 (allaitement).
+            return max(0.0, (-3.22 * $adglit * $dim - 0.018 * $dim + 420 * $adglit + 4.64) * 0.58 / $effPdi);
+        }
+
+        return 0.0;
+    }
+
+    public static function besoinPDIGestation(Ration $ration): float
+    {
+        if (self::cat($ration) === CategorieAnimal::AgneauCroissance || ! self::enFinGestation($ration)) {
+            return 0.0;
+        }
+        $effPdi = self::effPdi($ration);
+        if ($effPdi <= 0) {
+            return 0.0;
+        }
+        $wbl = self::wbl($ration);
+        $bwlit = self::bwLit($ration);
+
+        // Éq. 20.22 (6 dernières semaines).
+        return max(0.0, (-1.28 * $wbl * $bwlit + 12.6 * $bwlit - 3.41 * $wbl + 17.6) * 0.58 / $effPdi);
+    }
+
+    public static function besoinPDIGain(Ration $ration): float
+    {
+        if (self::cat($ration) !== CategorieAnimal::AgneauCroissance) {
+            return 0.0;
+        }
+        $effPdi = self::effPdi($ration);
+
+        return $effPdi > 0 ? 0.141 * self::adg($ration) / $effPdi : 0.0; // Éq. 20.54
+    }
+
+    // ─── Minéraux ────────────────────────────────────────────────────────────────
+
+    public static function calculerBesoinCaabs(Ration $ration): float
+    {
+        $bw = self::bw($ration);
+        $dmi = Apport::calculerApportTotalMS($ration);
+        $cat = self::cat($ration);
+
+        if ($cat === CategorieAnimal::AgneauCroissance) {
+            $maint = 0.67 * $dmi + 0.01 * $bw;                 // Éq. 20.27
+            $gain = (6.75 * pow(self::bwAdulte($ration), 0.28) * pow($bw, -0.28)) / 1000 * self::adg($ration); // Éq. 20.30
+
+            return $maint + $gain;
+        }
+
+        // Tarie en fin de gestation : entretien gestation + terme fœtal.
+        if (! self::enLactation($ration) && self::enFinGestation($ration)) {
+            return 0.015 * $bw + self::caGestation($ration); // Éq. 20.28 + 20.31
+        }
+
+        $ca = 0.67 * $dmi + 0.01 * $bw + 1.9 * self::my($ration); // Éq. 20.29 + 20.32
+        if (self::enFinGestation($ration)) {
+            $ca += self::caGestation($ration);
+        }
+
+        return $ca;
+    }
+
+    public static function calculerBesoinPabs(Ration $ration): float
+    {
+        $bw = self::bw($ration);
+        $dmi = Apport::calculerApportTotalMS($ration);
+        $cat = self::cat($ration);
+
+        if ($cat === CategorieAnimal::AgneauCroissance) {
+            $maint = 0.905 * $dmi + 0.002 * $bw + 0.3; // Éq. 20.33
+            $gain = (3.19 * pow(self::bwAdulte($ration), 0.28) * pow($bw, -0.28) + 1.2) / 1000 * self::adg($ration); // Éq. 20.34
+
+            return $maint + $gain;
+        }
+
+        $p = 0.905 * $dmi + 0.002 * $bw + 0.3 + 1.5 * self::my($ration); // Éq. 20.33 + 20.36
+        if (self::enFinGestation($ration)) {
+            $p += self::pGestation($ration); // Éq. 20.35
+        }
+
+        return $p;
+    }
+
+    // ─── Helpers ────────────────────────────────────────────────────────────────
+
+    private static function cat(Ration $ration): CategorieAnimal
+    {
+        return RationHelper::categorie($ration->categorie_animal);
+    }
+
+    private static function bw(Ration $ration): float
+    {
+        return RationHelper::poidsVif($ration);
+    }
+
+    private static function bcs(Ration $ration): float
+    {
+        return (float) ($ration->nec ?? 3);
+    }
+
+    private static function my(Ration $ration): float
+    {
+        return max(0.0, (float) ($ration->lait_objectif ?? 0));
+    }
+
+    /** Lait standard (sMY, l/j) : Éq. 20.14. MFC/MPC du lait de brebis (défauts 70 / 55 g/kg). */
+    private static function smy(Ration $ration): float
+    {
+        $mfc = (float) ($ration->mfc ?? 70);
+        $mpc = (float) ($ration->mpc ?? 55);
+
+        return self::my($ration) * (0.0071 * $mfc + 0.0043 * $mpc + 0.2224);
+    }
+
+    private static function estLacaune(Ration $ration): bool
+    {
+        return str_contains(RationHelper::normalizeRace($ration->race), 'lacaune');
+    }
+
+    private static function enLactation(Ration $ration): bool
+    {
+        return (float) ($ration->jours_lactation ?? 0) > 0;
+    }
+
+    private static function dim(Ration $ration): float
+    {
+        return max(0.0, (float) ($ration->jours_lactation ?? 0));
+    }
+
+    private static function adgLit(Ration $ration): float
+    {
+        return max(0.0, (float) ($ration->gmq_portee ?? 0) / 1000.0);
+    }
+
+    private static function adg(Ration $ration): float
+    {
+        return max(0.0, (float) ($ration->gmq ?? 0));
+    }
+
+    private static function nlit(Ration $ration): int
+    {
+        return max(1, (int) ($ration->nombre_jeunes ?? 1));
+    }
+
+    private static function bwLit(Ration $ration): float
+    {
+        return max(0.0, (float) ($ration->poids_portee ?? 0));
+    }
+
+    private static function bwAdulte(Ration $ration): float
+    {
+        // Poids adulte (mature weight) pour le dépôt minéral de croissance (Éq. 20.30/20.34).
+        // À défaut d'un champ dédié, on retient le poids de référence de la brebis adulte, borné
+        // à au moins le poids vif courant de l'animal (une agnelle grandit vers ce poids adulte).
+        return max(self::bw($ration), (float) CategorieAnimal::BrebisLaitiere->poidsParDefaut());
+    }
+
+    /** En fin de gestation (6 dernières semaines) : DG dans [105, 147] jours. */
+    private static function enFinGestation(Ration $ration): bool
+    {
+        $dg = (float) ($ration->jours_gestation ?? 0);
+
+        return $dg >= (self::GESTATION_DAYS - 42) && $dg <= self::GESTATION_DAYS + 5;
+    }
+
+    /** Semaines avant agnelage (1 à 6). */
+    private static function wbl(Ration $ration): float
+    {
+        $dg = (float) ($ration->jours_gestation ?? 0);
+
+        return min(6.0, max(1.0, (self::GESTATION_DAYS - $dg) / 7.0));
+    }
+
+    private static function caGestation(Ration $ration): float
+    {
+        $wbl = self::wbl($ration);
+
+        // Éq. 20.31.
+        return (0.0093 * $wbl * $wbl - 0.127 * $wbl + 0.571) * self::bwLit($ration) + 0.263;
+    }
+
+    private static function pGestation(Ration $ration): float
+    {
+        $wbl = self::wbl($ration);
+
+        // Éq. 20.35.
+        return (-0.03 * $wbl + 0.24) * self::bwLit($ration) - 0.04 * $wbl + 0.33;
+    }
+
+    /** Efficience PDI : 0,58 pour les brebis (lactation), dynamique de la ration pour l'agneau. */
+    private static function effPdi(Ration $ration): float
+    {
+        if (self::cat($ration) === CategorieAnimal::AgneauCroissance) {
+            $eff = Apport::calculerEffPDI($ration);
+
+            return $eff > 0 ? $eff : 0.51;
+        }
+
+        return self::PDIEFF_LACTATION;
+    }
+}

@@ -4,11 +4,12 @@ declare(strict_types=1);
 
 namespace Database\Factories;
 
+use App\Models\PlanRationnement;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\PlanRationnement>
+ * @extends Factory<PlanRationnement>
  */
 class PlanRationnementFactory extends Factory
 {

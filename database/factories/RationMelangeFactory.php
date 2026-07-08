@@ -6,10 +6,11 @@ namespace Database\Factories;
 
 use App\Models\Melange;
 use App\Models\Ration;
+use App\Models\RationMelange;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\RationMelange>
+ * @extends Factory<RationMelange>
  */
 class RationMelangeFactory extends Factory
 {
