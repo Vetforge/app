@@ -944,7 +944,7 @@ const strengthInsights = computed(() => insightCandidates.value.filter((item) =>
     <div class="space-y-6">
         <section
             id="resultats"
-            class="scroll-mt-24 relative overflow-hidden rounded-[2rem] border border-sky-200/70 bg-gradient-to-br from-sky-50 via-background to-amber-50/70 p-5 shadow-sm dark:border-sky-950/60 dark:from-sky-950/25 dark:via-background dark:to-amber-950/10 sm:p-7"
+            class="scroll-mt-24 relative overflow-hidden rounded-4xl border border-sky-200/70 bg-linear-to-br from-sky-50 via-background to-amber-50/70 p-5 shadow-sm dark:border-sky-950/60 dark:from-sky-950/25 dark:via-background dark:to-amber-950/10 sm:p-7"
         >
                 <div class="absolute -right-12 -top-12 h-36 w-36 rounded-full bg-sky-300/20 blur-3xl dark:bg-sky-500/10"></div>
                 <div class="absolute bottom-0 left-0 h-28 w-28 rounded-full bg-amber-200/30 blur-3xl dark:bg-amber-500/10"></div>
