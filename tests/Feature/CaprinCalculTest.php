@@ -4,7 +4,9 @@ use App\Models\Aliment;
 use App\Models\PlanRationnement;
 use App\Models\Ration;
 use App\Models\RationAliment;
+use App\Services\Equations2018\Apport as Apport2018;
 use App\Services\Equations2018\Besoin as Besoin2018;
+use App\Services\Equations2018\Impact as Impact2018;
 use App\Services\RationCalculator;
 
 /**
@@ -92,14 +94,41 @@ test('growing goat energy and intake capacity match table 21.7 (Alpine, ~5 month
     expect(Besoin2018::calculerCapaciteIngestion($ration))->toEqualWithDelta(0.080 * 27.7 ** 0.75, 0.001);
 });
 
-test('dairy goat ration produces species-appropriate output without bovine milk impacts', function () {
+test('dairy goat milk permitted inverts the caprin energy and protein requirements (ch. 21)', function () {
+    $ration = chevreRation(); // MY 3,5 ; MFC 35 ; MPC 31.
+
+    // Le coût énergétique du lait par litre est le coefficient de l'Éq. 21.7a (0,389 à MFC 35 / MPC 31).
+    $coutUFL = Besoin2018::calculerBesoinUF_PL($ration) / 3.5;
+    expect($coutUFL)->toEqualWithDelta(0.389, 0.001);
+
+    // Lait permis par UFL = (UFL apporté − besoins UFL non-lait) / coût énergétique par litre.
+    $apportUFL = Apport2018::calculerApportTotalUF($ration);
+    $besoinNonLaitUFL = Besoin2018::calculerBesoinTotalUF($ration) - Besoin2018::calculerBesoinUF_PL($ration);
+    $attenduUFL = ($apportUFL - $besoinNonLaitUFL) / $coutUFL;
+    expect(Impact2018::calculerLaitPermisParUF($ration))->toEqualWithDelta($attenduUFL, 0.001);
+
+    // Lait permis par PDI = (PDI apporté − besoins PDI non-lait) / coût protéique par litre (MPC / PDIeff, Éq. 21.15).
+    $coutPDI = Besoin2018::calculerBesoinPDI_PL($ration) / 3.5;
+    $apportPDI = Apport2018::calculerApportTotalPDI($ration);
+    $besoinNonLaitPDI = Besoin2018::calculerBesoinTotalPDI($ration) - Besoin2018::calculerBesoinPDI_PL($ration);
+    $attenduPDI = ($apportPDI - $besoinNonLaitPDI) / $coutPDI;
+    expect(Impact2018::calculerLaitPermisParPDI($ration))->toEqualWithDelta($attenduPDI, 0.001);
+});
+
+test('dairy goat ration exposes species-specific milk economy impacts', function () {
     $resultats = RationCalculator::calculer(chevreRation());
 
     expect($resultats['inra'])->toBe('2018');
     // Bilans UFL/UEL/PDI présents et cohérents.
     expect($resultats['bilans'])->toHaveKeys(['ufl', 'ue', 'pdi', 'caabs', 'pabs']);
-    // Les impacts « lait permis » bovins ne s'appliquent pas aux caprins.
-    expect($resultats['impacts'])->not->toHaveKey('lait_par_ufl');
+    // Le lait permis (coefficients propres à la chèvre) est désormais exposé.
+    expect($resultats['impacts'])->toHaveKeys(['lait_par_ufl', 'lait_par_pdi', 'lait_limitant']);
+    expect($resultats['impacts']['lait_limitant'])
+        ->toEqualWithDelta(min($resultats['impacts']['lait_par_ufl'], $resultats['impacts']['lait_par_pdi']), 0.001);
+    // L'eau bue et le bilan UFL de production sont des régressions bovines : non exposés pour les caprins.
+    expect($resultats['impacts'])->not->toHaveKey('eau_bue');
+    expect($resultats['impacts'])->not->toHaveKey('bil_ufl');
+    // La production laitière attendue reste une formule propre à la vache laitière.
     expect($resultats['impacts'])->not->toHaveKey('production_lait_attendue');
     // Besoins caprins non nuls.
     expect($resultats['besoins']['uf_total'])->toBeGreaterThan(0.0);

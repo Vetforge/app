@@ -5,6 +5,8 @@ use App\Models\PlanRationnement;
 use App\Models\Ration;
 use App\Models\RationAliment;
 use App\Models\User;
+use App\Services\Equations2018\Apport as Apport2018;
+use App\Services\Equations2018\Besoin as Besoin2018;
 use App\Services\RationCalculator;
 use App\Support\RationNormes;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -155,6 +157,137 @@ it('exposes composition and results props on the results route', function () {
             ->has('aliments_disponibles')
             ->has('ration.ration_aliments', 2)
         );
+});
+
+it('fills intake capacity for an INRA 2018 ad libitum silage', function () {
+    $user = User::factory()->create();
+    $plan = PlanRationnement::factory()->create([
+        'user_id' => $user->id,
+        'inra' => '2018',
+    ]);
+    $ration = Ration::factory()->create([
+        'plan_rationnement_id' => $plan->id,
+        'categorie_animal' => 'brebis_laitiere',
+        'poids_vif' => 60,
+        'lait_objectif' => 4,
+        'race' => 'lacaune',
+        'mfc' => 70,
+        'mpc' => 55,
+        'nec' => 3,
+    ]);
+
+    $ensilage = Aliment::factory()->systemique()->create([
+        'type' => 'Fourrage',
+        'libelle0' => 'Ensilages',
+        'libelle1' => 'Ray-grass anglais',
+        'ms' => 55,
+        'mo' => 900,
+        'mat' => 145,
+        'cb' => 270,
+        'ndf' => 520,
+        'adf' => 310,
+        'ag' => 25,
+        'eb' => 4200,
+        'amidon' => 20,
+        'pf' => 12,
+        'd_mo' => 72,
+        'dt6_n' => 72,
+        'dr_n' => 82,
+        'dt6_ami' => 50,
+        'niref' => 1.8,
+        'b_vec' => 0.78,
+        'uem' => 0.95,
+    ]);
+    $orge = Aliment::factory()->systemique()->create([
+        'type' => 'Conc',
+        'libelle0' => 'Cereales',
+        'libelle1' => 'Orge',
+        'ms' => 87.2,
+        'mo' => 970,
+        'mat' => 110,
+        'cb' => 50,
+        'ndf' => 190,
+        'adf' => 65,
+        'ag' => 22,
+        'eb' => 4350,
+        'amidon' => 520,
+        'pf' => 6,
+        'd_mo' => 88,
+        'dt6_n' => 78,
+        'dr_n' => 88,
+        'dt6_ami' => 86,
+        'niref' => 2.0,
+        'b_vec' => 0.94,
+    ]);
+    $soja = Aliment::factory()->systemique()->create([
+        'type' => 'Conc',
+        'libelle0' => 'Tourteaux oleagineux',
+        'libelle1' => 'Tourteau de soja',
+        'ms' => 88,
+        'mo' => 930,
+        'mat' => 480,
+        'cb' => 65,
+        'ndf' => 140,
+        'adf' => 80,
+        'ag' => 18,
+        'eb' => 4550,
+        'amidon' => 20,
+        'pf' => 6,
+        'd_mo' => 90,
+        'dt6_n' => 82,
+        'dr_n' => 95,
+        'dt6_ami' => 50,
+        'niref' => 2.0,
+        'b_vec' => 0.98,
+    ]);
+
+    RationAliment::create([
+        'ration_id' => $ration->id,
+        'aliment_id' => $ensilage->id,
+        'quantite' => null,
+        'is_mb' => false,
+        'is_volonte' => true,
+        'ordre' => 1,
+    ]);
+    RationAliment::create([
+        'ration_id' => $ration->id,
+        'aliment_id' => $orge->id,
+        'quantite' => 0.5,
+        'is_mb' => false,
+        'is_volonte' => false,
+        'ordre' => 2,
+    ]);
+    RationAliment::create([
+        'ration_id' => $ration->id,
+        'aliment_id' => $soja->id,
+        'quantite' => 0.3,
+        'is_mb' => false,
+        'is_volonte' => false,
+        'ordre' => 3,
+    ]);
+
+    $this->actingAs($user)
+        ->get(route('plans.rations.resultats', [$plan, $ration]))
+        ->assertOk();
+
+    $ration = $ration->fresh()->load([
+        'rationAliments.aliment',
+        'melanges.melangeAliments.aliment',
+        'planRationnement',
+    ]);
+    $volonte = $ration->rationAliments->firstWhere('is_volonte', true);
+
+    expect((float) $volonte->quantite)->toBeGreaterThan(0.0);
+
+    Apport2018::precompute($ration);
+    try {
+        $ratio = Apport2018::calculerApportTotalUE($ration) / Besoin2018::calculerCapaciteIngestion($ration);
+    } finally {
+        Apport2018::clearCache();
+    }
+
+    expect($ratio)->toBeGreaterThan(0.995);
+    expect($ratio)->toBeLessThan(1.001);
 });
 
 it('exposes editable norms on the settings route', function () {

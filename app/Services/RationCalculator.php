@@ -288,9 +288,23 @@ class RationCalculator
         $butyrate = Impact2018::calculerPourcentageButyrate($ration);
         $productionPotentielle = RationHelper::calculerProductionLaitPotentielle($ration);
 
-        // Les impacts « lait permis », bilan UFL de production et eau bue reposent sur des formules
-        // spécifiques aux bovins reproducteurs (ch. 17-18) ; ils ne sont pas exposés pour les autres
-        // espèces, dont le bilan pertinent reste apport - besoin (bloc « bilans »).
+        // Le lait permis (par UFL, par PDI, facteur limitant) est exposé pour toutes les femelles
+        // laitières — vache, chèvre, brebis — via un coût énergétique/protéique propre à chaque espèce,
+        // ainsi que pour la vache allaitante.
+        $exposeLaitPermis = in_array(
+            $categorie,
+            [
+                CategorieAnimal::VacheLaitiere,
+                CategorieAnimal::VacheAllaitante,
+                CategorieAnimal::ChevreLaitiere,
+                CategorieAnimal::BrebisLaitiere,
+            ],
+            true,
+        );
+
+        // L'eau bue et le bilan UFL de production reposent sur des régressions propres aux bovins
+        // reproducteurs (ch. 17-18) sans équivalent validé pour les petits ruminants : ils ne sont
+        // exposés que pour la vache laitière et la vache allaitante.
         $estBovinReproducteur = in_array(
             $categorie,
             [CategorieAnimal::VacheLaitiere, CategorieAnimal::VacheAllaitante],
@@ -303,10 +317,13 @@ class RationCalculator
             'ch4' => round($productionCH4, 1),
         ];
 
-        if ($estBovinReproducteur) {
+        if ($exposeLaitPermis) {
             $impacts['lait_par_ufl'] = round($laitParUFL, 2);
             $impacts['lait_par_pdi'] = round($laitParPDI, 2);
             $impacts['lait_limitant'] = round($laitLimitant, 2);
+        }
+
+        if ($estBovinReproducteur) {
             $impacts['eau_bue'] = round($eauBue, 1);
             $impacts['bil_ufl'] = round($bilUFL, 2);
         }

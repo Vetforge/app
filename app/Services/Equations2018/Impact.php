@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Equations2018;
 
 use App\Enums\CategorieAnimal;
+use App\Enums\Espece;
 use App\Models\Ration;
 use App\Services\RationHelper;
 
@@ -13,35 +14,65 @@ use App\Services\RationHelper;
  */
 class Impact
 {
+    /**
+     * Lait permis par l'énergie : UFL disponible pour le lait ramené à un coût énergétique par litre
+     * propre à l'espèce (vache ch. 17-18, chèvre ch. 21, brebis ch. 20).
+     */
     public static function calculerLaitPermisParUF(Ration $ration): float
     {
-        $totalUFL = Apport::calculerApportTotalUF($ration);
-        $besoinNP = Besoin::calculerBesoinUF_NP($ration);
-        $besoinGain = Besoin::calculerBesoinUF_gain($ration);
-        $besoinGest = Besoin::calculerBesoinUF_gest($ration);
-        $besoinDRC = Besoin::calculerBesoinUF_DRC($ration);
-        $TB = Besoin::calculerTB($ration);
-        $TP = Besoin::calculerTP($ration);
-        $denom = 0.42 + 0.0053 * ($TB - 40) + 0.0032 * ($TP - 31);
+        $coutParLitre = self::coutUFLParLitreLait($ration);
+        if ($coutParLitre <= 0) {
+            return 0.0;
+        }
+        $uflDisponibleLait = Apport::calculerApportTotalUF($ration)
+            - (Besoin::calculerBesoinTotalUF($ration) - Besoin::calculerBesoinUF_PL($ration));
 
-        return $denom > 0
-            ? ($totalUFL - $besoinNP - $besoinGain - $besoinGest - $besoinDRC) / $denom
-            : 0.0;
+        return $uflDisponibleLait / $coutParLitre;
     }
 
+    /**
+     * Lait permis par les protéines : PDI disponibles pour le lait ramenées à un coût protéique par
+     * litre propre à l'espèce.
+     */
     public static function calculerLaitPermisParPDI(Ration $ration): float
     {
-        $totalPDI = Apport::calculerApportTotalPDI($ration);
-        $besoinNP = Besoin::calculerBesoinPDI_NP($ration);
-        $besoinGain = Besoin::calculerBesoinPDI_gain($ration);
-        $besoinGest = Besoin::calculerBesoinPDI_gest($ration);
-        $besoinDRC = Besoin::calculerBesoinPDI_DRC($ration);
-        $EffPDI = Apport::calculerEffPDI($ration);
+        $coutParLitre = self::coutPDIParLitreLait($ration);
+        if ($coutParLitre <= 0) {
+            return 0.0;
+        }
+        $pdiDisponibleLait = Apport::calculerApportTotalPDI($ration)
+            - (Besoin::calculerBesoinTotalPDI($ration) - Besoin::calculerBesoinPDI_PL($ration));
+
+        return $pdiDisponibleLait / $coutParLitre;
+    }
+
+    /** Coût énergétique (UFL) d'un litre de lait, selon l'espèce. */
+    private static function coutUFLParLitreLait(Ration $ration): float
+    {
+        return match (RationHelper::categorie($ration->categorie_animal ?? '')->espece()) {
+            Espece::Caprin => CaprinBesoin::coutUFLParLitreLait($ration),
+            Espece::Ovin => OvinBesoin::coutUFLParLitreLait($ration),
+            default => 0.42 + 0.0053 * (Besoin::calculerTB($ration) - 40) + 0.0032 * (Besoin::calculerTP($ration) - 31),
+        };
+    }
+
+    /** Coût protéique (PDI) d'un litre de lait, selon l'espèce. */
+    private static function coutPDIParLitreLait(Ration $ration): float
+    {
+        return match (RationHelper::categorie($ration->categorie_animal ?? '')->espece()) {
+            Espece::Caprin => CaprinBesoin::coutPDIParLitreLait($ration),
+            Espece::Ovin => OvinBesoin::coutPDIParLitreLait($ration),
+            default => self::coutPDIParLitreLaitBovin($ration),
+        };
+    }
+
+    /** Coût protéique bovin (ch. 17) : TP / PDIeff. */
+    private static function coutPDIParLitreLaitBovin(Ration $ration): float
+    {
+        $effPdi = Apport::calculerEffPDI($ration);
         $TP = Besoin::calculerTP($ration);
 
-        return $TP > 0
-            ? ($totalPDI - $besoinNP - $besoinGain - $besoinGest - $besoinDRC) * $EffPDI / $TP
-            : 0.0;
+        return $effPdi > 0 ? $TP / $effPdi : 0.0;
     }
 
     /**
@@ -124,7 +155,8 @@ class Impact
     }
 
     /**
-     * Bilan UFL = UFL apporté + VPR - besoins totaux ajustés.
+     * Bilan UFL = UFL apporté + VPR - besoins totaux ajustés. Métrique bovine reproductrice
+     * (VPR = valorisation des réserves corporelles) ; non exposée pour les petits ruminants.
      */
     public static function calculerBilUFL(Ration $ration): float
     {

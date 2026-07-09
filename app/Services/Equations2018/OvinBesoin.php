@@ -88,7 +88,7 @@ class OvinBesoin
         $cat = self::cat($ration);
 
         if ($cat === CategorieAnimal::BrebisLaitiere) {
-            return 0.686 * self::smy($ration); // Éq. 20.14
+            return self::my($ration) * self::coutUFLParLitreLait($ration); // Éq. 20.14
         }
 
         if ($cat === CategorieAnimal::BrebisAllaitante && self::enLactation($ration)) {
@@ -123,6 +123,17 @@ class OvinBesoin
         return 0.0;
     }
 
+    /**
+     * Coût énergétique (UFL) d'un litre de lait de brebis laitière — 0,686 × facteur standard (Éq. 20.14).
+     * Nul pour les autres catégories ovines (le lait des brebis allaitantes se lit via le gain de la portée).
+     */
+    public static function coutUFLParLitreLait(Ration $ration): float
+    {
+        return self::cat($ration) === CategorieAnimal::BrebisLaitiere
+            ? 0.686 * self::facteurLaitStandard($ration)
+            : 0.0;
+    }
+
     // ─── Protéines (PDI) ─────────────────────────────────────────────────────────
 
     public static function besoinPDINonProductif(Ration $ration): float
@@ -143,6 +154,20 @@ class OvinBesoin
         return $efp + $eup + $scurf + $wool;
     }
 
+    /**
+     * Coût protéique (PDI) d'un litre de lait de brebis laitière — MPC / PDIeff (Éq. 20.24).
+     * Nul pour les autres catégories ovines.
+     */
+    public static function coutPDIParLitreLait(Ration $ration): float
+    {
+        if (self::cat($ration) !== CategorieAnimal::BrebisLaitiere) {
+            return 0.0;
+        }
+        $effPdi = self::effPdi($ration);
+
+        return $effPdi > 0 ? (float) ($ration->mpc ?? 55) / $effPdi : 0.0;
+    }
+
     public static function besoinPDILait(Ration $ration): float
     {
         $cat = self::cat($ration);
@@ -152,7 +177,7 @@ class OvinBesoin
         }
 
         if ($cat === CategorieAnimal::BrebisLaitiere) {
-            return self::my($ration) * (float) ($ration->mpc ?? 55) / $effPdi; // Éq. 20.24
+            return self::my($ration) * self::coutPDIParLitreLait($ration); // Éq. 20.24
         }
 
         if ($cat === CategorieAnimal::BrebisAllaitante && self::enLactation($ration)) {
@@ -266,10 +291,16 @@ class OvinBesoin
     /** Lait standard (sMY, l/j) : Éq. 20.14. MFC/MPC du lait de brebis (défauts 70 / 55 g/kg). */
     private static function smy(Ration $ration): float
     {
+        return self::my($ration) * self::facteurLaitStandard($ration);
+    }
+
+    /** Facteur de standardisation du lait de brebis (Éq. 20.14), défauts MFC 70 / MPC 55 g/kg. */
+    private static function facteurLaitStandard(Ration $ration): float
+    {
         $mfc = (float) ($ration->mfc ?? 70);
         $mpc = (float) ($ration->mpc ?? 55);
 
-        return self::my($ration) * (0.0071 * $mfc + 0.0043 * $mpc + 0.2224);
+        return 0.0071 * $mfc + 0.0043 * $mpc + 0.2224;
     }
 
     private static function estLacaune(Ration $ration): bool

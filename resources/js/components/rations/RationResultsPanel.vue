@@ -603,15 +603,24 @@ const energyRows = computed<DetailRow[]>(() => {
         return [];
     }
 
-    return [
+    const rows: DetailRow[] = [
         { label: 'Apport UFL', value: props.resultats.apports.ufl, unit: 'UFL/j', decimals: 2 },
         { label: 'Besoin UFL', value: props.resultats.besoins.uf_total, unit: 'UFL/j', decimals: 2 },
         { label: 'Apport UFL/kg MS', value: props.resultats.indicateurs?.ufl_par_kg_ms, unit: 'UFL/kg MS', decimals: 2 },
-        { metricKey: 'bil_ufl', label: metricLabel('bil_ufl'), value: props.resultats.impacts.bil_ufl, unit: 'UFL/j', decimals: 2, ...metricThresholds('bil_ufl') },
+    ];
+
+    // Le bilan UFL de production (régression bovine) n'est présent que pour les bovins reproducteurs.
+    if (props.resultats.impacts.bil_ufl !== undefined) {
+        rows.push({ metricKey: 'bil_ufl', label: metricLabel('bil_ufl'), value: props.resultats.impacts.bil_ufl, unit: 'UFL/j', decimals: 2, ...metricThresholds('bil_ufl') });
+    }
+
+    rows.push(
         { label: 'Lait permis par les UFL', value: props.resultats.impacts.lait_par_ufl, unit: 'kg/j', decimals: 2 },
         { label: 'PLPot', value: props.resultats.indicateurs?.pl_pot, unit: 'kg/j', decimals: 2 },
         { label: 'Production CH4', value: props.resultats.impacts.ch4, unit: 'g/j', decimals: 0 },
-    ];
+    );
+
+    return rows;
 });
 
 const mineralBalanceRows = computed<DetailRow[]>(() => {
@@ -1079,7 +1088,7 @@ const strengthInsights = computed(() => insightCandidates.value.filter((item) =>
                             <dt class="text-muted-foreground">Coût / 1 000 L</dt>
                             <dd class="text-right font-mono text-foreground">{{ fmt(resultats.impacts.cout_1000l, 2) }} €</dd>
                         </div>
-                        <div class="flex items-start justify-between gap-4">
+                        <div v-if="resultats.impacts.eau_bue !== undefined" class="flex items-start justify-between gap-4">
                             <dt class="text-muted-foreground">Eau bue estimée</dt>
                             <dd class="text-right font-mono text-foreground">{{ fmt(resultats.impacts.eau_bue, 1) }} L/j</dd>
                         </div>
@@ -1420,7 +1429,7 @@ const strengthInsights = computed(() => insightCandidates.value.filter((item) =>
                             <dt class="text-muted-foreground">Coût / 1 000 L lait</dt>
                             <dd class="font-mono text-foreground">{{ fmt(resultats.impacts.cout_1000l, 2) }} €</dd>
                         </div>
-                        <div class="flex justify-between gap-4">
+                        <div v-if="resultats.impacts.eau_bue !== undefined" class="flex justify-between gap-4">
                             <dt class="text-muted-foreground">Eau bue estimée</dt>
                             <dd class="font-mono text-foreground">{{ fmt(resultats.impacts.eau_bue, 1) }} L/j</dd>
                         </div>

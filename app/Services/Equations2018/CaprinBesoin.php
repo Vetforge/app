@@ -50,19 +50,24 @@ class CaprinBesoin
     /** Éq. 21.7a, ou 21.7b si le TP du lait est renseigné. */
     public static function besoinUFLait(Ration $ration): float
     {
+        return self::my($ration) * self::coutUFLParLitreLait($ration);
+    }
+
+    /**
+     * Coût énergétique (UFL) d'un litre de lait produit — Éq. 21.7a, ou 21.7b si le TP est renseigné.
+     * Sert à la fois au besoin lait ({@see besoinUFLait}) et au lait permis par les UFL.
+     */
+    public static function coutUFLParLitreLait(Ration $ration): float
+    {
         if (self::estChevrette($ration)) {
-            return 0.0;
-        }
-        $my = self::my($ration);
-        if ($my <= 0) {
             return 0.0;
         }
         $mfc = (float) ($ration->mfc ?? 35);
         $mpc = $ration->mpc !== null ? (float) $ration->mpc : null;
 
         return $mpc !== null
-            ? $my * (0.389 + 0.0052 * ($mfc - 35) + 0.0029 * ($mpc - 31))
-            : $my * (0.389 + 0.0056 * ($mfc - 35));
+            ? 0.389 + 0.0052 * ($mfc - 35) + 0.0029 * ($mpc - 31)
+            : 0.389 + 0.0056 * ($mfc - 35);
     }
 
     /**
@@ -128,16 +133,21 @@ class CaprinBesoin
     /** PDI lait (Éq. 21.15) : MY × MPC / PDIeff. */
     public static function besoinPDILait(Ration $ration): float
     {
+        return self::my($ration) * self::coutPDIParLitreLait($ration);
+    }
+
+    /**
+     * Coût protéique (PDI) d'un litre de lait produit — Éq. 21.15 : MPC / PDIeff.
+     * Sert à la fois au besoin lait ({@see besoinPDILait}) et au lait permis par les PDI.
+     */
+    public static function coutPDIParLitreLait(Ration $ration): float
+    {
         if (self::estChevrette($ration)) {
             return 0.0;
         }
-        $my = self::my($ration);
         $effPdi = self::effPdi($ration);
-        if ($my <= 0 || $effPdi <= 0) {
-            return 0.0;
-        }
 
-        return $my * (float) ($ration->mpc ?? 31) / $effPdi;
+        return $effPdi > 0 ? (float) ($ration->mpc ?? 31) / $effPdi : 0.0;
     }
 
     /** PDI gestation (Éq. 21.30) : a × exp(0,03383 × DG) / PDIeff. */

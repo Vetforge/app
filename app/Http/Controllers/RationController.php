@@ -274,33 +274,7 @@ class RationController extends Controller
             $compteur = 0;
 
             if ($inra === '2018') {
-                $composant->quantite = 100.0;
-                Apport2018::precompute($ration);
-                $apportUE = Apport2018::calculerApportTotalUE($ration);
-                $capaciteI = Besoin2018::calculerCapaciteIngestion($ration);
-                while ($apportUE > $capaciteI && $composant->quantite > 0) {
-                    $delta = $apportUE - $capaciteI;
-                    if ($delta > 20) {
-                        $composant->quantite -= 15;
-                    } elseif ($delta > 10) {
-                        $composant->quantite -= 8;
-                    } elseif ($delta > 2) {
-                        $composant->quantite -= 1.5;
-                    } elseif ($delta > 0.5) {
-                        $composant->quantite -= 0.3;
-                    } elseif ($delta > 0.1) {
-                        $composant->quantite -= 0.08;
-                    } else {
-                        $composant->quantite -= 0.01;
-                    }
-                    if (++$compteur > 1000) {
-                        break;
-                    }
-                    Apport2018::precompute($ration);
-                    $apportUE = Apport2018::calculerApportTotalUE($ration);
-                    $capaciteI = Besoin2018::calculerCapaciteIngestion($ration);
-                }
-                Apport2018::clearCache();
+                $compteur = $this->ajusterVolonte2018($ration, $composant);
             } else {
                 $composant->quantite = 0.0;
                 Apport2007::precompute($ration);
@@ -336,6 +310,69 @@ class RationController extends Controller
         }
 
         return 0;
+    }
+
+    private function ajusterVolonte2018(Ration $ration, RationAliment|Melange $composant): int
+    {
+        $iterations = 0;
+        $minimum = 0.0;
+        $maximum = 100.0;
+        $meilleureQuantite = $minimum;
+        $meilleurEcart = null;
+
+        try {
+            $composant->quantite = $minimum;
+            $ecartMinimum = $this->ecartIngestion2018($ration);
+            if ($ecartMinimum >= 0.0) {
+                return $iterations;
+            }
+
+            $meilleurEcart = $ecartMinimum;
+            $composant->quantite = $maximum;
+            $ecartMaximum = $this->ecartIngestion2018($ration);
+            $iterations++;
+
+            if ($ecartMaximum <= 0.0) {
+                return $iterations;
+            }
+
+            while ($iterations < 80 && ($maximum - $minimum) > 0.0001) {
+                $milieu = ($minimum + $maximum) / 2;
+                $composant->quantite = $milieu;
+                $ecart = $this->ecartIngestion2018($ration);
+                $iterations++;
+
+                if (abs($ecart) <= 0.001) {
+                    $meilleureQuantite = $milieu;
+                    $meilleurEcart = $ecart;
+                    break;
+                }
+
+                if ($ecart <= 0.0 && abs($ecart) < abs($meilleurEcart)) {
+                    $meilleureQuantite = $milieu;
+                    $meilleurEcart = $ecart;
+                }
+
+                if ($ecart > 0.0) {
+                    $maximum = $milieu;
+                } else {
+                    $minimum = $milieu;
+                }
+            }
+
+            $composant->quantite = $meilleureQuantite;
+
+            return $iterations;
+        } finally {
+            Apport2018::clearCache();
+        }
+    }
+
+    private function ecartIngestion2018(Ration $ration): float
+    {
+        Apport2018::precompute($ration);
+
+        return Apport2018::calculerApportTotalUE($ration) - Besoin2018::calculerCapaciteIngestion($ration);
     }
 
     public function destroy(PlanRationnement $plan, Ration $ration): RedirectResponse
