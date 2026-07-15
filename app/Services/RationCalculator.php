@@ -334,6 +334,15 @@ class RationCalculator
 
         return [
             'inra' => '2018',
+            // Les clés énergie/encombrement restent nommées « ufl »/« ue » pour la stabilité du
+            // contrat, mais l'unité réelle dépend de la catégorie (UFV pour l'engraissement et les
+            // agneaux ; UEL/UEM/UEB selon l'espèce). `meta` porte les libellés à afficher (UI-01/UI-08).
+            'meta' => [
+                'categorie' => $categorie->value,
+                'espece' => $categorie->espece()->value,
+                'unite_fourragere' => $categorie->uniteFourragereLabel(),
+                'unite_encombrement' => $categorie->uniteEncombrementLabel(),
+            ],
             'apports' => [
                 'ms' => round($apportMS, 2),
                 'ue' => round($apportUE, 2),

@@ -19,9 +19,13 @@ class UpdateRationDescriptionRequest extends FormRequest
     protected function prepareForValidation(): void
     {
         if ($this->has('categorie_animal') && $this->input('categorie_animal') !== null) {
-            $this->merge([
-                'categorie_animal' => CategorieAnimal::fromLoose((string) $this->input('categorie_animal'))->value,
-            ]);
+            $resolved = CategorieAnimal::tryFromLoose((string) $this->input('categorie_animal'));
+
+            // Un alias reconnu est normalisé vers sa valeur canonique ; une valeur inconnue est
+            // laissée telle quelle pour être rejetée par Rule::enum (pas de conversion silencieuse).
+            if ($resolved !== null) {
+                $this->merge(['categorie_animal' => $resolved->value]);
+            }
         }
     }
 
@@ -32,7 +36,7 @@ class UpdateRationDescriptionRequest extends FormRequest
             'categorie_animal' => ['required', Rule::enum(CategorieAnimal::class)],
             'effectif' => ['nullable', 'integer', 'min:1'],
             'lait_potentiel305j' => ['nullable', 'numeric', 'min:0'],
-            'poids_vif' => ['nullable', 'numeric', 'min:0'],
+            'poids_vif' => ['nullable', 'numeric', 'gt:0'],
             'pourcentage_primipare' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'nec' => ['nullable', 'numeric', 'min:0', 'max:5'],
             'tb_annuel' => ['nullable', 'numeric', 'min:0'],
@@ -59,7 +63,7 @@ class UpdateRationDescriptionRequest extends FormRequest
             'stade_physiologique' => ['nullable', 'string', 'max:50'],
             'jours_gestation' => ['nullable', 'integer', 'min:0', 'max:290'],
             'jours_lactation' => ['nullable', 'integer', 'min:0', 'max:400'],
-            'nombre_jeunes' => ['nullable', 'integer', 'min:0', 'max:6'],
+            'nombre_jeunes' => ['nullable', 'integer', 'min:1', 'max:6'],
             'poids_portee' => ['nullable', 'numeric', 'min:0'],
             'gmq_portee' => ['nullable', 'integer', 'min:0', 'max:3000'],
             'mfc' => ['nullable', 'numeric', 'min:0'],

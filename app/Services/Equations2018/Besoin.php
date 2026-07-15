@@ -35,7 +35,8 @@ class Besoin
         $semLactation = RationHelper::calculerSemainesLactation($ration);
 
         return match ($cat) {
-            CategorieAnimal::VacheLaitiere => $TPannuel * (0.88 + 1.18 * exp(-1.24 * $semLactation) + 0.005 * $semLactation),
+            // Éq. 17.4 p. 234 : TP potentiel = 0,90 + 0,60·e^(−0,78·WL) + 0,006·WL.
+            CategorieAnimal::VacheLaitiere => $TPannuel * (0.90 + 0.60 * exp(-0.78 * $semLactation) + 0.006 * $semLactation),
             default => 33.0,
         };
     }
@@ -124,9 +125,14 @@ class Besoin
         if ($cat->espece() === Espece::Ovin) {
             return OvinBesoin::besoinUFGestation($ration);
         }
-        $moisGest = (float) ($ration->mois_gestation ?? 0);
         $semGest = RationHelper::calculerSemainesGestation($ration);
         $poidsVeau = (float) ($ration->poids_veau_naissance ?? 50);
+
+        // Une vache non gestante n'a pas de besoin énergétique de gestation (cohérent avec le
+        // besoin PDI de gestation, qui exige déjà semGest > 0).
+        if ($semGest <= 0) {
+            return 0.0;
+        }
 
         return match ($cat) {
             CategorieAnimal::VacheLaitiere, CategorieAnimal::VacheAllaitante => 0.000695 * $poidsVeau * exp(0.116 * $semGest),
@@ -159,6 +165,13 @@ class Besoin
 
     public static function calculerBesoinUF_DRC(Ration $ration): float
     {
+        // Les termes de variation des réserves corporelles (DRC, Éq. 18.5/18.6) ne s'appliquent
+        // qu'aux vaches reproductrices ; les autres espèces/catégories gèrent leurs réserves dans
+        // leur propre moteur et ne doivent pas hériter du modèle bovin (cf. OV-02, CAP-09).
+        if (! self::estVacheReproductrice($ration)) {
+            return 0.0;
+        }
+
         $primipare = (float) ($ration->pourcentage_primipare ?? 0);
         $deltaPV = (float) ($ration->ecart_variation_reserve ?? 0);
 
@@ -357,16 +370,33 @@ class Besoin
 
     public static function calculerBesoinPDI_DRC(Ration $ration): float
     {
+        if (! self::estVacheReproductrice($ration)) {
+            return 0.0;
+        }
+
         $primipare = (float) ($ration->pourcentage_primipare ?? 0);
         $deltaPV = (float) ($ration->ecart_variation_reserve ?? 0);
 
-        // Éq. 18.6 : 0,13 g/kg (multipares) → 0,16 g/kg (primipares, encore en croissance).
+        // Éq. 18.6 : 0,13 (multipares) → 0,16 (primipares, encore en croissance). L'équation est
+        // exprimée en kg PDI/j ; on convertit en g PDI/j (× 1 000). Box 18.2 : −0,1 kg/j → −13 g/j.
         // En mobilisation des réserves (cΔBW < 0), l'INRA impose PDIeff = 1.
         $effPdi = $deltaPV < 0 ? 1.0 : Apport::calculerEffPDI($ration);
 
         return $effPdi > 0
-            ? ((0.13 + 0.03 * $primipare / 100) * $deltaPV) / $effPdi
+            ? ((0.13 + 0.03 * $primipare / 100) * $deltaPV * 1000.0) / $effPdi
             : 0.0;
+    }
+
+    /**
+     * La catégorie relève-t-elle du modèle bovin reproducteur (réserves corporelles Éq. 18.5/18.6) ?
+     */
+    private static function estVacheReproductrice(Ration $ration): bool
+    {
+        return in_array(
+            RationHelper::categorie($ration->categorie_animal ?? ''),
+            [CategorieAnimal::VacheLaitiere, CategorieAnimal::VacheAllaitante],
+            true,
+        );
     }
 
     public static function calculerBesoinTotalPDI(Ration $ration): float
@@ -453,10 +483,14 @@ class Besoin
         $poidsVif = RationHelper::poidsVif($ration);
         $lait = (float) ($ration->lait_objectif ?? 0);
         $semGest = RationHelper::calculerSemainesGestation($ration);
+        $espece = RationHelper::categorie($ration->categorie_animal ?? '')->espece();
 
-        return 0.011 * $poidsVif
+        // Entretien et lait Mg diffèrent chez la brebis (Tableau 8.1) : 0,014×PV + 0,18×lait.
+        [$coefPV, $coefLait] = $espece === Espece::Ovin ? [0.014, 0.18] : [0.011, 0.15];
+
+        return $coefPV * $poidsVif
             + ($semGest >= 27 ? 0.3 : 0.0)
-            + 0.15 * $lait;
+            + $coefLait * $lait;
     }
 
     public static function calculerBesoinNa(Ration $ration): float
@@ -476,11 +510,19 @@ class Besoin
         $poidsVif = RationHelper::poidsVif($ration);
         $lait = (float) ($ration->lait_objectif ?? 0);
         $semGest = RationHelper::calculerSemainesGestation($ration);
+        $espece = RationHelper::categorie($ration->categorie_animal ?? '')->espece();
         $entretien = $lait > 0 ? 0.150 * $poidsVif : 0.105 * $poidsVif;
+
+        // K du lait (Tableau 8.1) : ≈ 1,5 bovin, 1,4 ovin, 1,8 caprin.
+        $coefLait = match ($espece) {
+            Espece::Ovin => 1.4,
+            Espece::Caprin => 1.8,
+            default => 1.5,
+        };
 
         return $entretien
             + ($semGest >= 27 ? 1.0 : 0.0)
-            + 1.5 * $lait;
+            + $coefLait * $lait;
     }
 
     public static function calculerBesoinCl(Ration $ration): float
@@ -488,16 +530,24 @@ class Besoin
         $poidsVif = RationHelper::poidsVif($ration);
         $lait = (float) ($ration->lait_objectif ?? 0);
         $semGest = RationHelper::calculerSemainesGestation($ration);
+        $espece = RationHelper::categorie($ration->categorie_animal ?? '')->espece();
         $entretien = $lait > 0 ? 0.035 * $poidsVif : 0.023 * $poidsVif;
+
+        // Cl du lait (Tableau 8.1) : ≈ 1,15 bovin/ovin, 1,30 caprin.
+        $coefLait = $espece === Espece::Caprin ? 1.30 : 1.15;
 
         return $entretien
             + ($semGest >= 27 ? 1.0 : 0.0)
-            + 1.15 * $lait;
+            + $coefLait * $lait;
     }
 
     public static function calculerBesoinS(Ration $ration): float
     {
-        return 2 * Apport::calculerApportTotalMS($ration);
+        // Tableau 8.1 : 2,2 g/kg MSI chez le caprin, 2,0 g/kg MSI sinon.
+        $espece = RationHelper::categorie($ration->categorie_animal ?? '')->espece();
+        $coef = $espece === Espece::Caprin ? 2.2 : 2.0;
+
+        return $coef * Apport::calculerApportTotalMS($ration);
     }
 
     public static function calculerBesoinCo(Ration $ration): float
@@ -507,7 +557,11 @@ class Besoin
 
     public static function calculerBesoinCu(Ration $ration): float
     {
-        return 10 * Apport::calculerApportTotalMS($ration);
+        // Tableau 8.1 : 15 mg/kg MSI chez le caprin, 10 mg/kg MSI sinon.
+        $espece = RationHelper::categorie($ration->categorie_animal ?? '')->espece();
+        $coef = $espece === Espece::Caprin ? 15 : 10;
+
+        return $coef * Apport::calculerApportTotalMS($ration);
     }
 
     public static function calculerBesoinI(Ration $ration): float

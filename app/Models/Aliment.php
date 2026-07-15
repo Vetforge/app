@@ -5,13 +5,20 @@ declare(strict_types=1);
 namespace App\Models;
 
 use Database\Factories\AlimentFactory;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Str;
 
 class Aliment extends Model
 {
+    /**
+     * Jetons de type d'aliment canoniques attendus par le moteur INRA 2018.
+     */
+    public const TYPES_CANONIQUES = ['Fourrage', 'Conc', 'Mineral'];
+
     /** @use HasFactory<AlimentFactory> */
     use HasFactory;
 
@@ -30,6 +37,35 @@ class Aliment extends Model
         'c6_10', 'c12_0', 'c14_0', 'c16_0', 'c16_1', 'c18_0', 'c18_1', 'c18_2', 'c18_3', 'c20_0', 'c20_1', 'c22_0', 'c22_1', 'c24_0', 'b_vec',
         'ufl2007', 'ufv2007', 'pdia2007', 'pdie2007', 'pdin2007', 'd_mo2007', 'd_ma2007', 'd_cb2007', 'd_ndf2007', 'd_adf2007', 'uem2007', 'uel2007', 'ueb2007', 'eb2007', 'd_e2007', 'em2007',
     ];
+
+    /**
+     * Le type est normalisé vers un jeton canonique à l'écriture, quelle que soit la source
+     * (formulaire, import CSV, seeder) : « Concentré », « concentre », « Minéral »… deviennent
+     * respectivement « Conc », « Mineral ». Le moteur compare des jetons stricts (cf. ALI-01).
+     */
+    protected function type(): Attribute
+    {
+        return Attribute::make(
+            set: fn (mixed $value): ?string => self::canonicalType($value),
+        );
+    }
+
+    /**
+     * Résout une valeur de type libre vers un jeton canonique du moteur, ou null si vide.
+     * Une valeur non reconnue est conservée telle quelle afin de rester visible/corrigeable.
+     */
+    public static function canonicalType(mixed $value): ?string
+    {
+        $normalized = Str::of((string) $value)->lower()->ascii()->squish()->value();
+
+        return match (true) {
+            $normalized === '' => null,
+            str_starts_with($normalized, 'fourrage') => 'Fourrage',
+            str_contains($normalized, 'conc') => 'Conc',
+            str_contains($normalized, 'miner') => 'Mineral',
+            default => trim((string) $value),
+        };
+    }
 
     /**
      * @return BelongsTo<User, $this>

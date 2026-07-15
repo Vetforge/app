@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Http\Requests;
 
+use App\Models\Aliment;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreAlimentRequest extends FormRequest
 {
@@ -13,10 +15,18 @@ class StoreAlimentRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('type') && $this->input('type') !== null && $this->input('type') !== '') {
+            // Normaliser vers le jeton canonique (« Concentré » → « Conc », « Minéral » → « Mineral »).
+            $this->merge(['type' => Aliment::canonicalType($this->input('type'))]);
+        }
+    }
+
     public function rules(): array
     {
         return [
-            'type' => ['nullable', 'string', 'max:100'],
+            'type' => ['nullable', Rule::in(Aliment::TYPES_CANONIQUES)],
             'libelle0' => ['required', 'string', 'max:255'],
             'libelle1' => ['nullable', 'string', 'max:255'],
             'libelle2' => ['nullable', 'string', 'max:255'],

@@ -793,6 +793,10 @@
         $impacts = $resultats['impacts'] ?? [];
         $bilans = $resultats['bilans'] ?? [];
         $indicateurs = $resultats['indicateurs'] ?? [];
+        $meta = $resultats['meta'] ?? [];
+        // Unités affichées propres à la catégorie (UFV pour engraissement/agneaux ; UEL/UEM/UEB).
+        $uniteEnergie = $meta['unite_fourragere'] ?? 'UFL';
+        $uniteEncombrement = $meta['unite_encombrement'] ?? 'UE';
         $is2018 = ($resultats['inra'] ?? '2018') === '2018';
         $normes = $normes ?? \App\Support\RationNormes::payloadForUser(request()->user());
         $activeNormes = $normes['active'] ?? [];
@@ -1333,11 +1337,11 @@
         ] : [];
 
         $energyRows = $is2018 ? [
-            ['label' => 'Apport UFL', 'value' => $apports['ufl'] ?? null, 'unit' => 'UFL/j', 'decimals' => 2],
-            ['label' => 'Besoin UFL', 'value' => $besoins['uf_total'] ?? null, 'unit' => 'UFL/j', 'decimals' => 2],
-            ['label' => 'Apport UFL/kg MS', 'value' => $indicateurs['ufl_par_kg_ms'] ?? null, 'unit' => 'UFL/kg MS', 'decimals' => 2],
-            ['metricKey' => 'bil_ufl', 'label' => $metricLabel('bil_ufl'), 'value' => $impacts['bil_ufl'] ?? null, 'unit' => 'UFL/j', 'decimals' => 2, ...$metricNorme('bil_ufl')],
-            ['label' => 'Lait permis par les UFL', 'value' => $impacts['lait_par_ufl'] ?? null, 'unit' => 'kg/j', 'decimals' => 2],
+            ['label' => 'Apport '.$uniteEnergie, 'value' => $apports['ufl'] ?? null, 'unit' => $uniteEnergie.'/j', 'decimals' => 2],
+            ['label' => 'Besoin '.$uniteEnergie, 'value' => $besoins['uf_total'] ?? null, 'unit' => $uniteEnergie.'/j', 'decimals' => 2],
+            ['label' => 'Apport '.$uniteEnergie.'/kg MS', 'value' => $indicateurs['ufl_par_kg_ms'] ?? null, 'unit' => $uniteEnergie.'/kg MS', 'decimals' => 2],
+            ['metricKey' => 'bil_ufl', 'label' => $metricLabel('bil_ufl'), 'value' => $impacts['bil_ufl'] ?? null, 'unit' => $uniteEnergie.'/j', 'decimals' => 2, ...$metricNorme('bil_ufl')],
+            ['label' => 'Lait permis par les '.$uniteEnergie, 'value' => $impacts['lait_par_ufl'] ?? null, 'unit' => 'kg/j', 'decimals' => 2],
             ['label' => 'PLPot', 'value' => $indicateurs['pl_pot'] ?? null, 'unit' => 'kg/j', 'decimals' => 2],
             ['label' => 'Production CH4', 'value' => $impacts['ch4'] ?? null, 'unit' => 'g/j', 'decimals' => 0],
         ] : [];
@@ -1367,14 +1371,14 @@
 
         $balanceRows = [
             [
-                'label' => 'UFL',
+                'label' => $uniteEnergie,
                 'apport' => $apports['ufl'] ?? null,
                 'besoin' => $besoins['uf_total'] ?? null,
                 'bilan' => $bilans['ufl'] ?? null,
                 'decimals' => 2,
             ],
             [
-                'label' => 'UE (kg MS)',
+                'label' => $uniteEncombrement.' (kg MS)',
                 'apport' => $apports['ue'] ?? null,
                 'besoin' => $besoins['ci'] ?? null,
                 'bilan' => $bilans['ue'] ?? null,
@@ -1459,7 +1463,7 @@
             [
                 'label' => 'Énergie',
                 'valueLabel' => $ufRatio === null ? '–' : $format($ufRatio * 100, 0).' %',
-                'note' => $format($apports['ufl'] ?? null, 2).' / '.$format($besoins['uf_total'] ?? null, 2).' UFL',
+                'note' => $format($apports['ufl'] ?? null, 2).' / '.$format($besoins['uf_total'] ?? null, 2).' '.$uniteEnergie,
                 'percent' => $ratioPercent($ufRatio),
                 'status' => $coverageStatus($ufRatio),
             ],
@@ -1527,9 +1531,9 @@
                 'status' => $laitStatus,
             ],
             [
-                'label' => 'Couverture UFL',
+                'label' => 'Couverture '.$uniteEnergie,
                 'valueLabel' => $ufRatio === null ? '–' : $format($ufRatio * 100, 0).' %',
-                'note' => $format($apports['ufl'] ?? null, 2).' / '.$format($besoins['uf_total'] ?? null, 2).' UFL',
+                'note' => $format($apports['ufl'] ?? null, 2).' / '.$format($besoins['uf_total'] ?? null, 2).' '.$uniteEnergie,
                 'status' => $coverageStatus($ufRatio),
             ],
             [

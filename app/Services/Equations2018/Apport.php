@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Equations2018;
 
 use App\Enums\CategorieAnimal;
+use App\Enums\Espece;
 use App\Models\Aliment;
 use App\Models\Ration;
 use App\Services\RationHelper;
@@ -437,10 +438,13 @@ class Apport
 
     public static function calculerApportLysDI(Ration $ration): float
     {
+        // Numérateur et dénominateur doivent reposer sur le même PDI dynamique (et non le PDI
+        // tabulé), sans quoi le diagnostic LysDI mélange deux référentiels (cf. ALI-11).
         $totalPDI = self::calculerApportTotalPDI($ration);
         $totalLysDI = 0.0;
         foreach (self::getIngredients($ration) as $item) {
-            $totalLysDI += $item['qty_ms'] * (float) ($item['aliment']->lys_di ?? 0) * (float) ($item['aliment']->pdi ?? 0) / 100;
+            $pdiAliment = (new CalculValeur($ration, $item['aliment']))->calculerPDIAliment();
+            $totalLysDI += $item['qty_ms'] * $pdiAliment * (float) ($item['aliment']->lys_di ?? 0) / 100;
         }
 
         return $totalPDI != 0 ? ($totalLysDI / $totalPDI) * 100 : 0.0;
@@ -451,7 +455,8 @@ class Apport
         $totalPDI = self::calculerApportTotalPDI($ration);
         $totalMetDI = 0.0;
         foreach (self::getIngredients($ration) as $item) {
-            $totalMetDI += $item['qty_ms'] * (float) ($item['aliment']->met_di ?? 0) * (float) ($item['aliment']->pdi ?? 0) / 100;
+            $pdiAliment = (new CalculValeur($ration, $item['aliment']))->calculerPDIAliment();
+            $totalMetDI += $item['qty_ms'] * $pdiAliment * (float) ($item['aliment']->met_di ?? 0) / 100;
         }
 
         return $totalPDI != 0 ? ($totalMetDI / $totalPDI) * 100 : 0.0;
@@ -865,8 +870,9 @@ class Apport
         foreach (self::getIngredients($ration) as $item) {
             $pabs = $item['aliment']->pabs;
             if ($pabs === null) {
+                // Source minérale sans Pabs tabulée : absorbabilité moyenne P = 0,65 (p. 227).
                 $pabs = ($item['aliment']->p !== null && $item['type'] === 'Mineral')
-                    ? (float) $item['aliment']->p * 0.4
+                    ? (float) $item['aliment']->p * 0.65
                     : 0.0;
             }
             $total += $item['qty_ms'] * (float) $pabs;
@@ -886,9 +892,18 @@ class Apport
         $totalMS = self::calculerApportTotalMS($ration);
         $totalMg = self::calculerApportMg($ration);
 
-        return $totalMS > 0
-            ? $totalMg * (0.264 - 0.003 * ($apportK / $totalMS))
-            : 0.0;
+        if ($totalMS <= 0) {
+            return 0.0;
+        }
+
+        // Coefficient d'absorption du Mg (Table 5.2 p. 81) : bovins 0,254 − 0,003×[K] ;
+        // ovins/caprins 0,456 − 0,004×[K]. [K] exprimé en g/kg MS.
+        $concK = $apportK / $totalMS;
+        $absorption = RationHelper::categorie($ration->categorie_animal ?? '')->espece() === Espece::Bovin
+            ? 0.254 - 0.003 * $concK
+            : 0.456 - 0.004 * $concK;
+
+        return $totalMg * max(0.0, $absorption);
     }
 
     public static function calculerApportK(Ration $ration): float

@@ -158,6 +158,16 @@ enum CategorieAnimal: string
      */
     public static function fromLoose(?string $categorie): self
     {
+        return self::tryFromLoose($categorie) ?? self::VacheLaitiere;
+    }
+
+    /**
+     * Résout une représentation vers une catégorie via une liste fermée d'alias reconnus,
+     * ou {@see null} si l'entrée n'est pas reconnaissable. À utiliser à la validation d'une saisie
+     * utilisateur pour rejeter l'inconnu, plutôt que de le convertir silencieusement (cf. FOR-02).
+     */
+    public static function tryFromLoose(?string $categorie): ?self
+    {
         $categorie = (string) $categorie;
 
         if ($enum = self::tryFrom($categorie)) {
@@ -170,6 +180,10 @@ enum CategorieAnimal: string
             ->replaceMatches('/[^a-z0-9]+/', '')
             ->value();
 
+        if ($n === '') {
+            return null;
+        }
+
         return match (true) {
             str_contains($n, 'chevrette') => self::ChevretteCroissance,
             str_contains($n, 'chevre') => self::ChevreLaitiere,
@@ -178,8 +192,12 @@ enum CategorieAnimal: string
             str_contains($n, 'brebis') => self::BrebisLaitiere,
             str_contains($n, 'engrais') => self::BovinEngraissement,
             str_contains($n, 'bovin') && str_contains($n, 'croissance') => self::BovinCroissance,
+            str_contains($n, 'genisse') => self::BovinCroissance,
+            str_contains($n, 'vache') && str_contains($n, 'allait') => self::VacheAllaitante,
             str_contains($n, 'allait') => self::VacheAllaitante,
-            default => self::VacheLaitiere,
+            str_contains($n, 'vache') => self::VacheLaitiere,
+            str_contains($n, 'laitiere') => self::VacheLaitiere,
+            default => null,
         };
     }
 

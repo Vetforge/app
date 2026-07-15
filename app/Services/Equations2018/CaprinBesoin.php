@@ -246,16 +246,18 @@ class CaprinBesoin
         return self::my($ration) > 0 ? self::besoinUFLait($ration) / 0.389 : 0.0;
     }
 
-    /** Indice CI lié au stade de lactation (Éq. 21.47), 5 premières semaines. */
+    /** Indice CI lié au stade de lactation (Éq. 21.47), numéro de semaine 1 à 5. */
     private static function indiceCILactation(Ration $ration): float
     {
         $dim = max(0.0, (float) ($ration->jours_lactation ?? 0));
         if ($dim <= 0) {
             return 1.0;
         }
-        $wl = $dim / 7.0;
+        // Éq. 21.47 emploie le numéro de semaine de lactation (1..5), pas un DIM/7 continu :
+        // à DIM = 1 l'indice vaut ≈ 0,726 (semaine 1) et non ≈ 0,541 (cf. CAP-03).
+        $semaine = (int) ceil($dim / 7.0);
 
-        return $wl >= 5.0 ? 1.0 : 0.5 + 0.5 * (1 - exp(-0.6 * $wl));
+        return $semaine >= 5 ? 1.0 : 0.5 + 0.5 * (1 - exp(-0.6 * $semaine));
     }
 
     /** Indice CI lié au stade de gestation (Éq. 21.48). */

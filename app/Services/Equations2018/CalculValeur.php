@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Services\Equations2018;
 
+use App\Enums\Espece;
 use App\Models\Aliment;
 use App\Models\Ration;
+use Illuminate\Support\Str;
 
 /**
  * Calcul dynamique des valeurs nutritionnelles INRA 2018 pour un aliment dans le contexte d'une ration.
@@ -39,7 +41,17 @@ class CalculValeur
         $PCO = Apport::calculerPCO($this->ration);
 
         $deltaDMO_NI = -2.74 * ($NI - $NIref);
-        $deltaDMO_CO = $PCO > 0 ? -6.5 / (1 + ($PCO > 0 ? pow(0.35 / $PCO, 3) : INF)) : 0.0;
+
+        // Correction liée à la proportion de concentré (ch. 3 p. 46). Le coefficient dépend de
+        // l'espèce : plein effet chez le bovin, atténué (× 0,6) chez l'ovin, nul chez le caprin.
+        $facteurCO = match ($this->ration->categorie()->espece()) {
+            Espece::Ovin => 0.6,
+            Espece::Caprin => 0.0,
+            default => 1.0,
+        };
+        $deltaDMO_CO = ($PCO > 0 && $facteurCO > 0.0)
+            ? $facteurCO * (-6.5 / (1 + pow(0.35 / $PCO, 3)))
+            : 0.0;
         $BPRref = (float) ($this->aliment->bpr ?? 0);
         $deltaDMO_BPR = 0.06 * ($bpr - $BPRref);
 
@@ -52,17 +64,17 @@ class CalculValeur
     public function calculerDEAliment(): float
     {
         $dMO = $this->calculerDMOcAliment();
-        $libelle0 = (string) ($this->aliment->libelle0 ?? '');
-        $libelle4 = (string) ($this->aliment->libelle4 ?? '');
+        $famille = self::normaliserLibelle((string) ($this->aliment->libelle0 ?? ''));
+        $estMais = $this->estMais();
 
-        if ($libelle0 === 'Fourrages verts') {
-            return $libelle4 === 'Mais'
+        if ($famille === 'fourrages verts') {
+            return $estMais
                 ? -2.35 + 0.997 * $dMO
                 : -0.068 + 0.957 * $dMO;
         }
 
-        if ($libelle0 === 'Ensilages') {
-            if ($libelle4 === 'Mais') {
+        if ($famille === 'ensilages') {
+            if ($estMais) {
                 return -2.86 + 1.001 * $dMO;
             }
             $ms = (float) ($this->aliment->ms ?? 0);
@@ -72,11 +84,11 @@ class CalculValeur
                 : -2.556 + 0.985 * $dMO;
         }
 
-        if ($libelle0 === 'Foins' || $libelle0 === 'Pailles, fourrages lignifiés') {
+        if ($famille === 'foins' || $famille === 'pailles, fourrages lignifies') {
             return -2.556 + 0.985 * $dMO;
         }
 
-        if ($libelle4 === 'Luzerne deshydratee') {
+        if ($this->estLuzerneDeshydratee()) {
             return -3 + 1.003 * $dMO;
         }
 
@@ -84,6 +96,36 @@ class CalculValeur
         $mat = (float) ($this->aliment->mat ?? 0);
 
         return -2.9 + $dMO + 0.0051 * $mat;
+    }
+
+    /**
+     * Normalise un libellé de famille (casse et accents) pour une comparaison robuste.
+     * Les CSV du référentiel stockent les familles en majuscules accentuées (« FOURRAGES VERTS »,
+     * « PAILLES, FOURRAGES LIGNIFIÉS »…) : la sélection de l'équation ne doit pas être sensible à la casse.
+     */
+    private static function normaliserLibelle(string $valeur): string
+    {
+        return Str::of($valeur)->lower()->ascii()->squish()->value();
+    }
+
+    /** Détail botanique/technologique normalisé (libellés 4 puis 1). */
+    private function detailAliment(): string
+    {
+        return self::normaliserLibelle(
+            ((string) ($this->aliment->libelle4 ?? '')).' '.((string) ($this->aliment->libelle1 ?? ''))
+        );
+    }
+
+    private function estMais(): bool
+    {
+        return preg_match('/\bmais\b/', $this->detailAliment()) === 1;
+    }
+
+    private function estLuzerneDeshydratee(): bool
+    {
+        $detail = $this->detailAliment();
+
+        return str_contains($detail, 'luzerne') && str_contains($detail, 'deshydrat');
     }
 
     /**

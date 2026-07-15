@@ -72,6 +72,12 @@ const props = defineProps<{
     normes: RationNormesPayload;
 }>();
 
+// Unité énergétique réelle de la catégorie : UFL (lait/croissance lente) ou UFV (engraissement,
+// agneaux). Idem pour l'encombrement (UEL/UEM/UEB). Les valeurs restent sous les clés `ufl`/`ue`
+// du contrat, mais les libellés affichés suivent la catégorie (cf. UI-01/UI-08).
+const uniteEnergie = computed(() => props.resultats.meta?.unite_fourragere ?? 'UFL');
+const uniteEncombrement = computed(() => props.resultats.meta?.unite_encombrement ?? 'UE');
+
 function fmt(val: number | undefined, decimals = 1): string {
     return formatNumber(val, decimals);
 }
@@ -603,19 +609,20 @@ const energyRows = computed<DetailRow[]>(() => {
         return [];
     }
 
+    const ue = uniteEnergie.value;
     const rows: DetailRow[] = [
-        { label: 'Apport UFL', value: props.resultats.apports.ufl, unit: 'UFL/j', decimals: 2 },
-        { label: 'Besoin UFL', value: props.resultats.besoins.uf_total, unit: 'UFL/j', decimals: 2 },
-        { label: 'Apport UFL/kg MS', value: props.resultats.indicateurs?.ufl_par_kg_ms, unit: 'UFL/kg MS', decimals: 2 },
+        { label: `Apport ${ue}`, value: props.resultats.apports.ufl, unit: `${ue}/j`, decimals: 2 },
+        { label: `Besoin ${ue}`, value: props.resultats.besoins.uf_total, unit: `${ue}/j`, decimals: 2 },
+        { label: `Apport ${ue}/kg MS`, value: props.resultats.indicateurs?.ufl_par_kg_ms, unit: `${ue}/kg MS`, decimals: 2 },
     ];
 
     // Le bilan UFL de production (régression bovine) n'est présent que pour les bovins reproducteurs.
     if (props.resultats.impacts.bil_ufl !== undefined) {
-        rows.push({ metricKey: 'bil_ufl', label: metricLabel('bil_ufl'), value: props.resultats.impacts.bil_ufl, unit: 'UFL/j', decimals: 2, ...metricThresholds('bil_ufl') });
+        rows.push({ metricKey: 'bil_ufl', label: metricLabel('bil_ufl'), value: props.resultats.impacts.bil_ufl, unit: `${ue}/j`, decimals: 2, ...metricThresholds('bil_ufl') });
     }
 
     rows.push(
-        { label: 'Lait permis par les UFL', value: props.resultats.impacts.lait_par_ufl, unit: 'kg/j', decimals: 2 },
+        { label: `Lait permis par les ${ue}`, value: props.resultats.impacts.lait_par_ufl, unit: 'kg/j', decimals: 2 },
         { label: 'PLPot', value: props.resultats.indicateurs?.pl_pot, unit: 'kg/j', decimals: 2 },
         { label: 'Production CH4', value: props.resultats.impacts.ch4, unit: 'g/j', decimals: 0 },
     );
@@ -661,14 +668,14 @@ const mineralRows = computed<ComparisonRow[]>(() => {
 const balanceRows = computed<BalanceRow[]>(() => {
     const rows: BalanceRow[] = [
         {
-            label: 'UFL',
+            label: uniteEnergie.value,
             apport: props.resultats.apports.ufl,
             besoin: props.resultats.besoins.uf_total,
             bilan: props.resultats.bilans.ufl,
             decimals: 2,
         },
         {
-            label: 'UE (kg MS)',
+            label: `${uniteEncombrement.value} (kg MS)`,
             apport: props.resultats.apports.ue,
             besoin: props.resultats.besoins.ci,
             bilan: props.resultats.bilans.ue,
@@ -747,7 +754,7 @@ const technicalPanels = computed<TechnicalPanel[]>(() => {
         {
             label: 'Énergie',
             valueLabel: ufRatio.value === undefined ? '–' : `${fmt(ufRatio.value * 100, 0)} %`,
-            note: `${fmt(ufApport.value, 2)} / ${fmt(ufBesoin.value, 2)} UFL`,
+            note: `${fmt(ufApport.value, 2)} / ${fmt(ufBesoin.value, 2)} ${uniteEnergie.value}`,
             percent: ufRatio.value === undefined ? 0 : clamp(ufRatio.value * 100, 0, 100),
             status: coverageStatus(ufRatio.value),
         },
@@ -823,9 +830,9 @@ const topMetrics = computed<CircleMetric[]>(() => {
             status: laitStatus.value,
         },
         {
-            label: 'Couverture UFL',
+            label: `Couverture ${uniteEnergie.value}`,
             valueLabel: ufRatio.value === undefined ? '–' : `${fmt(ufRatio.value * 100, 0)} %`,
-            note: `${fmt(ufApport.value, 2)} / ${fmt(ufBesoin.value, 2)} UFL`,
+            note: `${fmt(ufApport.value, 2)} / ${fmt(ufBesoin.value, 2)} ${uniteEnergie.value}`,
             status: coverageStatus(ufRatio.value),
         },
         {
@@ -1106,7 +1113,7 @@ const strengthInsights = computed(() => insightCandidates.value.filter((item) =>
                         <div class="rounded-2xl border border-border bg-background/80 p-4">
                             <p class="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">Par énergie</p>
                             <p class="mt-2 text-2xl font-semibold text-foreground">{{ fmt(resultats.impacts.lait_par_ufl, 2) }}</p>
-                            <p class="mt-1 text-sm text-muted-foreground">kg de lait permis par les UFL</p>
+                            <p class="mt-1 text-sm text-muted-foreground">kg de lait permis par les {{ uniteEnergie }}</p>
                         </div>
                         <div class="rounded-2xl border border-border bg-background/80 p-4">
                             <p class="text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
@@ -1387,7 +1394,7 @@ const strengthInsights = computed(() => insightCandidates.value.filter((item) =>
 
         <div class="grid gap-4 xl:grid-cols-2">
                 <section id="besoins-ufl" class="scroll-mt-24 rounded-[1.75rem] border border-border bg-card p-5 shadow-sm">
-                    <h2 class="text-lg font-semibold text-foreground">Décomposition des besoins UFL</h2>
+                    <h2 class="text-lg font-semibold text-foreground">Décomposition des besoins {{ uniteEnergie }}</h2>
 
                     <dl class="mt-4 space-y-2 text-sm">
                         <div class="flex justify-between gap-4">

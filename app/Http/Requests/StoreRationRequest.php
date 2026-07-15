@@ -19,9 +19,13 @@ class StoreRationRequest extends FormRequest
     protected function prepareForValidation(): void
     {
         if ($this->has('categorie_animal') && $this->input('categorie_animal') !== null) {
-            $this->merge([
-                'categorie_animal' => CategorieAnimal::fromLoose((string) $this->input('categorie_animal'))->value,
-            ]);
+            $resolved = CategorieAnimal::tryFromLoose((string) $this->input('categorie_animal'));
+
+            // Un alias reconnu est normalisé vers sa valeur canonique ; une valeur inconnue est
+            // laissée telle quelle pour être rejetée par Rule::enum (pas de conversion silencieuse).
+            if ($resolved !== null) {
+                $this->merge(['categorie_animal' => $resolved->value]);
+            }
         }
     }
 

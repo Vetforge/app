@@ -1,5 +1,8 @@
 <script setup lang="ts">
+import { Link } from '@inertiajs/vue3';
+import { ArrowLeft } from 'lucide-vue-next';
 import { nextTick, onMounted } from 'vue';
+import { description as rationDescription } from '@/actions/App/Http/Controllers/RationController';
 import RationCompositionEditor from '@/components/rations/RationCompositionEditor.vue';
 import RationResultsPanel from '@/components/rations/RationResultsPanel.vue';
 import type { Aliment, Plan, Ration, RationNormesPayload, Resultats } from '@/components/rations/types';
@@ -33,11 +36,15 @@ onMounted(async () => {
         <section
             class="scroll-mt-24 relative overflow-hidden rounded-[2rem] border border-sky-200/70 bg-gradient-to-br from-sky-50 via-background to-amber-50/70 p-5 shadow-sm dark:border-sky-950/60 dark:from-sky-950/25 dark:via-background dark:to-amber-950/10 sm:p-7"
         >
-            <div class="flex flex-col gap-5">
-                <div>
-                    <h1 class="mt-3 text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">Composition et résultats</h1>
-                </div>
-
+            <div class="flex flex-wrap items-center justify-between gap-4">
+                <h1 class="mt-3 text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">Composition et résultats</h1>
+                <Link
+                    :href="rationDescription({ plan: plan.id, ration: ration.id }).url"
+                    class="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-4 py-2 text-sm font-medium text-foreground hover:bg-accent"
+                >
+                    <ArrowLeft class="size-4" />
+                    Paramètres animal
+                </Link>
             </div>
 
             <div class="my-5 flex flex-wrap gap-2">

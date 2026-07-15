@@ -32,6 +32,7 @@ class Ration extends Model
     {
         return [
             'is_ration_semi_complete' => 'boolean',
+            'lait_objectif' => 'float',
             'mois_lactation' => 'float',
             'mois_gestation' => 'float',
             'gmq' => 'integer',

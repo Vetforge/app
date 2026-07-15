@@ -290,7 +290,12 @@ class AlimentSeeder extends Seeder
             return null;
         }
         $str = str_replace(',', '.', $str);
+        if (! is_numeric($str)) {
+            return null;
+        }
 
-        return (float) $str ?: null;
+        // Ne pas confondre « valeur zéro valide » et « absence » : (float) $str ?: null détruirait
+        // les vrais zéros (cf. ALI-08).
+        return (float) $str;
     }
 }

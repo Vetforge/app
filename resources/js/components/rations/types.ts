@@ -71,8 +71,16 @@ export interface Ration {
     effectif: number | null;
 }
 
+export interface ResultatsMeta {
+    categorie: string;
+    espece: string;
+    unite_fourragere: string;
+    unite_encombrement: string;
+}
+
 export interface Resultats {
     inra: '2007' | '2018';
+    meta?: ResultatsMeta;
     apports: Record<string, number>;
     besoins: Record<string, number>;
     impacts: Record<string, number>;

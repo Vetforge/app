@@ -288,16 +288,16 @@ class OvinBesoin
         return max(0.0, (float) ($ration->lait_objectif ?? 0));
     }
 
-    /** Lait standard (sMY, l/j) : Éq. 20.14. MFC/MPC du lait de brebis (défauts 70 / 55 g/kg). */
+    /** Lait standard (sMY, l/j) : Éq. 20.14. MFC/MPC du lait de brebis (défauts 76 / 55 g/kg, p. 323). */
     private static function smy(Ration $ration): float
     {
         return self::my($ration) * self::facteurLaitStandard($ration);
     }
 
-    /** Facteur de standardisation du lait de brebis (Éq. 20.14), défauts MFC 70 / MPC 55 g/kg. */
+    /** Facteur de standardisation du lait de brebis (Éq. 20.14), défauts MFC 76 / MPC 55 g/kg (p. 323). */
     private static function facteurLaitStandard(Ration $ration): float
     {
-        $mfc = (float) ($ration->mfc ?? 70);
+        $mfc = (float) ($ration->mfc ?? 76);
         $mpc = (float) ($ration->mpc ?? 55);
 
         return 0.0071 * $mfc + 0.0043 * $mpc + 0.2224;

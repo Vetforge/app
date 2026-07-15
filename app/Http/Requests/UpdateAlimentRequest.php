@@ -4,17 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests;
 
-use Illuminate\Foundation\Http\FormRequest;
-
-class UpdateAlimentRequest extends FormRequest
-{
-    public function authorize(): bool
-    {
-        return true;
-    }
-
-    public function rules(): array
-    {
-        return (new StoreAlimentRequest)->rules();
-    }
-}
+/**
+ * Reprend les règles et la normalisation (notamment du type d'aliment) de {@see StoreAlimentRequest}.
+ */
+class UpdateAlimentRequest extends StoreAlimentRequest {}
