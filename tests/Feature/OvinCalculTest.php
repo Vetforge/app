@@ -49,6 +49,7 @@ test('dairy ewe maintenance and milk energy follow equations 20.10 and 20.14', f
         'mfc' => 70,
         'mpc' => 55,
         'race' => 'lacaune',
+        'activite' => 'stabulation',
     ]);
 
     // Entretien : 0,0345 × 70^0,75 (Éq. 20.10).
@@ -59,7 +60,7 @@ test('dairy ewe maintenance and milk energy follow equations 20.10 and 20.14', f
     expect(Besoin2018::calculerBesoinUF_PL($ration))->toEqualWithDelta(0.686 * $smy, 0.001);
 });
 
-test('lacaune dairy ewe intake capacity follows equation 20.48', function () {
+test('lacaune dairy ewe intake capacity follows equations 20.48 and 20.52', function () {
     $ration = ovinRation([
         'categorie_animal' => 'brebis_laitiere',
         'poids_vif' => 75,
@@ -67,10 +68,14 @@ test('lacaune dairy ewe intake capacity follows equation 20.48', function () {
         'mfc' => 70,
         'mpc' => 55,
         'race' => 'lacaune',
+        'jours_lactation' => 75,
+        'temperature_ambiante' => 15,
     ]);
 
     $smy = 3.0 * (0.0071 * 70 + 0.0043 * 55 + 0.2224);
-    expect(Besoin2018::calculerCapaciteIngestion($ration))->toEqualWithDelta(0.900 * $smy + 0.0240 * 75, 0.001);
+    $correctionTemperature = 1.345 - 0.0183 * 15;
+    expect(Besoin2018::calculerCapaciteIngestion($ration))
+        ->toEqualWithDelta((0.900 * $smy + 0.0240 * 75) * $correctionTemperature, 0.001);
 });
 
 test('growing lamb energy matches table 20.3 (equation 20.53)', function () {
@@ -82,8 +87,11 @@ test('growing lamb energy matches table 20.3 (equation 20.53)', function () {
     $lamb2 = ovinRation(['categorie_animal' => 'agneau_croissance', 'poids_vif' => 20, 'gmq' => 300]);
     expect(Besoin2018::calculerBesoinTotalUF($lamb2))->toEqualWithDelta(0.97, 0.02);
 
-    // Capacité d'ingestion agnelle (0,080 × BW^0,75).
-    expect(Besoin2018::calculerCapaciteIngestion($lamb1))->toEqualWithDelta(0.080 * 20 ** 0.75, 0.001);
+    // Ingestion de l'agneau à l'engraissement (Éq. 20.55), exprimée en kg MS/j.
+    $dmi = Apport2018::calculerApportTotalMS($lamb1);
+    $ufv = Apport2018::calculerApportTotalUF($lamb1) / $dmi;
+    $ingestion = (37.65 + 1.98 * (100 / 20) - 18.11 * $ufv) * 20 / 1000;
+    expect(Besoin2018::calculerCapaciteIngestion($lamb1))->toEqualWithDelta($ingestion, 0.001);
 });
 
 test('suckling ewe milk energy follows equation 20.13', function () {

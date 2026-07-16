@@ -25,6 +25,7 @@ function chevreRation(array $overrides = []): Ration
         'jours_lactation' => 120,
         'jours_gestation' => 0,
         'nombre_jeunes' => 2,
+        'activite' => 'stabulation',
     ], $overrides));
 
     // Fourrage unique : 2,6 kg MS (ms = 100 %), MAT 150 g/kg pour l'indice CI protéines.
@@ -83,6 +84,9 @@ test('growing goat energy and intake capacity match table 21.7 (Alpine, ~5 month
     $ration = chevreRation([
         'categorie_animal' => 'chevrette_croissance',
         'poids_vif' => 27.7,
+        'age_jours' => 152,
+        'race' => 'Alpine',
+        'poids_adulte' => 70,
         'lait_objectif' => 0,
         'gmq' => 127,
         'jours_lactation' => 0,
@@ -92,6 +96,25 @@ test('growing goat energy and intake capacity match table 21.7 (Alpine, ~5 month
     expect(Besoin2018::calculerBesoinTotalUF($ration))->toEqualWithDelta(0.68, 0.03);
     // Capacité d'ingestion chevrette (Éq. 21.50) : 0,080 × BW^0,75.
     expect(Besoin2018::calculerCapaciteIngestion($ration))->toEqualWithDelta(0.080 * 27.7 ** 0.75, 0.001);
+});
+
+test('an unspecified goat breed is computed like the Alpine reference breed', function () {
+    $chevrette = fn (string $race): Ration => chevreRation([
+        'categorie_animal' => 'chevrette_croissance',
+        'poids_vif' => 27.7,
+        'age_jours' => 152,
+        'race' => $race,
+        'poids_adulte' => 70,
+        'lait_objectif' => 0,
+        'gmq' => 127,
+        'jours_lactation' => 0,
+    ]);
+
+    $besoinAutre = Besoin2018::calculerBesoinTotalUF($chevrette('autre'));
+
+    // « Autre » emprunte la branche Alpine des Éq. 21.39-21.41, pas celle de la Saanen.
+    expect($besoinAutre)->toBe(Besoin2018::calculerBesoinTotalUF($chevrette('alpine')));
+    expect($besoinAutre)->not->toBe(Besoin2018::calculerBesoinTotalUF($chevrette('saanen')));
 });
 
 test('dairy goat milk permitted inverts the caprin energy and protein requirements (ch. 21)', function () {
@@ -125,8 +148,9 @@ test('dairy goat ration exposes species-specific milk economy impacts', function
     expect($resultats['impacts'])->toHaveKeys(['lait_par_ufl', 'lait_par_pdi', 'lait_limitant']);
     expect($resultats['impacts']['lait_limitant'])
         ->toEqualWithDelta(min($resultats['impacts']['lait_par_ufl'], $resultats['impacts']['lait_par_pdi']), 0.001);
-    // L'eau bue et le bilan UFL de production sont des régressions bovines : non exposés pour les caprins.
-    expect($resultats['impacts'])->not->toHaveKey('eau_bue');
+    // L'eau bue suit l'équation caprine 21.22 ; le bilan UFL de production reste bovin.
+    expect($resultats['impacts'])->toHaveKey('eau_bue');
+    expect($resultats['impacts']['eau_bue'])->toBeGreaterThan(0.0);
     expect($resultats['impacts'])->not->toHaveKey('bil_ufl');
     // La production laitière attendue reste une formule propre à la vache laitière.
     expect($resultats['impacts'])->not->toHaveKey('production_lait_attendue');

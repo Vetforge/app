@@ -38,10 +38,21 @@ class MelangeController extends Controller
 
         $validated = $request->validate([
             'nom' => ['nullable', 'string', 'max:255'],
-            'quantite' => ['nullable', 'numeric', 'min:0'],
+            'quantite' => ['nullable', 'required_unless:is_volonte,true', 'numeric', 'gt:0'],
             'is_volonte' => ['boolean'],
             'is_mb' => ['boolean'],
         ]);
+
+        if (($validated['is_volonte'] ?? false) && $melange->melangeAliments()->whereHas('aliment', fn ($q) => $q->where('type', '!=', 'Fourrage'))->exists()) {
+            return back()->withErrors(['is_volonte' => 'Un mélange à volonté doit contenir exclusivement des fourrages.']);
+        }
+        if (($validated['is_volonte'] ?? false)) {
+            $autre = $ration->rationAliments()->where('is_volonte', true)->exists()
+                || $ration->melanges()->where('is_volonte', true)->where('id', '!=', $melange->getKey())->exists();
+            if ($autre) {
+                return back()->withErrors(['is_volonte' => 'La ration contient déjà un composant à volonté.']);
+            }
+        }
 
         $melange->update($validated);
 
@@ -63,7 +74,7 @@ class MelangeController extends Controller
 
         $validated = $request->validate([
             'aliment_id' => ['required', 'exists:aliments,id'],
-            'quantite' => ['nullable', 'numeric', 'min:0'],
+            'quantite' => ['required', 'numeric', 'gt:0'],
             'is_mb' => ['boolean'],
         ]);
 
@@ -71,7 +82,6 @@ class MelangeController extends Controller
         $this->authorize('view', $original);
 
         $clone = $original->replicate();
-        $clone->code_inra = null;
         $clone->usage_aliment = 2;
         $clone->user_id = $request->user()->id;
         $clone->save();
@@ -92,7 +102,7 @@ class MelangeController extends Controller
         $this->authorize('update', $plan);
 
         $validated = $request->validate([
-            'quantite' => ['nullable', 'numeric', 'min:0'],
+            'quantite' => ['required', 'numeric', 'gte:0'],
             'is_mb' => ['boolean'],
         ]);
 

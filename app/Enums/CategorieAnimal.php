@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Enums;
 
+use App\Support\RationScientificMatrix;
 use Illuminate\Support\Str;
 
 /**
@@ -24,7 +25,7 @@ enum CategorieAnimal: string
     // Ovins
     case BrebisLaitiere = 'brebis_laitiere';
     case BrebisAllaitante = 'brebis_allaitante';     // brebis suitée
-    case AgneauCroissance = 'agneau_croissance';     // agneaux + agnelles de renouvellement, UFV
+    case AgneauCroissance = 'agneau_croissance';     // agneau à l'engraissement, UFV (nom de clé historique)
 
     // Caprins
     case ChevreLaitiere = 'chevre_laitiere';
@@ -55,8 +56,10 @@ enum CategorieAnimal: string
             self::ChevreLaitiere,
             self::ChevretteCroissance => 'uel',
             self::BrebisLaitiere,
-            self::BrebisAllaitante,
-            self::AgneauCroissance => 'uem',
+            self::BrebisAllaitante => 'uem',
+            // L'agneau d'engraissement est piloté par une ingestion de MS (Éq. 20.55),
+            // les UE étant déclarées non applicables aux rations concentrées.
+            self::AgneauCroissance => 'kg_ms',
             self::VacheAllaitante,
             self::BovinCroissance,
             self::BovinEngraissement => 'ueb',
@@ -77,7 +80,7 @@ enum CategorieAnimal: string
 
     public function uniteEncombrementLabel(): string
     {
-        return strtoupper($this->uniteEncombrement());
+        return $this->uniteEncombrement() === 'kg_ms' ? 'kg MS' : strtoupper($this->uniteEncombrement());
     }
 
     public function uniteFourragereLabel(): string
@@ -112,8 +115,7 @@ enum CategorieAnimal: string
      */
     public function estImplementee(): bool
     {
-        // Toutes les catégories ruminants du référentiel INRA 2018 disposent d'un moteur de calcul.
-        return true;
+        return RationScientificMatrix::isAvailable($this);
     }
 
     /**
@@ -145,7 +147,7 @@ enum CategorieAnimal: string
             self::BovinEngraissement => 'Bovin à l\'engraissement',
             self::BrebisLaitiere => 'Brebis laitière',
             self::BrebisAllaitante => 'Brebis allaitante (suitée)',
-            self::AgneauCroissance => 'Agneau / agnelle en croissance',
+            self::AgneauCroissance => 'Agneau à l\'engraissement',
             self::ChevreLaitiere => 'Chèvre laitière',
             self::ChevretteCroissance => 'Chevrette en croissance',
         };
@@ -204,7 +206,7 @@ enum CategorieAnimal: string
     /**
      * Options de sélection regroupées par espèce, prêtes à être exposées au frontend Inertia.
      *
-     * @return array<int, array{espece: string, label: string, categories: array<int, array{value: string, label: string, disponible: bool, est_laitiere: bool, est_croissance: bool, unite_encombrement: string, unite_fourragere: string, poids_defaut: int}>}>
+     * @return array<int, array{espece: string, label: string, categories: array<int, array<string, mixed>>}>
      */
     public static function optionsGroupedBySpecies(): array
     {
@@ -227,6 +229,7 @@ enum CategorieAnimal: string
                     'unite_encombrement' => $categorie->uniteEncombrementLabel(),
                     'unite_fourragere' => $categorie->uniteFourragereLabel(),
                     'poids_defaut' => $categorie->poidsParDefaut(),
+                    'validation' => RationScientificMatrix::for($categorie),
                 ];
             }
 

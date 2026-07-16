@@ -336,6 +336,23 @@ class RationHelper
         return ($partPrimipare * $productionPrimipare) + ($partMultipare * $productionMultipare);
     }
 
+    /**
+     * Pic laitier potentiel MYMaxPot (kg/j) utilisé par le modèle de réserves 17.5.
+     * Les diviseurs 260/230 sont ceux des courbes primipare/multipare 17.1-17.2.
+     */
+    public static function calculerPicLaitPotentiel(Ration $ration): float
+    {
+        $plPot305 = max(0.0, (float) ($ration->lait_potentiel305j ?? $ration->lait_objectif305j ?? 0));
+        if ($plPot305 <= 0) {
+            return max(0.0, (float) ($ration->lait_potentiel ?? $ration->lait_objectif_auge ?? $ration->lait_objectif ?? 0));
+        }
+
+        $partPrimipare = self::clamp((float) ($ration->pourcentage_primipare ?? 0) / 100, 0.0, 1.0);
+
+        return $partPrimipare * ($plPot305 / 260.0)
+            + (1.0 - $partPrimipare) * ($plPot305 / 230.0);
+    }
+
     private static function calculerProductionLaitPotentielleDepuis305(
         float $plPot305,
         float $semainesLactation,

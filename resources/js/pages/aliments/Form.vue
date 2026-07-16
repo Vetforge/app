@@ -7,6 +7,7 @@ import {
     update as alimentUpdate,
 } from '@/actions/App/Http/Controllers/AlimentController';
 import AppLayout from '@/layouts/AppLayout.vue';
+import { alimentFieldLabel } from '@/components/rations/alimentEditableFields';
 import { formatNumberInput } from '@/lib/utils';
 import { dashboard } from '@/routes';
 import type { BreadcrumbItem } from '@/types';
@@ -15,6 +16,8 @@ interface Aliment {
     id?: number;
     code_inra: string | null;
     type: string | null;
+    famille_botanique: string | null;
+    procede_technologique: string | null;
     libelle0: string;
     libelle1: string | null;
     libelle2: string | null;
@@ -89,6 +92,10 @@ function numericFieldValue(field: string): string {
             | null
             | undefined,
     );
+}
+
+function fieldLabel(field: string): string {
+    return alimentFieldLabel(field);
 }
 
 function submit(event: Event) {
@@ -208,16 +215,43 @@ function submit(event: Event) {
                         <label
                             class="text-sm font-medium text-foreground"
                             for="type"
-                            >Type</label
+                            >Type *</label
                         >
-                        <input
+                        <select
                             id="type"
                             name="type"
-                            type="text"
                             :value="aliment?.type"
+                            required
                             class="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-primary focus:outline-none"
-                            placeholder="Fourrage, Concentré, Minéral…"
-                        />
+                        >
+                            <option value="">Sélectionner</option>
+                            <option value="Fourrage">Fourrage</option>
+                            <option value="Conc">Concentré</option>
+                            <option value="Mineral">Minéral</option>
+                        </select>
+                    </div>
+                    <div class="flex flex-col gap-1.5">
+                        <label class="text-sm font-medium text-foreground" for="famille_botanique">Famille botanique *</label>
+                        <select id="famille_botanique" name="famille_botanique" :value="aliment?.famille_botanique ?? 'autre'" required class="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-primary focus:outline-none">
+                            <option value="mais">Maïs</option>
+                            <option value="luzerne">Luzerne</option>
+                            <option value="legumineuse">Autre légumineuse</option>
+                            <option value="graminee">Graminée</option>
+                            <option value="autre">Autre</option>
+                        </select>
+                    </div>
+                    <div class="flex flex-col gap-1.5">
+                        <label class="text-sm font-medium text-foreground" for="procede_technologique">Procédé technologique *</label>
+                        <select id="procede_technologique" name="procede_technologique" :value="aliment?.procede_technologique ?? 'autre'" required class="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-primary focus:outline-none">
+                            <option value="vert">Fourrage vert</option>
+                            <option value="ensile">Ensilé</option>
+                            <option value="foin">Foin</option>
+                            <option value="deshydrate">Déshydraté</option>
+                            <option value="paille">Paille</option>
+                            <option value="concentre">Concentré</option>
+                            <option value="mineral">Minéral</option>
+                            <option value="autre">Autre</option>
+                        </select>
                     </div>
                     <div class="flex flex-col gap-1.5">
                         <label
@@ -310,7 +344,7 @@ function submit(event: Event) {
                         <label
                             class="text-sm font-medium text-foreground"
                             :for="field"
-                            >{{ field.toUpperCase().replace(/_/g, ' ') }}</label
+                            >{{ fieldLabel(field) }}</label
                         >
                         <input
                             :id="field"
@@ -350,7 +384,7 @@ function submit(event: Event) {
                         <label
                             class="text-sm font-medium text-foreground"
                             :for="field"
-                            >{{ field.toUpperCase().replace(/_/g, ' ') }}</label
+                            >{{ fieldLabel(field) }}</label
                         >
                         <input
                             :id="field"
@@ -387,6 +421,7 @@ function submit(event: Event) {
                             'co',
                             'se',
                             'i',
+                            'molybdene',
                         ]"
                         :key="field"
                         class="flex flex-col gap-1.5"
@@ -394,7 +429,7 @@ function submit(event: Event) {
                         <label
                             class="text-sm font-medium text-foreground"
                             :for="field"
-                            >{{ field.toUpperCase().replace(/_/g, ' ') }}</label
+                            >{{ fieldLabel(field) }}</label
                         >
                         <input
                             :id="field"
@@ -434,7 +469,7 @@ function submit(event: Event) {
                         <label
                             class="text-sm font-medium text-foreground"
                             :for="field"
-                            >{{ field.toUpperCase().replace(/_/g, ' ') }}</label
+                            >{{ fieldLabel(field) }}</label
                         >
                         <input
                             :id="field"
@@ -477,7 +512,7 @@ function submit(event: Event) {
                         <label
                             class="text-sm font-medium text-foreground"
                             :for="field"
-                            >{{ field.toUpperCase().replace(/_/g, ' ') }}</label
+                            >{{ fieldLabel(field) }}</label
                         >
                         <input
                             :id="field"

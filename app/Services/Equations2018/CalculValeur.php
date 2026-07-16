@@ -7,7 +7,6 @@ namespace App\Services\Equations2018;
 use App\Enums\Espece;
 use App\Models\Aliment;
 use App\Models\Ration;
-use Illuminate\Support\Str;
 
 /**
  * Calcul dynamique des valeurs nutritionnelles INRA 2018 pour un aliment dans le contexte d'une ration.
@@ -61,19 +60,19 @@ class CalculValeur
     /**
      * dE (digestibilité de l'énergie) en % pour l'aliment.
      */
-    public function calculerDEAliment(): float
+    public function calculerDEAliment(?float $dMO = null): float
     {
-        $dMO = $this->calculerDMOcAliment();
-        $famille = self::normaliserLibelle((string) ($this->aliment->libelle0 ?? ''));
-        $estMais = $this->estMais();
+        $dMO ??= $this->calculerDMOcAliment();
+        $procede = (string) ($this->aliment->procede_technologique ?? 'autre');
+        $estMais = $this->aliment->famille_botanique === 'mais';
 
-        if ($famille === 'fourrages verts') {
+        if ($procede === 'vert') {
             return $estMais
                 ? -2.35 + 0.997 * $dMO
                 : -0.068 + 0.957 * $dMO;
         }
 
-        if ($famille === 'ensilages') {
+        if ($procede === 'ensile') {
             if ($estMais) {
                 return -2.86 + 1.001 * $dMO;
             }
@@ -84,11 +83,11 @@ class CalculValeur
                 : -2.556 + 0.985 * $dMO;
         }
 
-        if ($famille === 'foins' || $famille === 'pailles, fourrages lignifies') {
+        if (in_array($procede, ['foin', 'paille'], true)) {
             return -2.556 + 0.985 * $dMO;
         }
 
-        if ($this->estLuzerneDeshydratee()) {
+        if ($this->aliment->famille_botanique === 'luzerne' && $procede === 'deshydrate') {
             return -3 + 1.003 * $dMO;
         }
 
@@ -96,36 +95,6 @@ class CalculValeur
         $mat = (float) ($this->aliment->mat ?? 0);
 
         return -2.9 + $dMO + 0.0051 * $mat;
-    }
-
-    /**
-     * Normalise un libellé de famille (casse et accents) pour une comparaison robuste.
-     * Les CSV du référentiel stockent les familles en majuscules accentuées (« FOURRAGES VERTS »,
-     * « PAILLES, FOURRAGES LIGNIFIÉS »…) : la sélection de l'équation ne doit pas être sensible à la casse.
-     */
-    private static function normaliserLibelle(string $valeur): string
-    {
-        return Str::of($valeur)->lower()->ascii()->squish()->value();
-    }
-
-    /** Détail botanique/technologique normalisé (libellés 4 puis 1). */
-    private function detailAliment(): string
-    {
-        return self::normaliserLibelle(
-            ((string) ($this->aliment->libelle4 ?? '')).' '.((string) ($this->aliment->libelle1 ?? ''))
-        );
-    }
-
-    private function estMais(): bool
-    {
-        return preg_match('/\bmais\b/', $this->detailAliment()) === 1;
-    }
-
-    private function estLuzerneDeshydratee(): bool
-    {
-        $detail = $this->detailAliment();
-
-        return str_contains($detail, 'luzerne') && str_contains($detail, 'deshydrat');
     }
 
     /**
@@ -137,13 +106,18 @@ class CalculValeur
             return 0.0;
         }
 
+        if (! $this->aPrecurseursDynamiques()) {
+            return (float) ($this->aliment->ufl ?? 0);
+        }
+
         $mat = (float) ($this->aliment->mat ?? 0);
         $mo = (float) ($this->aliment->mo ?? 0);
         $eb = (float) ($this->aliment->eb ?? 0);
-        $dMO = $this->calculerDMOcAliment();
+        $bpr = $this->calculerBPRAliment();
+        $dMO = $this->calculerDMOcAliment($bpr);
         $NI = Apport::calculerNI($this->ration);
         $PCO = Apport::calculerPCO($this->ration);
-        $dE = $this->calculerDEAliment();
+        $dE = $this->calculerDEAliment($dMO);
 
         $MOD = $mo * 0.01 * $dMO;
         $CH4MOD = 45.42 - 6.66 * $NI + 0.75 * $NI * $NI + 19.65 * $PCO - 35 * $PCO * $PCO - 2.69 * $NI * $PCO;
@@ -161,8 +135,8 @@ class CalculValeur
     /**
      * UFV de l'aliment (unité fourragère viande) en UFV/kg MS.
      *
-     * v1 : valeur tabulée INRA lue depuis la colonne `ufv` (comme INRAtion®). Le calcul dynamique
-     * complet de l'UFV (efficience d'engraissement kmf) pourra être ajouté ultérieurement.
+     * Calcul dynamique au niveau ration (Éq. 3.17-3.21). La valeur tabulée n'est utilisée
+     * que si les précurseurs analytiques ne permettent pas un recalcul complet.
      */
     public function calculerUFVAliment(): float
     {
@@ -170,7 +144,33 @@ class CalculValeur
             return 0.0;
         }
 
-        return (float) ($this->aliment->ufv ?? 0);
+        if (! $this->aPrecurseursDynamiques()) {
+            return (float) ($this->aliment->ufv ?? 0);
+        }
+
+        $mat = (float) $this->aliment->mat;
+        $mo = (float) $this->aliment->mo;
+        $eb = (float) $this->aliment->eb;
+        $bpr = $this->calculerBPRAliment();
+        $dMO = $this->calculerDMOcAliment($bpr);
+        $ni = Apport::calculerNI($this->ration);
+        $pco = Apport::calculerPCO($this->ration);
+        $de = $this->calculerDEAliment($dMO);
+        $mod = $mo * 0.01 * $dMO;
+        $ch4mod = 45.42 - 6.66 * $ni + 0.75 * $ni * $ni + 19.65 * $pco - 35 * $pco * $pco - 2.69 * $ni * $pco;
+        $ech4 = 12.5 * 0.001 * $mod * $ch4mod;
+        $eueb = 2.9 + 0.017 * $mat - 0.47 * $ni - 1.64 * $pco;
+        $me = $eb * $de * 0.01 - $ech4 - $eueb * $eb * 0.01;
+        if ($eb <= 0 || $me <= 0) {
+            return 0.0;
+        }
+        $q = $me / $eb;
+        $km = 0.287 * $q + 0.554;
+        $kf = 0.78 * $q + 0.006;
+        $denom = $kf + 0.5 * $km;
+        $kmf = $denom > 0 ? ($km * $kf * 1.5) / $denom : 0.0;
+
+        return $me * $kmf / 1760.0;
     }
 
     /**
@@ -182,10 +182,29 @@ class CalculValeur
             return 0.0;
         }
 
+        if (! $this->aPrecurseursDynamiques()) {
+            return (float) ($this->aliment->pdi ?? 0);
+        }
+
         $PDIA = $this->calculerPDIAAliment();
-        $MAmic_duo = $this->calculerMAmic_duoAliment();
+        $MAmic_duo = $this->calculerMAmic_duoAliment($this->calculerBPRAliment());
 
         return $PDIA + $MAmic_duo * 0.8 * 0.8;
+    }
+
+    /**
+     * Une valeur est recalculée uniquement lorsque le jeu de précurseurs est complet.
+     * Sinon UFL/PDI tabulées sont utilisées ensemble, sans contrat hybride silencieux.
+     */
+    private function aPrecurseursDynamiques(): bool
+    {
+        foreach (['mo', 'mat', 'd_mo', 'eb', 'dt6_n', 'dr_n'] as $champ) {
+            if ($this->aliment->{$champ} === null) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**

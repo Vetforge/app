@@ -76,6 +76,9 @@ export interface ResultatsMeta {
     espece: string;
     unite_fourragere: string;
     unite_encombrement: string;
+    est_laitiere?: boolean;
+    mineraux_valides?: boolean;
+    vitamines_semantique?: 'supplementation';
 }
 
 export interface Resultats {
@@ -83,6 +86,7 @@ export interface Resultats {
     meta?: ResultatsMeta;
     apports: Record<string, number>;
     besoins: Record<string, number>;
+    supplementations?: Record<string, number>;
     impacts: Record<string, number>;
     bilans: Record<string, number>;
     indicateurs?: Record<string, number>;

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Requests;
 
 use App\Models\Aliment;
+use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -25,8 +26,16 @@ class StoreAlimentRequest extends FormRequest
 
     public function rules(): array
     {
+        return self::sharedRules();
+    }
+
+    /** @return array<string, array<int, mixed>> */
+    public static function sharedRules(): array
+    {
         return [
-            'type' => ['nullable', Rule::in(Aliment::TYPES_CANONIQUES)],
+            'type' => ['required', Rule::in(Aliment::TYPES_CANONIQUES)],
+            'famille_botanique' => ['nullable', Rule::in(Aliment::FAMILLES_BOTANIQUES)],
+            'procede_technologique' => ['nullable', Rule::in(Aliment::PROCEDES_TECHNOLOGIQUES)],
             'libelle0' => ['required', 'string', 'max:255'],
             'libelle1' => ['nullable', 'string', 'max:255'],
             'libelle2' => ['nullable', 'string', 'max:255'],
@@ -96,6 +105,7 @@ class StoreAlimentRequest extends FormRequest
             'co' => ['nullable', 'numeric'],
             'se' => ['nullable', 'numeric'],
             'i' => ['nullable', 'numeric'],
+            'molybdene' => ['nullable', 'numeric'],
             'vit_a' => ['nullable', 'numeric'],
             'vit_d' => ['nullable', 'numeric'],
             'vit_e' => ['nullable', 'numeric'],
@@ -131,5 +141,60 @@ class StoreAlimentRequest extends FormRequest
             'd_e2007' => ['nullable', 'numeric'],
             'em2007' => ['nullable', 'numeric'],
         ];
+    }
+
+    public function after(): array
+    {
+        return [function (Validator $validator): void {
+            self::appendContractErrors($validator, $this->all());
+        }];
+    }
+
+    /** @param array<string, mixed> $data */
+    public static function appendContractErrors(Validator $validator, array $data): void
+    {
+        $value = static fn (string $field): mixed => $data[$field] ?? null;
+
+        foreach (['ms', 'mo', 'mat', 'cb', 'ndf', 'adf', 'adl', 'ee', 'ag', 'eb', 'em', 'amidon', 'sucres', 'pf', 'ufl', 'ufv', 'uem', 'uel', 'ueb', 'pdia', 'pdi', 'ca', 'caabs', 'p', 'pabs', 'mg', 'na', 'k', 'cl', 's', 'cu', 'zn', 'mn', 'co', 'se', 'i', 'molybdene', 'vit_a', 'vit_d', 'vit_e'] as $field) {
+            if ($value($field) !== null && $value($field) !== '' && (float) $value($field) < 0) {
+                $validator->errors()->add($field, 'La valeur ne peut pas être négative.');
+            }
+        }
+        foreach (['ms', 'd_mo', 'd_ma', 'd_cb', 'd_ndf', 'd_adf', 'd_e', 'dt_n', 'dt6_n', 'dr_n', 'dt_ami', 'dt6_ami', 'dt_ms', 'dt6_ms'] as $field) {
+            if ($value($field) !== null && $value($field) !== '' && ((float) $value($field) < 0 || (float) $value($field) > 100)) {
+                $validator->errors()->add($field, 'La valeur doit être comprise entre 0 et 100 %.');
+            }
+        }
+
+        $type = (string) $value('type');
+        if ($type === '') {
+            return;
+        }
+        if ($type === 'Mineral') {
+            if ($value('procede_technologique') !== 'mineral') {
+                $validator->errors()->add('procede_technologique', 'Une source minérale doit utiliser le procédé « mineral ».');
+            }
+
+            return;
+        }
+
+        foreach (['famille_botanique', 'procede_technologique'] as $field) {
+            if ($value($field) === null || $value($field) === '') {
+                $validator->errors()->add($field, 'La classification botanique et technologique est obligatoire.');
+            }
+        }
+
+        $dynamicFields = ['mo', 'mat', 'd_mo', 'eb', 'dt6_n', 'dr_n'];
+        $tabulatedFields = ['ms', 'ufl', 'ufv', 'pdi', 'uel', 'uem', 'ueb'];
+        $complete = static fn (array $fields): bool => collect($fields)->every(
+            fn (string $field): bool => $value($field) !== null && $value($field) !== ''
+        );
+
+        if (! $complete($dynamicFields) && ! $complete($tabulatedFields)) {
+            $validator->errors()->add(
+                'ufl',
+                'Renseignez soit la voie tabulée complète (MS, UFL, UFV, PDI, UEL/UEM/UEB), soit tous les précurseurs du recalcul (MO, MAT, dMO, EB, DT6N, drN).'
+            );
+        }
     }
 }

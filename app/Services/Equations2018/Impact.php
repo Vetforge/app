@@ -103,6 +103,16 @@ class Impact
     {
         $lait = (float) ($ration->lait_objectif ?? 0);
         $apportTotalMS = Apport::calculerApportTotalMS($ration);
+        if (RationHelper::categorie($ration->categorie_animal ?? '') === CategorieAnimal::ChevreLaitiere) {
+            $dm = Apport::calculerApportMSParMB($ration) * 1000.0;
+            $cendres = max(0.0, 1000.0 - Apport::calculerApportMOParKgMS($ration));
+            if ($dm <= 0) {
+                return 0.0;
+            }
+
+            return max(0.0, -1.78 + 0.876 * $lait
+                + $apportTotalMS * (2.86 - 1000.0 / $dm) + 0.0307 * $cendres); // Éq. 21.22.
+        }
         $pourcentageMS = Apport::calculerApportMSParMB($ration) * 100;
         $fourragesMS = Apport::calculerApportFourragesMS($ration);
         $PFO = $apportTotalMS > 0 ? $fourragesMS / $apportTotalMS : 0.0;

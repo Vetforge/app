@@ -18,10 +18,10 @@ class StorePlanRationnementRequest extends FormRequest
     {
         return [
             'nom' => ['required', 'string', 'max:255'],
-            'date' => ['nullable', 'date'],
+            'date' => ['required', 'date'],
             'inra' => ['required', Rule::in(['2007', '2018'])],
             'breeder_id' => [
-                'nullable',
+                'required',
                 'integer',
                 Rule::exists('breeders', 'id')->where('user_id', $this->user()->id),
             ],

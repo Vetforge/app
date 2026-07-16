@@ -33,6 +33,16 @@ const props = defineProps<{
     aliments_disponibles: Aliment[];
 }>();
 
+/**
+ * Convertit la saisie d'un champ quantité en nombre. Un champ vide devient `null`,
+ * mais 0 est une valeur valide qu'il faut préserver (ne pas traiter comme falsy).
+ */
+function parseQuantite(value: string): number | null {
+    const parsed = parseFloat(value);
+
+    return Number.isFinite(parsed) ? parsed : null;
+}
+
 function normalizeAliment(aliment: Aliment): void {
     for (const key of alimentEditableNumericKeys) {
         aliment[key] = roundNumber(getNumericAlimentValue(aliment, key)) ?? null;
@@ -219,7 +229,7 @@ function updateAlimentQty(
     isMb: boolean = rationAliment.is_mb,
 ) {
     router.put(updateAliment({ plan: props.plan.id, ration: props.ration.id, rationAliment: rationAliment.id }).url, {
-        quantite: parseFloat(quantite) || null,
+        quantite: parseQuantite(quantite),
         is_volonte: isVolonte,
         is_mb: isMb,
     }, { preserveScroll: true });
@@ -326,7 +336,7 @@ function updateMelangeAlimentQty(
     isMb: boolean = ma.is_mb,
 ) {
     router.put(updateMelangeAliment({ plan: props.plan.id, ration: props.ration.id, melange: melange.id, melangeAliment: ma.id }).url, {
-        quantite: parseFloat(quantite) || null,
+        quantite: parseQuantite(quantite),
         is_mb: isMb,
     }, { preserveScroll: true });
 }
@@ -478,7 +488,7 @@ function onMelangeAlimentDragEnd() {
                         <div class="flex flex-wrap items-center gap-3">
                             <input
                                 v-model="newQuantite"
-                                type="number" min="0" step="0.1" placeholder="Quantité (kg)"
+                                type="number" min="0" step="0.1" placeholder="kg/animal/j"
                                 class="w-36 rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                             />
                             <label class="flex items-center gap-1.5 text-sm">
@@ -608,7 +618,7 @@ function onMelangeAlimentDragEnd() {
                             :value="melange.quantite"
                             @change="saveMelange(melange, { quantite: parseFloat(($event.target as HTMLInputElement).value) || null })"
                             type="number" min="0" step="0.1"
-                            :placeholder="melange.is_volonte ? '∞' : 'kg/j'"
+                            :placeholder="melange.is_volonte ? '∞' : 'kg/animal/j'"
                             :disabled="melange.is_volonte"
                             class="w-full sm:w-24 rounded-lg border border-border bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50"
                         />

@@ -77,6 +77,15 @@ const props = defineProps<{
 // du contrat, mais les libellés affichés suivent la catégorie (cf. UI-01/UI-08).
 const uniteEnergie = computed(() => props.resultats.meta?.unite_fourragere ?? 'UFL');
 const uniteEncombrement = computed(() => props.resultats.meta?.unite_encombrement ?? 'UE');
+const estLaitiere = computed(() => props.resultats.meta?.est_laitiere ?? false);
+const hasLaitMetrics = computed(
+    () =>
+        props.resultats.impacts.lait_par_ufl !== undefined ||
+        props.resultats.impacts.lait_par_pdi !== undefined,
+);
+const minerauxInterpretables = computed(
+    () => props.resultats.meta?.mineraux_valides ?? true,
+);
 
 function fmt(val: number | undefined, decimals = 1): string {
     return formatNumber(val, decimals);
@@ -219,6 +228,13 @@ function healthDetailStatus(row: DetailRow): StatusTone {
         return 'neutral';
     }
 
+    // Sans borne configurée (les seuils par défaut ne sont pas des normes INRA universelles),
+    // l'indicateur reste informatif : on ne déclenche pas d'alerte tant que l'utilisateur n'a
+    // pas défini de préférence dans Réglages › Normes.
+    if (row.min === undefined && row.max === undefined) {
+        return 'neutral';
+    }
+
     if (row.metricKey === 'be') {
         if (row.max !== undefined && row.value > row.max) {
             return 'ok';
@@ -264,6 +280,11 @@ function healthDetailStatus(row: DetailRow): StatusTone {
 
 function fiberDetailStatus(row: DetailRow): StatusTone {
     if (row.value === undefined || row.value === null || Number.isNaN(row.value)) {
+        return 'neutral';
+    }
+
+    // Idem section fibres : pas de seuil configuré ⇒ information, pas d'alerte.
+    if (row.min === undefined && row.max === undefined) {
         return 'neutral';
     }
 
@@ -484,7 +505,7 @@ function bilanSign(val: number | undefined, decimals = 1): string {
 
 const laitObjectif = computed(() => props.ration.lait_objectif ?? 0);
 
-const ufApport = computed(() => props.resultats.apports.ufl ?? 0);
+const ufApport = computed(() => props.resultats.apports.uf ?? props.resultats.apports.ufl ?? 0);
 const ufBesoin = computed(() => props.resultats.besoins.uf_total ?? 0);
 const ufRatio = computed(() => safeRatio(ufApport.value, ufBesoin.value));
 
@@ -637,6 +658,9 @@ const mineralBalanceRows = computed<DetailRow[]>(() => {
 
     return [
         { label: 'BACA', value: props.resultats.indicateurs?.baca, unit: 'mEq/kg MS', decimals: 0 },
+        { label: 'Supplémentation vitamine A', value: props.resultats.supplementations?.vit_a, unit: 'UI/j', decimals: 0 },
+        { label: 'Supplémentation vitamine D', value: props.resultats.supplementations?.vit_d, unit: 'UI/j', decimals: 0 },
+        { label: 'Supplémentation vitamine E', value: props.resultats.supplementations?.vit_e, unit: 'UI/j', decimals: 0 },
     ];
 });
 
@@ -659,9 +683,7 @@ const mineralRows = computed<ComparisonRow[]>(() => {
         { label: 'Manganèse', apport: props.resultats.apports.mn, besoin: props.resultats.besoins.mn, unit: 'mg/j', decimals: 0 },
         { label: 'Cuivre', apport: props.resultats.apports.cu, besoin: props.resultats.besoins.cu, unit: 'mg/j', decimals: 0 },
         { label: 'Iode', apport: props.resultats.apports.i, besoin: props.resultats.besoins.i, unit: 'mg/j', decimals: 0 },
-        { label: 'Vitamine A', apport: props.resultats.apports.vit_a, besoin: props.resultats.besoins.vit_a, unit: 'UI/j', decimals: 0 },
-        { label: 'Vitamine D', apport: props.resultats.apports.vit_d, besoin: props.resultats.besoins.vit_d, unit: 'UI/j', decimals: 0 },
-        { label: 'Vitamine E', apport: props.resultats.apports.vit_e, besoin: props.resultats.besoins.vit_e, unit: 'UI/j', decimals: 0 },
+        { label: 'Molybdène', apport: props.resultats.apports.molybdene, besoin: props.resultats.besoins.molybdene, unit: 'mg/j', decimals: 1 },
     ];
 });
 
@@ -746,8 +768,12 @@ const fattyAcidRows = computed<DetailRow[]>(() => {
 
 const healthStatus = computed(() => aggregateStatus(healthRows.value.map((row) => healthDetailStatus(row)).filter((status) => status !== 'neutral')));
 const healthIssueCount = computed(() => healthRows.value.filter((row) => isIssue(healthDetailStatus(row))).length);
-const mineralStatus = computed(() => aggregateStatus(mineralRows.value.map((row) => comparisonStatus(row)).filter((status) => status !== 'neutral')));
-const mineralIssueCount = computed(() => mineralRows.value.filter((row) => isIssue(comparisonStatus(row))).length);
+const mineralStatus = computed(() => minerauxInterpretables.value
+    ? aggregateStatus(mineralRows.value.map((row) => comparisonStatus(row)).filter((status) => status !== 'neutral'))
+    : 'neutral' as StatusTone);
+const mineralIssueCount = computed(() => minerauxInterpretables.value
+    ? mineralRows.value.filter((row) => isIssue(comparisonStatus(row))).length
+    : 0);
 
 const technicalPanels = computed<TechnicalPanel[]>(() => {
     const panels: TechnicalPanel[] = [
@@ -785,8 +811,10 @@ const technicalPanels = computed<TechnicalPanel[]>(() => {
             },
             {
                 label: 'Minéraux',
-                valueLabel: mineralIssueCount.value === 0 ? 'Couverts' : `${mineralIssueCount.value} déficit${mineralIssueCount.value > 1 ? 's' : ''}`,
-                note: 'Macro, oligos et vitamines',
+                valueLabel: minerauxInterpretables.value
+                    ? (mineralIssueCount.value === 0 ? 'Couverts' : `${mineralIssueCount.value} déficit${mineralIssueCount.value > 1 ? 's' : ''}`)
+                    : 'Indicatifs',
+                note: minerauxInterpretables.value ? 'Macro, oligos et supplémentations' : 'Validation scientifique incomplète',
                 percent: clamp(100 - mineralIssueCount.value * 10, 18, 100),
                 status: mineralStatus.value,
             },
@@ -814,34 +842,33 @@ const technicalPanels = computed<TechnicalPanel[]>(() => {
 });
 
 const topMetrics = computed<CircleMetric[]>(() => {
-    const metrics: CircleMetric[] = [
-        {
+    const metrics: CircleMetric[] = [];
+    if (hasLaitMetrics.value) {
+        metrics.push({
             label: productionLaitAttendue.value !== undefined ? 'Lait attendu' : 'Lait permis',
             valueLabel: `${fmt(laitComparable.value, 1)} kg/j`,
             note: productionLaitAttendue.value !== undefined
                 ? `PLPot ${fmt(props.resultats.indicateurs?.pl_pot, 1)} · plafond ${fmt(laitLimitant.value, 1)}`
                 : limitingMilkSource.value,
             status: laitStatus.value,
-        },
-        {
+        }, {
             label: 'Objectif',
             valueLabel: laitObjectif.value > 0 ? `${fmt(laitObjectif.value, 0)} kg/j` : 'Sans cible',
             note: laitDelta.value === undefined ? 'Aucun objectif de production' : `Écart ${bilanSign(laitDelta.value, 1)} kg/j`,
             status: laitStatus.value,
-        },
-        {
+        });
+    }
+    metrics.push({
             label: `Couverture ${uniteEnergie.value}`,
             valueLabel: ufRatio.value === undefined ? '–' : `${fmt(ufRatio.value * 100, 0)} %`,
             note: `${fmt(ufApport.value, 2)} / ${fmt(ufBesoin.value, 2)} ${uniteEnergie.value}`,
             status: coverageStatus(ufRatio.value),
-        },
-        {
+        }, {
             label: 'Couverture protéines',
             valueLabel: proteinRatio.value === undefined ? '–' : `${fmt(proteinRatio.value * 100, 0)} %`,
             note: props.resultats.inra === '2018' ? 'Lecture PDI' : 'Lecture PDIE / PDIN',
             status: coverageStatus(proteinRatio.value),
-        },
-    ];
+        });
 
     if (props.resultats.inra === '2018') {
         const phRow = healthRows.value.find((row) => row.metricKey === 'ph_ruminal');
@@ -865,34 +892,33 @@ const topMetrics = computed<CircleMetric[]>(() => {
 });
 
 const insightCandidates = computed<InsightItem[]>(() => {
-    const insights: InsightItem[] = [
-        {
+    const insights: InsightItem[] = [];
+    if (hasLaitMetrics.value) {
+        insights.push({
             label: 'Objectif laitier',
             valueLabel: laitDelta.value === undefined ? 'Sans cible' : `${bilanSign(laitDelta.value, 1)} kg/j`,
             note: productionLaitAttendue.value !== undefined
                 ? `Lait attendu ${fmt(productionLaitAttendue.value, 1)} kg/j`
                 : `Lait permis ${fmt(laitLimitant.value, 1)} kg/j`,
             status: laitStatus.value,
-        },
-        {
+        });
+    }
+    insights.push({
             label: 'Énergie',
             valueLabel: ufRatio.value === undefined ? '–' : `${fmt(ufRatio.value * 100, 0)} %`,
             note: `${fmt(ufApport.value, 2)} apportés pour ${fmt(ufBesoin.value, 2)} requis`,
             status: coverageStatus(ufRatio.value),
-        },
-        {
+        }, {
             label: 'Protéines',
             valueLabel: proteinRatio.value === undefined ? '–' : `${fmt(proteinRatio.value * 100, 0)} %`,
             note: props.resultats.inra === '2018' ? 'Couverture PDI' : 'Couverture PDIE / PDIN',
             status: coverageStatus(proteinRatio.value),
-        },
-        {
+        }, {
             label: 'Ingestion',
             valueLabel: ueRatio.value === undefined ? '–' : `${fmt(ueRatio.value * 100, 0)} %`,
             note: `${fmt(ueApport.value, 2)} ingérés pour ${fmt(ueBesoin.value, 2)} visés`,
             status: coverageStatus(ueRatio.value),
-        },
-    ];
+        });
 
     if (props.resultats.inra === '2018') {
         const iraRow = healthRows.value.find((row) => row.metricKey === 'ira');
@@ -926,8 +952,10 @@ const insightCandidates = computed<InsightItem[]>(() => {
             },
             {
                 label: 'Minéraux et vitamines',
-                valueLabel: mineralIssueCount.value === 0 ? 'Couverts' : `${mineralIssueCount.value} écart${mineralIssueCount.value > 1 ? 's' : ''}`,
-                note: 'Macro, oligos et vitamines',
+                valueLabel: minerauxInterpretables.value
+                    ? (mineralIssueCount.value === 0 ? 'Couverts' : `${mineralIssueCount.value} écart${mineralIssueCount.value > 1 ? 's' : ''}`)
+                    : 'Indicatifs',
+                note: minerauxInterpretables.value ? 'Macro, oligos et supplémentations' : 'Validation scientifique incomplète',
                 status: mineralStatus.value,
             },
         );
@@ -1067,7 +1095,7 @@ const strengthInsights = computed(() => insightCandidates.value.filter((item) =>
                     </div>
                 </section>
 
-                <section class="rounded-[1.75rem] border border-border bg-card p-5 shadow-sm">
+                <section v-if="hasLaitMetrics" class="rounded-[1.75rem] border border-border bg-card p-5 shadow-sm">
                     <h2 class="text-lg font-semibold text-foreground">Lecture lait & économie</h2>
 
                     <dl class="mt-5 space-y-3 text-sm">
@@ -1307,7 +1335,10 @@ const strengthInsights = computed(() => insightCandidates.value.filter((item) =>
 
         <div v-if="resultats.inra === '2018'" class="grid gap-4 xl:grid-cols-2">
                 <section id="mineraux" class="scroll-mt-24 rounded-[1.75rem] border border-border bg-card p-5 shadow-sm">
-                    <h2 class="text-lg font-semibold text-foreground">Minéraux et vitamines</h2>
+                <h2 class="text-lg font-semibold text-foreground">Minéraux et vitamines</h2>
+                <p v-if="!minerauxInterpretables" class="mt-2 text-sm text-amber-700 dark:text-amber-300">
+                    Valeurs indicatives : la couverture complète par espèce, stade et croissance n'est pas encore validée par des cas de référence indépendants.
+                </p>
 
                     <div v-if="visibleDetailRows(mineralBalanceRows).length > 0" class="-mx-5 -mb-5 mt-4 overflow-hidden">
                         <table class="w-full text-sm">
@@ -1432,8 +1463,8 @@ const strengthInsights = computed(() => insightCandidates.value.filter((item) =>
                             <dt class="text-muted-foreground">Coût / animal / jour</dt>
                             <dd class="font-mono text-foreground">{{ fmt(resultats.impacts.cout_animal, 2) }} €</dd>
                         </div>
-                        <div class="flex justify-between gap-4">
-                            <dt class="text-muted-foreground">Coût / 1 000 L lait</dt>
+                    <div v-if="hasLaitMetrics" class="flex justify-between gap-4">
+                        <dt class="text-muted-foreground">Coût / 1 000 L lait</dt>
                             <dd class="font-mono text-foreground">{{ fmt(resultats.impacts.cout_1000l, 2) }} €</dd>
                         </div>
                         <div v-if="resultats.impacts.eau_bue !== undefined" class="flex justify-between gap-4">
@@ -1460,7 +1491,7 @@ const strengthInsights = computed(() => insightCandidates.value.filter((item) =>
                 </section>
         </div>
 
-        <section class="rounded-[1.75rem] border border-border bg-card p-5 shadow-sm">
+        <section v-if="estLaitiere" class="rounded-[1.75rem] border border-border bg-card p-5 shadow-sm">
                 <h2 class="text-lg font-semibold text-foreground">Taux laitiers ajustés au stade</h2>
 
                 <div class="mt-4 grid gap-3 sm:grid-cols-3">

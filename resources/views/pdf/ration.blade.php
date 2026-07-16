@@ -790,6 +790,7 @@
     @php
         $apports = $resultats['apports'] ?? [];
         $besoins = $resultats['besoins'] ?? [];
+        $supplementations = $resultats['supplementations'] ?? [];
         $impacts = $resultats['impacts'] ?? [];
         $bilans = $resultats['bilans'] ?? [];
         $indicateurs = $resultats['indicateurs'] ?? [];
@@ -797,6 +798,8 @@
         // Unités affichées propres à la catégorie (UFV pour engraissement/agneaux ; UEL/UEM/UEB).
         $uniteEnergie = $meta['unite_fourragere'] ?? 'UFL';
         $uniteEncombrement = $meta['unite_encombrement'] ?? 'UE';
+        $estLaitiere = (bool) ($meta['est_laitiere'] ?? (($ration->categorie_animal ?? '') === 'vache_laitiere'));
+        $minerauxValides = (bool) ($meta['mineraux_valides'] ?? false);
         $is2018 = ($resultats['inra'] ?? '2018') === '2018';
         $normes = $normes ?? \App\Support\RationNormes::payloadForUser(request()->user());
         $activeNormes = $normes['active'] ?? [];
@@ -983,6 +986,12 @@
                 return 'neutral';
             }
 
+            // Sans borne configurée (les seuils par défaut ne sont pas des normes INRA
+            // universelles), l'indicateur reste informatif : pas d'alerte par défaut.
+            if (($row['min'] ?? null) === null && ($row['max'] ?? null) === null) {
+                return 'neutral';
+            }
+
             if ($metricKey === 'be') {
                 if (($row['max'] ?? null) !== null && $value > $row['max']) {
                     return 'ok';
@@ -1032,6 +1041,11 @@
             $metricKey = $row['metricKey'] ?? null;
 
             if ($value === null || is_nan((float) $value)) {
+                return 'neutral';
+            }
+
+            // Idem section fibres : pas de seuil configuré ⇒ information, pas d'alerte.
+            if (($row['min'] ?? null) === null && ($row['max'] ?? null) === null) {
                 return 'neutral';
             }
 
@@ -1263,7 +1277,7 @@
         $proteinRatio = $safeRatio($proteinApport, $besoins['pdi_total'] ?? null);
         $ueRatio = $safeRatio($apports['ue'] ?? null, $besoins['ci'] ?? null);
 
-        $laitPermisRows = $is2018
+        $laitPermisRows = ! $estLaitiere ? [] : ($is2018
             ? [
                 ['label' => 'Par UFL', 'value' => $impacts['lait_par_ufl'] ?? null, 'decimals' => 2, 'unit' => 'kg/j'],
                 ['label' => 'Par PDI', 'value' => $impacts['lait_par_pdi'] ?? null, 'decimals' => 2, 'unit' => 'kg/j'],
@@ -1273,9 +1287,9 @@
                 ['label' => 'Par UFL', 'value' => $impacts['lait_par_ufl'] ?? null, 'decimals' => 2, 'unit' => 'kg/j'],
                 ['label' => 'Par PDIE', 'value' => $impacts['lait_par_pdie'] ?? null, 'decimals' => 2, 'unit' => 'kg/j'],
                 ['label' => 'Par PDIN', 'value' => $impacts['lait_par_pdin'] ?? null, 'decimals' => 2, 'unit' => 'kg/j'],
-            ];
+            ]);
 
-        if ($is2018 && array_key_exists('production_lait_attendue', $impacts)) {
+        if ($estLaitiere && $is2018 && array_key_exists('production_lait_attendue', $impacts)) {
             $laitPermisRows[] = ['label' => 'Production attendue', 'value' => $impacts['production_lait_attendue'], 'decimals' => 2, 'unit' => 'kg/j'];
         }
 
@@ -1346,8 +1360,24 @@
             ['label' => 'Production CH4', 'value' => $impacts['ch4'] ?? null, 'unit' => 'g/j', 'decimals' => 0],
         ] : [];
 
+        if (! $estLaitiere) {
+            $proteinsRows = array_values(array_filter(
+                $proteinsRows,
+                static fn (array $row): bool => ! str_contains((string) ($row['label'] ?? ''), 'Lait')
+                    && ! str_contains((string) ($row['label'] ?? ''), 'Production laitière')
+            ));
+            $energyRows = array_values(array_filter(
+                $energyRows,
+                static fn (array $row): bool => ! str_contains((string) ($row['label'] ?? ''), 'Lait')
+                    && ($row['label'] ?? '') !== 'PLPot'
+            ));
+        }
+
         $mineralBalanceRows = $is2018 ? [
             ['label' => 'BACA', 'value' => $indicateurs['baca'] ?? null, 'unit' => 'mEq/kg MS', 'decimals' => 0],
+            ['label' => 'Supplémentation vitamine A', 'value' => $supplementations['vit_a'] ?? null, 'unit' => 'UI/j', 'decimals' => 0],
+            ['label' => 'Supplémentation vitamine D', 'value' => $supplementations['vit_d'] ?? null, 'unit' => 'UI/j', 'decimals' => 0],
+            ['label' => 'Supplémentation vitamine E', 'value' => $supplementations['vit_e'] ?? null, 'unit' => 'UI/j', 'decimals' => 0],
         ] : [];
 
         $mineralRows = $is2018 ? [
@@ -1364,9 +1394,7 @@
             ['label' => 'Manganèse', 'apport' => $apports['mn'] ?? null, 'besoin' => $besoins['mn'] ?? null, 'unit' => 'mg/j', 'decimals' => 0],
             ['label' => 'Cuivre', 'apport' => $apports['cu'] ?? null, 'besoin' => $besoins['cu'] ?? null, 'unit' => 'mg/j', 'decimals' => 0],
             ['label' => 'Iode', 'apport' => $apports['i'] ?? null, 'besoin' => $besoins['i'] ?? null, 'unit' => 'mg/j', 'decimals' => 0],
-            ['label' => 'Vitamine A', 'apport' => $apports['vit_a'] ?? null, 'besoin' => $besoins['vit_a'] ?? null, 'unit' => 'UI/j', 'decimals' => 0],
-            ['label' => 'Vitamine D', 'apport' => $apports['vit_d'] ?? null, 'besoin' => $besoins['vit_d'] ?? null, 'unit' => 'UI/j', 'decimals' => 0],
-            ['label' => 'Vitamine E', 'apport' => $apports['vit_e'] ?? null, 'besoin' => $besoins['vit_e'] ?? null, 'unit' => 'UI/j', 'decimals' => 0],
+            ['label' => 'Molybdène', 'apport' => $apports['molybdene'] ?? null, 'besoin' => $besoins['molybdene'] ?? null, 'unit' => 'mg/j', 'decimals' => 1],
         ] : [];
 
         $balanceRows = [
@@ -1448,6 +1476,13 @@
         $energyRows = $annotateRows($energyRows, $detailStatus);
         $mineralBalanceRows = $annotateRows($mineralBalanceRows, $detailStatus);
         $mineralRows = $annotateRows($mineralRows, $comparisonStatus);
+        if (! $minerauxValides) {
+            $mineralRows = array_map(static function (array $row): array {
+                $row['status'] = 'neutral';
+
+                return $row;
+            }, $mineralRows);
+        }
         $balanceRows = $annotateRows($balanceRows, $balanceStatus);
         $fattyAcidRows = $annotateRows($fattyAcidRows, $detailStatus);
 
@@ -1492,11 +1527,13 @@
                 'status' => $healthStatus,
             ];
             $technicalPanels[] = [
-                'label' => 'Minéraux',
-                'valueLabel' => $mineralIssueCount === 0 ? 'Couverts' : $mineralIssueCount.' déficit'.($mineralIssueCount > 1 ? 's' : ''),
-                'note' => 'Macro, oligos et vitamines',
-                'percent' => $clamp(100 - $mineralIssueCount * 10, 18, 100),
-                'status' => $mineralStatus,
+                'label' => $minerauxValides ? 'Minéraux' : 'Minéraux indicatifs',
+                'valueLabel' => $minerauxValides
+                    ? ($mineralIssueCount === 0 ? 'Couverts' : $mineralIssueCount.' déficit'.($mineralIssueCount > 1 ? 's' : ''))
+                    : 'Non validés',
+                'note' => $minerauxValides ? 'Macro, oligos et supplémentations' : 'Routage scientifique incomplet',
+                'percent' => $minerauxValides ? $clamp(100 - $mineralIssueCount * 10, 18, 100) : 0,
+                'status' => $minerauxValides ? $mineralStatus : 'neutral',
             ];
         } else {
             $technicalPanels[] = [
@@ -1515,7 +1552,7 @@
             ];
         }
 
-        $topMetrics = [
+        $topMetrics = $estLaitiere ? [
             [
                 'label' => $productionLaitAttendue !== null ? 'Lait attendu' : 'Lait permis',
                 'valueLabel' => $format($laitComparable, 1).' kg/j',
@@ -1530,6 +1567,8 @@
                 'note' => $laitDelta === null ? 'Aucun objectif saisi' : 'Écart '.$bilanSign($laitDelta, 1).' kg/j',
                 'status' => $laitStatus,
             ],
+        ] : [];
+        $topMetrics = array_merge($topMetrics, [
             [
                 'label' => 'Couverture '.$uniteEnergie,
                 'valueLabel' => $ufRatio === null ? '–' : $format($ufRatio * 100, 0).' %',
@@ -1555,9 +1594,9 @@
                     'note' => 'Bilan microbien',
                     'status' => (($impacts['rmic'] ?? 0) >= 0) ? 'ok' : 'alert',
                 ],
-        ];
+        ]);
 
-        $insightCandidates = [
+        $insightCandidates = $estLaitiere ? [
             [
                 'label' => 'Objectif laitier',
                 'valueLabel' => $laitDelta === null ? 'Sans cible' : $bilanSign($laitDelta, 1).' kg/j',
@@ -1567,6 +1606,8 @@
                 'status' => $laitStatus,
                 'percent' => $laitObjectif > 0 ? $ratioPercent($safeRatio($laitComparable, $laitObjectif)) : 0,
             ],
+        ] : [];
+        $insightCandidates = array_merge($insightCandidates, [
             [
                 'label' => 'Énergie',
                 'valueLabel' => $ufRatio === null ? '–' : $format($ufRatio * 100, 0).' %',
@@ -1588,7 +1629,7 @@
                 'status' => $coverageStatus($ueRatio),
                 'percent' => $ratioPercent($ueRatio),
             ],
-        ];
+        ]);
 
         if ($is2018) {
             $iraRow = $findRowByMetricKey($healthRows, 'ira');
@@ -1638,11 +1679,13 @@
                 },
             ];
             $insightCandidates[] = [
-                'label' => 'Minéraux et vitamines',
-                'valueLabel' => $mineralIssueCount === 0 ? 'Couverts' : $mineralIssueCount.' écart'.($mineralIssueCount > 1 ? 's' : ''),
-                'note' => 'Macro, oligos et vitamines',
-                'status' => $mineralStatus,
-                'percent' => $clamp(100 - $mineralIssueCount * 10, 18, 100),
+                'label' => $minerauxValides ? 'Minéraux et vitamines' : 'Minéraux indicatifs',
+                'valueLabel' => $minerauxValides
+                    ? ($mineralIssueCount === 0 ? 'Couverts' : $mineralIssueCount.' écart'.($mineralIssueCount > 1 ? 's' : ''))
+                    : 'Non validés',
+                'note' => $minerauxValides ? 'Macro, oligos et supplémentations' : 'Routage scientifique incomplet',
+                'status' => $minerauxValides ? $mineralStatus : 'neutral',
+                'percent' => $minerauxValides ? $clamp(100 - $mineralIssueCount * 10, 18, 100) : 0,
             ];
         } else {
             $insightCandidates[] = [
@@ -1663,7 +1706,7 @@
             static fn (array $item): bool => ($item['status'] ?? 'neutral') === 'ok'
         )), 0, 4);
 
-        $milkGraphRows = array_values(array_filter(
+        $milkGraphRows = ! $estLaitiere ? [] : array_values(array_filter(
             array_merge(
                 $laitPermisRows,
                 $laitObjectif > 0 ? [['label' => 'Objectif', 'value' => $laitObjectif, 'decimals' => 2, 'unit' => 'kg/j']] : []
@@ -1762,9 +1805,13 @@
         $coutTotal = ($ration->effectif ?? null) && isset($impacts['cout_animal']) ? (float) $ration->effectif * (float) $impacts['cout_animal'] : null;
         $impactSummaryRows = [
             ['label' => 'Coût / animal / jour', 'value' => $impacts['cout_animal'] ?? null, 'unit' => '€', 'decimals' => 2],
-            ['label' => 'Coût / 1 000 L', 'value' => $impacts['cout_1000l'] ?? null, 'unit' => '€', 'decimals' => 2],
             ['label' => 'Eau bue estimée', 'value' => $impacts['eau_bue'] ?? null, 'unit' => 'L/j', 'decimals' => 1],
         ];
+        if ($estLaitiere) {
+            array_splice($impactSummaryRows, 1, 0, [[
+                'label' => 'Coût / 1 000 L', 'value' => $impacts['cout_1000l'] ?? null, 'unit' => '€', 'decimals' => 2,
+            ]]);
+        }
         $agvTotal = ($indicateurs['acetate'] ?? 0) + ($indicateurs['propionate'] ?? 0) + ($indicateurs['butyrate'] ?? 0);
         $agvOther = max(0, 100 - $agvTotal);
         $acetateWidth = $clamp((float) ($indicateurs['acetate'] ?? 0), 0, 100);
@@ -1864,8 +1911,9 @@
                 </div>
             </article>
 
-            <article class="card">
-                <h3>Lait permis et objectif</h3>
+            @if($estLaitiere)
+                <article class="card">
+                    <h3>Lait permis et objectif</h3>
 
                 <div class="chart-list">
                     @if($milkGraphRows !== [])
@@ -1899,7 +1947,8 @@
                         <p class="card-copy">Aucune donnée exploitable pour ce graphique.</p>
                     @endif
                 </div>
-            </article>
+                </article>
+            @endif
         </div>
 
         <div class="split" style="margin-top: 12px;">
@@ -2440,7 +2489,7 @@
 
                 <div class="split" style="margin-top: 14px;">
                     <article class="card">
-                        <h3>Minéraux et vitamines</h3>
+                        <h3>{{ $minerauxValides ? 'Minéraux et supplémentations vitaminiques' : 'Minéraux et vitamines — indicatifs, non validés' }}</h3>
                         <div class="table-wrap" style="margin-top: 12px;">
                             <table>
                                 <thead>

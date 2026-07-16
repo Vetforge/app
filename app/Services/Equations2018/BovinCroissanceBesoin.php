@@ -81,6 +81,12 @@ class BovinCroissanceBesoin
         return self::composition($ration)['prot_gain'] * 1000.0 / $effPdi;
     }
 
+    /** Dépôt protéique net du gain (g/j), utilisé par l'équation algébrique 7.20. */
+    public static function depotProteiqueNet(Ration $ration): float
+    {
+        return self::composition($ration)['prot_gain'] * 1000.0;
+    }
+
     // ─── Minéraux ────────────────────────────────────────────────────────────────
 
     public static function calculerBesoinCaabs(Ration $ration): float
@@ -199,7 +205,7 @@ class BovinCroissanceBesoin
     /** @return array<string, float> */
     private static function reference(Ration $ration): array
     {
-        return BovinCroissanceReference::resolve($ration->race, self::finition($ration));
+        return BovinCroissanceReference::resolve($ration->race, self::finition($ration), $ration->reference_bovine);
     }
 
     private static function finition(Ration $ration): bool

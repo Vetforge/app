@@ -86,17 +86,23 @@ class RationController extends Controller
         $this->authorize('update', $plan);
 
         $validated = $request->validate([
-            'aliment_id' => ['required', 'exists:aliments,id'],
-            'quantite' => ['nullable', 'numeric', 'min:0'],
+            'aliment_id' => ['required', 'integer', 'exists:aliments,id'],
+            'quantite' => ['nullable', 'required_unless:is_volonte,true', 'numeric', 'gt:0'],
             'is_volonte' => ['boolean'],
             'is_mb' => ['boolean'],
         ]);
 
-        $original = Aliment::findOrFail($validated['aliment_id']);
+        $original = Aliment::query()->whereKey($validated['aliment_id'])->firstOrFail();
         $this->authorize('view', $original);
 
+        if (($validated['is_volonte'] ?? false) && $original->type !== 'Fourrage') {
+            return back()->withErrors(['is_volonte' => 'Seul un fourrage peut être distribué à volonté.']);
+        }
+        if (($validated['is_volonte'] ?? false) && $this->rationPossedeDejaUnComposantAVolonte($ration)) {
+            return back()->withErrors(['is_volonte' => 'La ration contient déjà un composant à volonté.']);
+        }
+
         $clone = $original->replicate();
-        $clone->code_inra = null;
         $clone->usage_aliment = 2;
         $clone->user_id = $request->user()->id;
         $clone->save();
@@ -136,10 +142,17 @@ class RationController extends Controller
         $this->authorize('update', $plan);
 
         $validated = $request->validate([
-            'quantite' => ['nullable', 'numeric', 'min:0'],
+            'quantite' => ['nullable', 'required_unless:is_volonte,true', 'numeric', 'gte:0'],
             'is_volonte' => ['boolean'],
             'is_mb' => ['boolean'],
         ]);
+
+        if (($validated['is_volonte'] ?? false) && $rationAliment->aliment?->type !== 'Fourrage') {
+            return back()->withErrors(['is_volonte' => 'Seul un fourrage peut être distribué à volonté.']);
+        }
+        if (($validated['is_volonte'] ?? false) && $this->rationPossedeDejaUnComposantAVolonte($ration, $rationAliment)) {
+            return back()->withErrors(['is_volonte' => 'La ration contient déjà un composant à volonté.']);
+        }
 
         $rationAliment->update($validated);
 
@@ -310,6 +323,16 @@ class RationController extends Controller
         }
 
         return 0;
+    }
+
+    private function rationPossedeDejaUnComposantAVolonte(Ration $ration, ?RationAliment $ignore = null): bool
+    {
+        $alimentExiste = $ration->rationAliments()
+            ->where('is_volonte', true)
+            ->when($ignore, fn ($query) => $query->where('id', '!=', $ignore->getKey()))
+            ->exists();
+
+        return $alimentExiste || $ration->melanges()->where('is_volonte', true)->exists();
     }
 
     private function ajusterVolonte2018(Ration $ration, RationAliment|Melange $composant): int

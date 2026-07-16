@@ -109,7 +109,8 @@ class Besoin
         $TP = self::calculerTP($ration);
 
         return match ($cat) {
-            CategorieAnimal::VacheLaitiere, CategorieAnimal::VacheAllaitante => (0.42 + 0.0053 * ($TB - 40) + 0.0032 * ($TP - 31)) * $lait,
+            CategorieAnimal::VacheLaitiere => (0.42 + 0.0053 * ($TB - 40) + 0.0032 * ($TP - 31)) * $lait,
+            CategorieAnimal::VacheAllaitante => 0.44 * $lait, // Éq. 18.23.
             default => 0.0,
         };
     }
@@ -155,7 +156,7 @@ class Besoin
         if (in_array($cat, [CategorieAnimal::BovinCroissance, CategorieAnimal::BovinEngraissement], true)) {
             return BovinCroissanceBesoin::besoinUFGain($ration);
         }
-        $primipare = (float) ($ration->pourcentage_primipare ?? 0);
+        $primipare = self::partPrimipare($ration) * 100.0;
 
         return match ($cat) {
             CategorieAnimal::VacheLaitiere, CategorieAnimal::VacheAllaitante => 0.6 * ($primipare / 100),
@@ -172,7 +173,7 @@ class Besoin
             return 0.0;
         }
 
-        $primipare = (float) ($ration->pourcentage_primipare ?? 0);
+        $primipare = self::partPrimipare($ration) * 100.0;
         $deltaPV = (float) ($ration->ecart_variation_reserve ?? 0);
 
         // Éq. 18.5 : 2,4 UFL/kg (multipares) → 1,8 UFL/kg (primipares).
@@ -210,7 +211,7 @@ class Besoin
             ? RationHelper::calculerProductionLaitPotentielle($ration)
             : (float) ($ration->lait_objectif ?? 0);
         $NEC = (float) ($ration->nec ?? 2.5);
-        $primipare = (float) ($ration->pourcentage_primipare ?? 0);
+        $primipare = self::partPrimipare($ration) * 100.0;
         $race = RationHelper::normalizeRace($ration->race);
         $moisLact = (int) floor((float) ($ration->mois_lactation ?? 0));
         $moisGest = (float) ($ration->mois_gestation ?? 0);
@@ -248,13 +249,15 @@ class Besoin
                 default => 1.0,
             };
             $iNote = $moisGest > 0 ? 0.002 : ($moisLact > 0 ? 0.0015 : 0.0);
-            $iPare = match (true) {
-                $moisGest > 0 => 0.88,
-                $moisLact === 1 => 0.9,
-                $moisLact === 2 => 0.93,
-                $moisLact === 3 => 0.96,
-                default => 1.0,
-            };
+            $iPare = self::partPrimipare($ration) > 0.0
+                ? match (true) {
+                    $moisGest > 0 => 0.88,
+                    $moisLact === 1 => 0.90,
+                    $moisLact === 2 => 0.93,
+                    $moisLact === 3 => 0.96,
+                    default => 1.0,
+                }
+            : 1.0;
 
             return $iRace * $iStade * $iPare
                 * (3.2 + 0.015 * $poidsVif + 0.25 * $lait - $iNote * $poidsVif * ($NEC - 2.5));
@@ -310,7 +313,7 @@ class Besoin
         if (in_array($cat, [CategorieAnimal::BovinCroissance, CategorieAnimal::BovinEngraissement], true)) {
             return BovinCroissanceBesoin::besoinPDIGain($ration);
         }
-        $primipare = (float) ($ration->pourcentage_primipare ?? 0);
+        $primipare = self::partPrimipare($ration) * 100.0;
         $EffPDI = Apport::calculerEffPDI($ration);
 
         return match ($cat) {
@@ -361,9 +364,8 @@ class Besoin
         $TP = self::calculerTP($ration);
 
         return match ($cat) {
-            CategorieAnimal::VacheLaitiere, CategorieAnimal::VacheAllaitante => $EffPDI > 0
-                ? ($TP * $lait) / $EffPDI
-                : 0.0,
+            CategorieAnimal::VacheLaitiere => $EffPDI > 0 ? ($TP * $lait) / $EffPDI : 0.0,
+            CategorieAnimal::VacheAllaitante => $EffPDI > 0 ? (34.0 * $lait) / $EffPDI : 0.0, // Éq. 18.24.
             default => 0.0,
         };
     }
@@ -374,7 +376,7 @@ class Besoin
             return 0.0;
         }
 
-        $primipare = (float) ($ration->pourcentage_primipare ?? 0);
+        $primipare = self::partPrimipare($ration) * 100.0;
         $deltaPV = (float) ($ration->ecart_variation_reserve ?? 0);
 
         // Éq. 18.6 : 0,13 (multipares) → 0,16 (primipares, encore en croissance). L'équation est
@@ -397,6 +399,16 @@ class Besoin
             [CategorieAnimal::VacheLaitiere, CategorieAnimal::VacheAllaitante],
             true,
         );
+    }
+
+    /** Part de primipares : parité individuelle prioritaire, pourcentage de lot en repli. */
+    private static function partPrimipare(Ration $ration): float
+    {
+        if ($ration->parite !== null) {
+            return (int) $ration->parite === 1 ? 1.0 : 0.0;
+        }
+
+        return min(1.0, max(0.0, (float) ($ration->pourcentage_primipare ?? 0) / 100.0));
     }
 
     public static function calculerBesoinTotalPDI(Ration $ration): float
@@ -436,7 +448,7 @@ class Besoin
         return match ($cat) {
             CategorieAnimal::VacheLaitiere => (0.663 * $apportTotalMS) + (0.008 * $poidsVif)
                 + ($semGest >= 27 ? 23.5 / (1 + exp(18.8 - 5.03 * log($semGest))) : 0.0)
-                + 1.25 * $lait,
+                + 1.21 * $lait, // Éq. 17.21.
             CategorieAnimal::VacheAllaitante => $moisLact > 0
                 ? 2.9 * $besoinTotalUF - 3.35
                 : 2.3 * $besoinTotalUF - 1.5,
@@ -470,7 +482,7 @@ class Besoin
         return match ($cat) {
             CategorieAnimal::VacheLaitiere => (0.83 * $apportTotalMS) + (0.002 * $poidsVif)
                 + ($semGest >= 27 ? 7.38 / (1 + exp(19.1 - 5.46 * log($semGest))) : 0.0)
-                + 0.9 * $lait,
+                + 0.87 * $lait, // Éq. 17.22.
             CategorieAnimal::VacheAllaitante => $moisLact > 0
                 ? 2.22 * $besoinTotalUF - 1.71
                 : 0.82 * $besoinTotalUF + 7.03,
@@ -584,23 +596,71 @@ class Besoin
         return 50 * Apport::calculerApportTotalMS($ration);
     }
 
-    public static function calculerBesoinMo(Ration $ration): float
+    public static function calculerBesoinMolybdene(Ration $ration): float
     {
         return 0.5 * Apport::calculerApportTotalMS($ration);
     }
 
-    public static function calculerBesoinVitA(Ration $ration): float
+    public static function calculerBesoinMo(Ration $ration): float
     {
-        return 100 * RationHelper::poidsVif($ration);
+        return self::calculerBesoinMolybdene($ration);
     }
 
-    public static function calculerBesoinVitD(Ration $ration): float
+    /** Recommandation de supplémentation, distincte du besoin physiologique total (Table 8.3). */
+    public static function calculerSupplementationVitA(Ration $ration): float
     {
-        return 30 * RationHelper::poidsVif($ration);
+        $categorie = RationHelper::categorie($ration->categorie_animal ?? '');
+        $poidsVif = RationHelper::poidsVif($ration);
+        $lactation = $categorie->espece() === Espece::Bovin
+            ? (float) ($ration->mois_lactation ?? 0) > 0
+            : (float) ($ration->jours_lactation ?? 0) > 0;
+
+        return match ($categorie) {
+            CategorieAnimal::BovinCroissance,
+            CategorieAnimal::BovinEngraissement => 47 * $poidsVif,
+            CategorieAnimal::AgneauCroissance,
+            CategorieAnimal::ChevretteCroissance => 333 * $poidsVif,
+            CategorieAnimal::VacheLaitiere => ($lactation ? 80 : 110) * $poidsVif,
+            CategorieAnimal::BrebisLaitiere,
+            CategorieAnimal::BrebisAllaitante,
+            CategorieAnimal::ChevreLaitiere => ($lactation ? 178 : 152) * $poidsVif,
+            CategorieAnimal::VacheAllaitante => 80 * $poidsVif,
+        };
     }
 
-    public static function calculerBesoinVitE(Ration $ration): float
+    /** Recommandation de supplémentation, distincte du besoin physiologique total (Table 8.3). */
+    public static function calculerSupplementationVitD(Ration $ration): float
     {
-        return RationHelper::poidsVif($ration);
+        $categorie = RationHelper::categorie($ration->categorie_animal ?? '');
+        $poidsVif = RationHelper::poidsVif($ration);
+
+        return match ($categorie) {
+            CategorieAnimal::BovinCroissance,
+            CategorieAnimal::BovinEngraissement => 5.7 * $poidsVif,
+            CategorieAnimal::VacheLaitiere => 30 * $poidsVif,
+            default => 0.0,
+        };
+    }
+
+    /** Recommandation de supplémentation, distincte du besoin physiologique total (Table 8.3). */
+    public static function calculerSupplementationVitE(Ration $ration): float
+    {
+        $categorie = RationHelper::categorie($ration->categorie_animal ?? '');
+        $lactation = $categorie->espece() === Espece::Bovin
+            ? (float) ($ration->mois_lactation ?? 0) > 0
+            : (float) ($ration->jours_lactation ?? 0) > 0;
+        $coefficient = match ($categorie) {
+            CategorieAnimal::BovinCroissance,
+            CategorieAnimal::BovinEngraissement => 25.0,
+            CategorieAnimal::AgneauCroissance,
+            CategorieAnimal::ChevretteCroissance => 10.0,
+            CategorieAnimal::VacheLaitiere => $lactation ? 0.8 : 1.6,
+            CategorieAnimal::BrebisLaitiere,
+            CategorieAnimal::BrebisAllaitante,
+            CategorieAnimal::ChevreLaitiere => 6.0,
+            CategorieAnimal::VacheAllaitante => 0.0,
+        };
+
+        return $coefficient * RationHelper::poidsVif($ration);
     }
 }

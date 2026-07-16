@@ -127,6 +127,7 @@ it('exposes composition and results props on the composition route', function ()
             ->where('ration.id', $ration->id)
             ->where('resultats.inra', '2018')
             ->where('iterations_volonte', 0)
+            // La valeur n'est active que parce que l'utilisateur l'a définie comme préférence locale.
             ->where('normes.active.ph_ruminal.min', 6.4)
             ->has('normes.editable', 10)
             ->has('aliments_disponibles')
@@ -447,10 +448,40 @@ it('renders updated rumen-health wording in the ration pdf', function () {
     ])->render();
 
     expect($html)->toContain('MOD des concentrés (proxy interne)');
-    expect($html)->toContain('pH ruminal estimé via AmiD_ru (6,2)');
+    expect($html)->toContain('pH ruminal estimé via AmiD_ru');
+    expect($html)->not->toContain('pH ruminal estimé via AmiD_ru (6,2)');
     expect($html)->toContain('NDF des fourrages (proxy NDFfo)');
     expect($html)->not->toContain('MO dégradable du concentré (250 - 300)');
     expect($html)->not->toContain('Prévision du pH ruminal (6,2)');
+});
+
+it('hides dairy-only blocks and separates vitamin supplementation in a non-dairy ration pdf', function () {
+    $user = User::factory()->create();
+    [$plan, $ration] = createWorkspaceRation($user);
+    $ration->update([
+        'categorie_animal' => 'bovin_engraissement',
+        'race' => 'charolaise',
+        'reference_bovine' => 1,
+        'gmq' => 1400,
+        'poids_vif' => 450,
+    ]);
+    $ration->load([
+        'rationAliments.aliment',
+        'melanges.melangeAliments.aliment',
+        'planRationnement',
+    ]);
+
+    $html = view('pdf.ration', [
+        'plan' => $plan,
+        'ration' => $ration,
+        'resultats' => RationCalculator::calculer($ration),
+        'iterations_volonte' => 0,
+    ])->render();
+
+    expect($html)->not->toContain('Lait permis et objectif');
+    expect($html)->not->toContain('Coût / 1 000 L');
+    expect($html)->toContain('Minéraux et supplémentations vitaminiques');
+    expect($html)->toContain('Supplémentation vitamine A');
 });
 
 it('renders custom norm labels in the ration pdf', function () {

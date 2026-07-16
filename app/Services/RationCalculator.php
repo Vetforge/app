@@ -108,6 +108,7 @@ class RationCalculator
                 'ms' => round($apportMS, 2),
                 'ue' => round($apportUE, 2),
                 'ufl' => round($apportUFL, 2),
+                'uf' => round($apportUFL, 2),
                 'pdie' => round($apportPDIE, 1),
                 'pdin' => round($apportPDIN, 1),
                 'ca' => round($apportCa, 1),
@@ -147,6 +148,7 @@ class RationCalculator
             ],
             'bilans' => [
                 'ufl' => round($apportUFL - $besoinTotalUF, 2),
+                'uf' => round($apportUFL - $besoinTotalUF, 2),
                 'ue' => round($apportUE - $CI, 2),
                 'pdie' => round($apportPDIE - $besoinTotalPDI, 1),
                 'pdin' => round($apportPDIN - $besoinTotalPDI, 1),
@@ -156,6 +158,7 @@ class RationCalculator
             ],
             'indicateurs' => [
                 'ufl_par_kg_ms' => round($apportUFLParKgMS, 2),
+                'uf_par_kg_ms' => round($apportUFLParKgMS, 2),
                 'pdie_par_kg_ms' => round($apportPDIEParKgMS, 2),
                 'pdin_par_kg_ms' => round($apportPDINParKgMS, 2),
                 'cb_par_kg_ms' => round($apportCBParKgMS, 1),
@@ -215,6 +218,7 @@ class RationCalculator
         $apportMn = Apport2018::calculerApportMn($ration);
         $apportCu = Apport2018::calculerApportCu($ration);
         $apportI = Apport2018::calculerApportI($ration);
+        $apportMolybdene = Apport2018::calculerApportMolybdene($ration);
         $apportVitA = Apport2018::calculerApportVitA($ration);
         $apportVitD = Apport2018::calculerApportVitD($ration);
         $apportVitE = Apport2018::calculerApportVitE($ration);
@@ -256,9 +260,10 @@ class RationCalculator
         $besoinMn = Besoin2018::calculerBesoinMn($ration);
         $besoinCu = Besoin2018::calculerBesoinCu($ration);
         $besoinI = Besoin2018::calculerBesoinI($ration);
-        $besoinVitA = Besoin2018::calculerBesoinVitA($ration);
-        $besoinVitD = Besoin2018::calculerBesoinVitD($ration);
-        $besoinVitE = Besoin2018::calculerBesoinVitE($ration);
+        $besoinMolybdene = Besoin2018::calculerBesoinMolybdene($ration);
+        $supplementationVitA = Besoin2018::calculerSupplementationVitA($ration);
+        $supplementationVitD = Besoin2018::calculerSupplementationVitD($ration);
+        $supplementationVitE = Besoin2018::calculerSupplementationVitE($ration);
         $TB = Besoin2018::calculerTB($ration);
         $TP = Besoin2018::calculerTP($ration);
 
@@ -302,9 +307,7 @@ class RationCalculator
             true,
         );
 
-        // L'eau bue et le bilan UFL de production reposent sur des régressions propres aux bovins
-        // reproducteurs (ch. 17-18) sans équivalent validé pour les petits ruminants : ils ne sont
-        // exposés que pour la vache laitière et la vache allaitante.
+        // Le bilan UFL de production est bovin ; l'eau dispose aussi d'une équation caprine 21.22.
         $estBovinReproducteur = in_array(
             $categorie,
             [CategorieAnimal::VacheLaitiere, CategorieAnimal::VacheAllaitante],
@@ -324,8 +327,10 @@ class RationCalculator
         }
 
         if ($estBovinReproducteur) {
-            $impacts['eau_bue'] = round($eauBue, 1);
             $impacts['bil_ufl'] = round($bilUFL, 2);
+        }
+        if ($estBovinReproducteur || $categorie === CategorieAnimal::ChevreLaitiere) {
+            $impacts['eau_bue'] = round($eauBue, 1);
         }
 
         if ($productionLaitAttendue !== null) {
@@ -342,11 +347,15 @@ class RationCalculator
                 'espece' => $categorie->espece()->value,
                 'unite_fourragere' => $categorie->uniteFourragereLabel(),
                 'unite_encombrement' => $categorie->uniteEncombrementLabel(),
+                'est_laitiere' => $categorie->estLaitiere(),
+                'mineraux_valides' => true,
+                'vitamines_semantique' => 'supplementation',
             ],
             'apports' => [
                 'ms' => round($apportMS, 2),
                 'ue' => round($apportUE, 2),
                 'ufl' => round($apportUFL, 2),
+                'uf' => round($apportUFL, 2),
                 'pdi' => round($apportPDI, 1),
                 'pdia' => round($apportPDIA, 1),
                 'ca' => round($apportCa, 1),
@@ -365,6 +374,7 @@ class RationCalculator
                 'mn' => round($apportMn, 1),
                 'cu' => round($apportCu, 1),
                 'i' => round($apportI, 1),
+                'molybdene' => round($apportMolybdene, 1),
                 'vit_a' => round($apportVitA, 0),
                 'vit_d' => round($apportVitD, 0),
                 'vit_e' => round($apportVitE, 0),
@@ -396,15 +406,19 @@ class RationCalculator
                 'mn' => round($besoinMn, 1),
                 'cu' => round($besoinCu, 1),
                 'i' => round($besoinI, 1),
-                'vit_a' => round($besoinVitA, 0),
-                'vit_d' => round($besoinVitD, 0),
-                'vit_e' => round($besoinVitE, 0),
+                'molybdene' => round($besoinMolybdene, 1),
                 'tb_ajuste' => round($TB, 1),
                 'tp_ajuste' => round($TP, 1),
+            ],
+            'supplementations' => [
+                'vit_a' => round($supplementationVitA, 0),
+                'vit_d' => round($supplementationVitD, 0),
+                'vit_e' => round($supplementationVitE, 0),
             ],
             'impacts' => $impacts,
             'bilans' => [
                 'ufl' => round($apportUFL - $besoinTotalUF, 2),
+                'uf' => round($apportUFL - $besoinTotalUF, 2),
                 'ue' => round($apportUE - $CI, 2),
                 'pdi' => round($apportPDI - $besoinTotalPDI, 1),
                 'caabs' => round($apportCaabs - $besoinCaabs, 1),
@@ -418,6 +432,7 @@ class RationCalculator
                 'pl_pot' => round($productionPotentielle, 2),
                 'eff_pdi' => round($EffPDI, 3),
                 'ufl_par_kg_ms' => round($apportUFLParKgMS, 2),
+                'uf_par_kg_ms' => round($apportUFLParKgMS, 2),
                 'cb_par_kg_ms' => round($apportCBParKgMS, 1),
                 'adf_par_kg_ms' => round($apportADFParKgMS, 1),
                 'pdi_par_kg_ms' => round($apportPDIParKgMS, 2),

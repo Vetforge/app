@@ -68,8 +68,14 @@ test('primiparous cows need more reserve PDI than multiparous ones', function ()
     $multipare = allaitanteRation(['pourcentage_primipare' => 0]);
     $primipare = allaitanteRation(['pourcentage_primipare' => 100]);
 
-    expect(Besoin2018::calculerBesoinPDI_DRC($primipare))
-        ->toBeGreaterThan(Besoin2018::calculerBesoinPDI_DRC($multipare));
+    // Comparer les coefficients nets : chaque ration de test possède un aliment tiré séparément,
+    // donc une efficience PDI potentiellement différente.
+    $coefMultipare = Besoin2018::calculerBesoinPDI_DRC($multipare)
+        * Apport2018::calculerEffPDI($multipare) / 0.5;
+    $coefPrimipare = Besoin2018::calculerBesoinPDI_DRC($primipare)
+        * Apport2018::calculerEffPDI($primipare) / 0.5;
+
+    expect($coefPrimipare)->toBeGreaterThan($coefMultipare);
 });
 
 test('reserve PDI uses an efficiency of 1 when the cow mobilises reserves (Eq. 18.6 note)', function () {

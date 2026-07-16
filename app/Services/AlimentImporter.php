@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Http\Requests\StoreAlimentRequest;
 use App\Models\Aliment;
+use Illuminate\Support\Facades\Validator;
 
 class AlimentImporter
 {
@@ -46,6 +48,15 @@ class AlimentImporter
                 }
 
                 $mapped = self::mapRow($data);
+                $validator = Validator::make($mapped, StoreAlimentRequest::sharedRules());
+                $validator->after(
+                    fn ($validator) => StoreAlimentRequest::appendContractErrors($validator, $mapped)
+                );
+                if ($validator->fails()) {
+                    $errors++;
+
+                    continue;
+                }
 
                 $aliment = Aliment::query()->where('code_inra', $codeInra)->first();
 
@@ -69,36 +80,28 @@ class AlimentImporter
     /** @param  array<string, string>  $data */
     private static function mapRow(array $data): array
     {
-        $numeric = fn ($v) => is_numeric($v) ? (float) $v : null;
+        $textFields = [
+            'type', 'famille_botanique', 'procede_technologique', 'libelle0',
+            'libelle1', 'libelle2', 'libelle3', 'libelle4', 'usage_aliment',
+        ];
+        $mapped = ['code_inra' => trim($data['code_inra'] ?? '')];
 
-        return array_filter([
-            'code_inra' => trim($data['code_inra'] ?? '') ?: null,
-            'type' => trim($data['type'] ?? '') ?: null,
-            'libelle0' => trim($data['libelle0'] ?? '') ?: null,
-            'libelle1' => trim($data['libelle1'] ?? '') ?: null,
-            'libelle2' => trim($data['libelle2'] ?? '') ?: null,
-            'libelle3' => trim($data['libelle3'] ?? '') ?: null,
-            'libelle4' => trim($data['libelle4'] ?? '') ?: null,
-            'prix' => $numeric($data['prix'] ?? null),
-            'ms' => $numeric($data['ms'] ?? null),
-            'ufl' => $numeric($data['ufl'] ?? null),
-            'ufv' => $numeric($data['ufv'] ?? null),
-            'pdia' => $numeric($data['pdia'] ?? null),
-            'pdi' => $numeric($data['pdi'] ?? null),
-            'mat' => $numeric($data['mat'] ?? null),
-            'cb' => $numeric($data['cb'] ?? null),
-            'ndf' => $numeric($data['ndf'] ?? null),
-            'adf' => $numeric($data['adf'] ?? null),
-            'ca' => $numeric($data['ca'] ?? null),
-            'p' => $numeric($data['p'] ?? null),
-            'mg' => $numeric($data['mg'] ?? null),
-            'na' => $numeric($data['na'] ?? null),
-            'k' => $numeric($data['k'] ?? null),
-            'ufl2007' => $numeric($data['ufl2007'] ?? null),
-            'ufv2007' => $numeric($data['ufv2007'] ?? null),
-            'pdia2007' => $numeric($data['pdia2007'] ?? null),
-            'pdie2007' => $numeric($data['pdie2007'] ?? null),
-            'pdin2007' => $numeric($data['pdin2007'] ?? null),
-        ], fn ($v) => $v !== null);
+        foreach (array_keys(StoreAlimentRequest::sharedRules()) as $field) {
+            $raw = trim((string) ($data[$field] ?? ''));
+            if ($raw === '') {
+                continue;
+            }
+
+            if (in_array($field, $textFields, true)) {
+                $mapped[$field] = $field === 'type' ? Aliment::canonicalType($raw) : $raw;
+
+                continue;
+            }
+
+            $normalized = str_replace(',', '.', $raw);
+            $mapped[$field] = is_numeric($normalized) ? (float) $normalized : $raw;
+        }
+
+        return $mapped;
     }
 }

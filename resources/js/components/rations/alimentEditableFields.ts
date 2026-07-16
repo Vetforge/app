@@ -4,6 +4,7 @@ export interface AlimentEditableField {
     type: 'text' | 'number';
     required?: boolean;
     step?: string;
+    unit?: string;
 }
 
 export interface AlimentEditableFieldGroup {
@@ -13,12 +14,67 @@ export interface AlimentEditableFieldGroup {
     fields: AlimentEditableField[];
 }
 
+export function alimentFieldUnit(key: string): string | undefined {
+    if (key === 'ms') return '% brut';
+    if (
+        [
+            'd_mo',
+            'd_ma',
+            'd_cb',
+            'd_ndf',
+            'd_adf',
+            'd_e',
+            'dt_n',
+            'dt6_n',
+            'dr_n',
+            'dt_ami',
+            'dt6_ami',
+            'dt_ms',
+            'dt6_ms',
+        ].includes(key)
+    )
+        return '%';
+    if (['ufl', 'ufv', 'ufl2007', 'ufv2007'].includes(key)) return 'UF/kg MS';
+    if (['uem', 'uel', 'ueb', 'uem2007', 'uel2007', 'ueb2007'].includes(key))
+        return 'UE/kg MS';
+    if (['eb', 'em', 'eb2007', 'em2007'].includes(key)) return 'kcal/kg MS';
+    if (
+        [
+            'lys_di',
+            'met_di',
+            'his_di',
+            'arg_di',
+            'thr_di',
+            'val_di',
+            'ile_di',
+            'leu_di',
+            'phe_di',
+        ].includes(key)
+    )
+        return '% PDI';
+    if (['cu', 'zn', 'mn', 'co', 'se', 'i', 'molybdene'].includes(key))
+        return 'mg/kg MS';
+    if (['vit_a', 'vit_d', 'vit_e'].includes(key)) return 'UI/kg MS';
+    if (['baca', 'be'].includes(key)) return 'mEq/kg MS';
+    if (key === 'prix') return '€/unité MB';
+    if (key === 'niref') return 'sans unité';
+
+    return 'g/kg MS';
+}
+
+export function alimentFieldLabel(key: string, label?: string): string {
+    const base = label ?? key.toUpperCase().replace(/_/g, ' ');
+    const unit = alimentFieldUnit(key);
+    return unit ? `${base} (${unit})` : base;
+}
+
 function numericField(key: string, label?: string): AlimentEditableField {
     return {
         key,
-        label: label ?? key.toUpperCase().replace(/_/g, ' '),
+        label: alimentFieldLabel(key, label),
         type: 'number',
         step: '0.01',
+        unit: alimentFieldUnit(key),
     };
 }
 
@@ -28,12 +84,27 @@ export const alimentEditableFieldGroups: AlimentEditableFieldGroup[] = [
         title: 'Identification',
         columnsClass: 'md:grid-cols-2',
         fields: [
-            { key: 'libelle0', label: 'Libellé principal', type: 'text', required: true },
+            {
+                key: 'libelle0',
+                label: 'Libellé principal',
+                type: 'text',
+                required: true,
+            },
             { key: 'libelle1', label: 'Libellé 1', type: 'text' },
             { key: 'libelle2', label: 'Libellé 2', type: 'text' },
             { key: 'type', label: 'Type', type: 'text' },
-            numericField('ms', 'MS (%)'),
-            numericField('prix', 'Prix (€/unité MB)'),
+            {
+                key: 'famille_botanique',
+                label: 'Famille botanique (code)',
+                type: 'text',
+            },
+            {
+                key: 'procede_technologique',
+                label: 'Procédé technologique (code)',
+                type: 'text',
+            },
+            numericField('ms', 'MS'),
+            numericField('prix', 'Prix'),
         ],
     },
     {
@@ -41,10 +112,37 @@ export const alimentEditableFieldGroups: AlimentEditableFieldGroup[] = [
         title: 'Énergie',
         columnsClass: 'md:grid-cols-3',
         fields: [
-            'ufl', 'ufv', 'uem', 'uel', 'ueb', 'eb', 'em', 'mo', 'mat', 'cb',
-            'ndf', 'adf', 'adl', 'ee', 'ag', 'amidon', 'sucres', 'pf', 'd_mo',
-            'd_ma', 'd_cb', 'd_ndf', 'd_adf', 'd_e', 'dt_n', 'dt6_n', 'dr_n',
-            'dt_ami', 'dt6_ami', 'dt_ms', 'dt6_ms',
+            'ufl',
+            'ufv',
+            'uem',
+            'uel',
+            'ueb',
+            'eb',
+            'em',
+            'mo',
+            'mat',
+            'cb',
+            'ndf',
+            'adf',
+            'adl',
+            'ee',
+            'ag',
+            'amidon',
+            'sucres',
+            'pf',
+            'd_mo',
+            'd_ma',
+            'd_cb',
+            'd_ndf',
+            'd_adf',
+            'd_e',
+            'dt_n',
+            'dt6_n',
+            'dr_n',
+            'dt_ami',
+            'dt6_ami',
+            'dt_ms',
+            'dt6_ms',
         ].map((field) => numericField(field)),
     },
     {
@@ -52,8 +150,19 @@ export const alimentEditableFieldGroups: AlimentEditableFieldGroup[] = [
         title: 'Protéines',
         columnsClass: 'md:grid-cols-3',
         fields: [
-            'pdia', 'pdi', 'bpr', 'niref', 'lys_di', 'met_di', 'his_di', 'arg_di',
-            'thr_di', 'val_di', 'ile_di', 'leu_di', 'phe_di',
+            'pdia',
+            'pdi',
+            'bpr',
+            'niref',
+            'lys_di',
+            'met_di',
+            'his_di',
+            'arg_di',
+            'thr_di',
+            'val_di',
+            'ile_di',
+            'leu_di',
+            'phe_di',
         ].map((field) => numericField(field)),
     },
     {
@@ -61,8 +170,24 @@ export const alimentEditableFieldGroups: AlimentEditableFieldGroup[] = [
         title: 'Minéraux',
         columnsClass: 'md:grid-cols-3',
         fields: [
-            'ca', 'caabs', 'p', 'pabs', 'mg', 'na', 'k', 'cl', 's', 'be',
-            'baca', 'cu', 'zn', 'mn', 'co', 'se', 'i',
+            'ca',
+            'caabs',
+            'p',
+            'pabs',
+            'mg',
+            'na',
+            'k',
+            'cl',
+            's',
+            'be',
+            'baca',
+            'cu',
+            'zn',
+            'mn',
+            'co',
+            'se',
+            'i',
+            'molybdene',
         ].map((field) => numericField(field)),
     },
     {
@@ -70,8 +195,19 @@ export const alimentEditableFieldGroups: AlimentEditableFieldGroup[] = [
         title: 'Vitamines',
         columnsClass: 'md:grid-cols-3',
         fields: [
-            'vit_a', 'vit_d', 'vit_e', 'c6_10', 'c12_0', 'c14_0', 'c16_0',
-            'c16_1', 'c18_0', 'c18_1', 'c18_2', 'c18_3', 'b_vec',
+            'vit_a',
+            'vit_d',
+            'vit_e',
+            'c6_10',
+            'c12_0',
+            'c14_0',
+            'c16_0',
+            'c16_1',
+            'c18_0',
+            'c18_1',
+            'c18_2',
+            'c18_3',
+            'b_vec',
         ].map((field) => numericField(field)),
     },
     {
@@ -79,9 +215,22 @@ export const alimentEditableFieldGroups: AlimentEditableFieldGroup[] = [
         title: 'Valeurs 2007',
         columnsClass: 'md:grid-cols-3',
         fields: [
-            'ufl2007', 'ufv2007', 'pdia2007', 'pdie2007', 'pdin2007',
-            'd_mo2007', 'd_ma2007', 'd_cb2007', 'd_ndf2007', 'd_adf2007',
-            'uem2007', 'uel2007', 'ueb2007', 'eb2007', 'd_e2007', 'em2007',
+            'ufl2007',
+            'ufv2007',
+            'pdia2007',
+            'pdie2007',
+            'pdin2007',
+            'd_mo2007',
+            'd_ma2007',
+            'd_cb2007',
+            'd_ndf2007',
+            'd_adf2007',
+            'uem2007',
+            'uel2007',
+            'ueb2007',
+            'eb2007',
+            'd_e2007',
+            'em2007',
         ].map((field) => numericField(field)),
     },
 ];
@@ -90,8 +239,9 @@ export const alimentEditableKeys = alimentEditableFieldGroups.flatMap((group) =>
     group.fields.map((field) => field.key),
 );
 
-export const alimentEditableNumericKeys = alimentEditableFieldGroups.flatMap((group) =>
-    group.fields
-        .filter((field) => field.type === 'number')
-        .map((field) => field.key),
+export const alimentEditableNumericKeys = alimentEditableFieldGroups.flatMap(
+    (group) =>
+        group.fields
+            .filter((field) => field.type === 'number')
+            .map((field) => field.key),
 );

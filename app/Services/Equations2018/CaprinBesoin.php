@@ -33,7 +33,7 @@ class CaprinBesoin
         }
 
         // Chèvre laitière (Éq. 21.46).
-        $ci = 1.3 + 0.016 * ($bw - 60) + 0.24 * self::laitStandard35($ration);
+        $ci = 1.3 + 0.016 * ($bw - 60) + 0.24 * self::laitStandard35Potentiel($ration);
 
         return $ci * self::indiceCILactation($ration)
             * self::indiceCIGestation($ration)
@@ -44,7 +44,14 @@ class CaprinBesoin
 
     public static function besoinUFEntretien(Ration $ration): float
     {
-        return 0.0406 * pow(self::bw($ration), 0.75); // Éq. 21.6
+        $facteurActivite = match (RationHelper::normalizeActivite2018($ration->activite)) {
+            'plaine' => 1.20,
+            'vallon' => 1.40,
+            'montagne' => 1.60,
+            default => 1.0,
+        };
+
+        return $facteurActivite * 0.0406 * pow(self::bw($ration), 0.75); // Éq. 21.6/21.8.
     }
 
     /** Éq. 21.7a, ou 21.7b si le TP du lait est renseigné. */
@@ -92,14 +99,19 @@ class CaprinBesoin
         return ($a * exp(0.034 * $dg) / 0.14) * 0.65 / self::UFL_KCAL;
     }
 
-    /** Gain de la chevrette : ≈ 1,6 UFL/kg de gain (Éq. 21.39 exprimée par kg de gain, Part 21.3.2). */
+    /** Gain potentiel de la chevrette selon l'âge et la race (Éq. 21.39a/b). */
     public static function besoinUFGain(Ration $ration): float
     {
         if (! self::estChevrette($ration)) {
             return 0.0;
         }
 
-        return 1.60 * self::gainKgJour($ration);
+        $age = self::ageJours($ration);
+        $neGain = self::estSaanen($ration)
+            ? 0.530 * exp(-0.00198 * $age)
+            : 0.506 * exp(-0.00239 * $age);
+
+        return $neGain / 1.76;
     }
 
     public static function calculerBesoinTotalUF(Ration $ration): float
@@ -170,7 +182,7 @@ class CaprinBesoin
         return $a * exp(0.03383 * $dg) / $effPdi;
     }
 
-    /** PDI de croissance de la chevrette (≈ 155 g de protéines nettes/kg de gain, Table 21.7). */
+    /** PDI de croissance de la chevrette selon l'âge et la race (Éq. 21.41a/b). */
     public static function besoinPDIGain(Ration $ration): float
     {
         if (! self::estChevrette($ration)) {
@@ -178,7 +190,15 @@ class CaprinBesoin
         }
         $effPdi = self::effPdi($ration);
 
-        return $effPdi > 0 ? 155.0 * self::gainKgJour($ration) / $effPdi : 0.0;
+        if ($effPdi <= 0) {
+            return 0.0;
+        }
+        $age = self::ageJours($ration);
+        $proteineNette = self::estSaanen($ration)
+            ? 31.0 * exp(-0.00235 * $age)
+            : 30.0 * exp(-0.00281 * $age);
+
+        return $proteineNette / $effPdi;
     }
 
     public static function calculerBesoinTotalPDI(Ration $ration): float
@@ -195,8 +215,16 @@ class CaprinBesoin
     {
         $my = self::my($ration);
 
-        // Chèvre tarie gestante : simplification par l'énergie (Éq. 21.31).
-        if ($my <= 0 && self::dg($ration) > 0 && ! self::estChevrette($ration)) {
+        if (self::estChevrette($ration)) {
+            $bw = self::bw($ration);
+            $dmi = Apport::calculerApportTotalMS($ration);
+            $gain = 6.75 * pow(self::bwAdulte($ration), 0.28) * pow($bw, -0.28) * self::gainKgJour($ration);
+
+            return 0.67 * $dmi + 0.01 * $bw + $gain; // Éq. 21.42.
+        }
+
+        // Deux derniers mois de gestation, y compris en chevauchement avec la lactation (Éq. 21.31).
+        if (self::dg($ration) >= 90) {
             return 2.52 * self::calculerBesoinTotalUF($ration)
                 + (self::nombreKids($ration) >= 2 ? 1.0 : 0.0);
         }
@@ -209,7 +237,15 @@ class CaprinBesoin
     {
         $my = self::my($ration);
 
-        if ($my <= 0 && self::dg($ration) > 0 && ! self::estChevrette($ration)) {
+        if (self::estChevrette($ration)) {
+            $bw = self::bw($ration);
+            $dmi = Apport::calculerApportTotalMS($ration);
+            $gain = (1.2 + 3.19 * pow(self::bwAdulte($ration), 0.28) * pow($bw, -0.28)) * self::gainKgJour($ration);
+
+            return 0.3 + 0.905 * $dmi + 0.002 * $bw + $gain; // Éq. 21.43.
+        }
+
+        if (self::dg($ration) >= 90) {
             return 2.22 * self::calculerBesoinTotalUF($ration)
                 + (self::nombreKids($ration) >= 2 ? 0.4 : 0.0);
         }
@@ -244,6 +280,22 @@ class CaprinBesoin
     private static function laitStandard35(Ration $ration): float
     {
         return self::my($ration) > 0 ? self::besoinUFLait($ration) / 0.389 : 0.0;
+    }
+
+    /** MY35Pot demandé par l'Éq. 21.46, distinct de l'objectif lait réel. */
+    private static function laitStandard35Potentiel(Ration $ration): float
+    {
+        $potentiel = max(0.0, (float) ($ration->lait_potentiel ?? 0));
+        if ($potentiel <= 0) {
+            return self::laitStandard35($ration);
+        }
+        $mfc = (float) ($ration->mfc ?? 35);
+        $mpc = $ration->mpc !== null ? (float) $ration->mpc : null;
+        $cout = $mpc !== null
+            ? 0.389 + 0.0052 * ($mfc - 35) + 0.0029 * ($mpc - 31)
+            : 0.389 + 0.0056 * ($mfc - 35);
+
+        return $potentiel * $cout / 0.389;
     }
 
     /** Indice CI lié au stade de lactation (Éq. 21.47), numéro de semaine 1 à 5. */
@@ -292,6 +344,21 @@ class CaprinBesoin
     private static function gainKgJour(Ration $ration): float
     {
         return max(0.0, (float) ($ration->gmq ?? 0) / 1000.0);
+    }
+
+    private static function ageJours(Ration $ration): float
+    {
+        return max(1.0, (float) ($ration->age_jours ?? 1));
+    }
+
+    private static function estSaanen(Ration $ration): bool
+    {
+        return str_contains(RationHelper::normalizeRace($ration->race), 'saanen');
+    }
+
+    private static function bwAdulte(Ration $ration): float
+    {
+        return max(self::bw($ration), (float) ($ration->poids_adulte ?? 0));
     }
 
     /**

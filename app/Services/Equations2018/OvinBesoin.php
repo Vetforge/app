@@ -33,43 +33,43 @@ class OvinBesoin
         $bw = self::bw($ration);
 
         if ($cat === CategorieAnimal::AgneauCroissance) {
-            return 0.080 * pow($bw, 0.75); // agnelle de renouvellement (Part 20.2)
+            $dmi = Apport::calculerApportTotalMS($ration);
+            $ufv = $dmi > 0 ? Apport::calculerApportTotalUF($ration) / $dmi : 0.90;
+            $dmiParBw = 37.65 + 1.98 * (self::adg($ration) / $bw) - 18.11 * $ufv;
+
+            return max(0.0, $dmiParBw * $bw / 1000.0); // Éq. 20.55, kg MS/j.
         }
 
         $base = (0.100 - 0.010 * self::bcs($ration)) * pow($bw, 0.75); // Éq. 20.37
+        $ci = $base;
 
-        if ($cat === CategorieAnimal::BrebisLaitiere) {
+        if ($cat === CategorieAnimal::BrebisLaitiere && self::enLactation($ration)) {
             $smy = self::smy($ration);
 
-            return self::estLacaune($ration)
+            $ci = self::estLacaune($ration)
                 ? 0.900 * $smy + 0.0240 * $bw   // Éq. 20.48
                 : 0.754 * $smy + 0.0255 * $bw;  // Éq. 20.49
-        }
-
-        // Brebis allaitante / suitée.
-        if (self::enLactation($ration)) {
+        } elseif (self::enLactation($ration)) {
             $dim = self::dim($ration);
             $adglit = self::adgLit($ration);
             $semaines = $dim / 7.0;
             $ic46 = 3.0 * $adglit + $base; // Éq. 20.42
 
             if ($semaines <= 3) {
-                return 0.8 * $ic46; // Éq. 20.41
+                $ci = 0.8 * $ic46; // Éq. 20.41
+            } elseif ($semaines <= 6) {
+                $ci = $ic46;
+            } else {
+                $ci = -0.027 * $dim * $adglit + 3.244 * $adglit - 0.001 * $dim + $base; // Éq. 20.46.
             }
-            if ($semaines <= 6) {
-                return $ic46;
-            }
-
-            // Semaines 7 à 20 (Éq. 20.46).
-            return -0.027 * $dim * $adglit + 3.244 * $adglit - 0.001 * $dim + $base;
-        }
-
-        if (self::enFinGestation($ration)) {
+        } elseif (self::enFinGestation($ration)) {
             // Éq. 20.39 (6 dernières semaines).
-            return $base + 0.0503 * self::bwLit($ration) - 0.152 * self::nlit($ration) - 0.272;
+            $ci = $base + 0.0503 * self::bwLit($ration) - 0.152 * self::nlit($ration) - 0.272;
         }
 
-        return $base; // tarie / début de gestation (Éq. 20.37)
+        $temperature = (float) ($ration->temperature_ambiante ?? 15.0);
+
+        return max(0.0, $ci * (1.345 - 0.0183 * $temperature)); // Éq. 20.52.
     }
 
     // ─── Énergie ─────────────────────────────────────────────────────────────────
@@ -80,7 +80,13 @@ class OvinBesoin
             return 0.01802 * self::bw($ration); // maintenance UFV (Éq. 20.53)
         }
 
-        return 0.0345 * pow(self::bw($ration), 0.75); // Éq. 20.10 (laine incluse)
+        $facteurActivite = match (RationHelper::normalizeActivite2018($ration->activite)) {
+            'plaine' => 1.10,
+            'vallon', 'montagne' => 1.20,
+            default => 1.0,
+        };
+
+        return $facteurActivite * 0.0345 * pow(self::bw($ration), 0.75); // Éq. 20.10-20.11.
     }
 
     public static function besoinUFLait(Ration $ration): float
@@ -310,6 +316,13 @@ class OvinBesoin
 
     private static function enLactation(Ration $ration): bool
     {
+        if ($ration->stade_physiologique === 'tarie' || $ration->stade_physiologique === 'gestation') {
+            return false;
+        }
+        if (in_array($ration->stade_physiologique, ['allaitement', 'traite', 'lactation'], true)) {
+            return true;
+        }
+
         return (float) ($ration->jours_lactation ?? 0) > 0;
     }
 
@@ -340,10 +353,9 @@ class OvinBesoin
 
     private static function bwAdulte(Ration $ration): float
     {
-        // Poids adulte (mature weight) pour le dépôt minéral de croissance (Éq. 20.30/20.34).
-        // À défaut d'un champ dédié, on retient le poids de référence de la brebis adulte, borné
-        // à au moins le poids vif courant de l'animal (une agnelle grandit vers ce poids adulte).
-        return max(self::bw($ration), (float) CategorieAnimal::BrebisLaitiere->poidsParDefaut());
+        $reference = $ration->poids_adulte !== null ? (float) $ration->poids_adulte : 70.0;
+
+        return max(self::bw($ration), $reference);
     }
 
     /** En fin de gestation (6 dernières semaines) : DG dans [105, 147] jours. */

@@ -18,9 +18,9 @@ class UpdatePlanRationnementRequest extends FormRequest
     {
         return [
             'nom' => ['required', 'string', 'max:255'],
-            'date' => ['nullable', 'date'],
+            'date' => ['required', 'date'],
             'breeder_id' => [
-                'nullable',
+                'required',
                 'integer',
                 Rule::exists('breeders', 'id')->where('user_id', $this->user()->id),
             ],

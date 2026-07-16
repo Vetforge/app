@@ -75,7 +75,7 @@ const breadcrumbs: BreadcrumbItem[] = [
                         class="text-sm font-medium text-foreground"
                         for="breeder_id"
                     >
-                        Eleveur
+                        Eleveur <span class="text-destructive">*</span>
                     </label>
                     <BreederSelectWithCreate
                         v-model="selectedBreederId"
@@ -83,6 +83,7 @@ const breadcrumbs: BreadcrumbItem[] = [
                         name="breeder_id"
                         :breeders="breeders"
                         :create-url="quickBreederStoreUrl"
+                        required
                     />
                     <InputError :message="errors.breeder_id" />
                 </div>
@@ -110,7 +111,7 @@ const breadcrumbs: BreadcrumbItem[] = [
                     <label
                         class="text-sm font-medium text-foreground"
                         for="date"
-                        >Date</label
+                        >Date <span class="text-destructive">*</span></label
                     >
                     <input
                         id="date"
@@ -118,6 +119,7 @@ const breadcrumbs: BreadcrumbItem[] = [
                         type="date"
                         :value="plan?.date ?? ''"
                         class="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-primary focus:outline-none"
+                        required
                     />
                     <InputError :message="errors.date" />
                 </div>

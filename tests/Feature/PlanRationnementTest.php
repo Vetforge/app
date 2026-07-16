@@ -105,6 +105,30 @@ it('stores a plan with a breeder owned by the authenticated user', function () {
     expect(PlanRationnement::query()->where('user_id', $user->id)->where('breeder_id', $breeder->id)->exists())->toBeTrue();
 });
 
+it('requires a date and a breeder when storing a plan', function () {
+    $user = User::factory()->create();
+
+    $this->actingAs($user)
+        ->post(route('plans.store'), [
+            'nom' => 'Plan sans date ni eleveur',
+            'inra' => '2018',
+        ])
+        ->assertSessionHasErrors(['date', 'breeder_id']);
+
+    expect(PlanRationnement::query()->where('nom', 'Plan sans date ni eleveur')->exists())->toBeFalse();
+});
+
+it('requires a date and a breeder when updating a plan', function () {
+    $user = User::factory()->create();
+    $plan = PlanRationnement::factory()->create(['user_id' => $user->id]);
+
+    $this->actingAs($user)
+        ->put(route('plans.update', $plan), [
+            'nom' => 'Plan mis a jour',
+        ])
+        ->assertSessionHasErrors(['date', 'breeder_id']);
+});
+
 it('rejects another users breeder when storing a plan', function () {
     $user = User::factory()->create();
     $foreignBreeder = Breeder::factory()->create();

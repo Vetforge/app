@@ -189,6 +189,9 @@ class Apport
 
     public static function calculerApportFourragesUE(Ration $ration): float
     {
+        if (RationHelper::categorie($ration->categorie_animal ?? '') === CategorieAnimal::AgneauCroissance) {
+            return self::calculerApportFourragesMS($ration);
+        }
         $champUE = RationHelper::categorie($ration->categorie_animal ?? '')->uniteEncombrement();
         $total = 0.0;
         foreach (self::getIngredients($ration) as $item) {
@@ -277,8 +280,8 @@ class Apport
     ): float {
         $S0 = $UEf > 0 ? $bVEc / $UEf : 0.0;
         $S = $UFLf > 0 ? $UFLc / $UFLf : 0.0;
-        $PI = $UFL > 0 ? 0.4 + 0.4 / (1 + exp(0.15 * ($PDI / $UFL))) : 0.0;
-        $d = ($PI - $S0) != 0 ? ($S - $S0) / ($PI - $S0) : 0.0;
+        $PI = $UFL > 0 ? 0.4 + 0.4 / (1 + exp(0.15 * (($PDI / $UFL) - 100.0))) : 0.0;
+        $d = ($PI - $S0) != 0 ? ($S - $S0) / ($PI - $S0) - 1.0 : 0.0;
 
         $log = log(($d * exp(9.5 * ($RPCO - $PCO)) + 1) / max(PHP_FLOAT_EPSILON, $d * exp(9.5 * $RPCO) + 1));
         if ($log < 0) {
@@ -295,14 +298,20 @@ class Apport
 
     public static function calculerRPCO(Ration $ration): float
     {
+        if (RationHelper::categorie($ration->categorie_animal ?? '') !== CategorieAnimal::VacheLaitiere) {
+            return self::calculerPCO($ration);
+        }
         $CI = Besoin::calculerCapaciteIngestion($ration);
-        $UFLf = self::calculerApportFourragesUF($ration);
-        $UFLc = self::calculerApportConcentresUF($ration);
-        $UEf = self::calculerApportFourragesUE($ration);
+        $fourragesMS = self::calculerApportFourragesMS($ration);
+        $concentresMS = self::calculerApportConcentresMS($ration);
+        $totalMS = self::calculerApportTotalMS($ration);
+        $UFLf = $fourragesMS > 0 ? self::calculerApportFourragesUF($ration) / $fourragesMS : 0.0;
+        $UFLc = $concentresMS > 0 ? self::calculerApportConcentresUF($ration) / $concentresMS : 0.0;
+        $UEf = $fourragesMS > 0 ? self::calculerApportFourragesUE($ration) / $fourragesMS : 0.0;
         $besUFL = Besoin::calculerBesoinTotalUF($ration);
         $UFL_VPRpot = self::calculerApportUFL_VPR($ration, true);
-        $PDI = self::calculerApportTotalPDI($ration);
-        $UFL = $UFLf + $UFLc;
+        $PDI = $totalMS > 0 ? self::calculerApportTotalPDI($ration) / $totalMS : 0.0;
+        $UFL = $totalMS > 0 ? self::calculerApportTotalUF($ration) / $totalMS : 0.0;
         $bVEc = self::calculerbVEc($ration);
 
         $RPCO1 = 1.0;
@@ -324,19 +333,103 @@ class Apport
 
     public static function calculerSg(Ration $ration): float
     {
+        $cat = RationHelper::categorie($ration->categorie_animal ?? '');
+        if (in_array($cat, [CategorieAnimal::VacheAllaitante, CategorieAnimal::BovinCroissance, CategorieAnimal::BovinEngraissement], true)) {
+            return self::calculerSubstitutionBovinViande($ration);
+        }
+        if ($cat->espece() === Espece::Ovin) {
+            return self::calculerSubstitutionOvin($ration);
+        }
+        if ($cat->espece() === Espece::Caprin) {
+            // Éq. 21.45 : coefficient du concentré 0,260, soit SR marginal = 1 - 0,260.
+            return 0.74;
+        }
+
         $PCO = self::calculerPCO($ration);
-        $UFLf = self::calculerApportFourragesUF($ration);
-        $UFLc = self::calculerApportConcentresUF($ration);
         $fourragesMS = self::calculerApportFourragesMS($ration);
+        $concentresMS = self::calculerApportConcentresMS($ration);
+        $totalMS = self::calculerApportTotalMS($ration);
+        $UFLf = $fourragesMS > 0 ? self::calculerApportFourragesUF($ration) / $fourragesMS : 0.0;
+        $UFLc = $concentresMS > 0 ? self::calculerApportConcentresUF($ration) / $concentresMS : 0.0;
         $UEf = $fourragesMS > 0
             ? self::calculerApportFourragesUE($ration) / $fourragesMS
             : 0.0;
-        $PDI = self::calculerApportTotalPDI($ration);
-        $UFL = $UFLf + $UFLc;
+        $PDI = $totalMS > 0 ? self::calculerApportTotalPDI($ration) / $totalMS : 0.0;
+        $UFL = $totalMS > 0 ? self::calculerApportTotalUF($ration) / $totalMS : 0.0;
         $bVEc = self::calculerbVEc($ration);
         $RPCO = self::calculerRPCO($ration);
 
         return self::calculerTSg($UEf, $bVEc, $UFLf, $UFLc, $PDI, $UFL, $RPCO, $PCO);
+    }
+
+    /** Substitution bovins viande/allaitants, Éq. 19.20. */
+    private static function calculerSubstitutionBovinViande(Ration $ration): float
+    {
+        $fourragesMS = self::calculerApportFourragesMS($ration);
+        $fvf = $fourragesMS > 0 ? self::calculerApportFourragesUE($ration) / $fourragesMS : 0.0;
+        if ($fvf <= 0) {
+            return 0.0;
+        }
+
+        $pco = min(0.999, max(0.0, self::calculerPCO($ration)));
+        $base = max(0.0, $fvf - 0.85);
+        $a = $fvf * (1.0 - 1.26 * pow($base, 0.84));
+        $denom = 2.04 * (1.0 - $a * $fvf);
+        if (abs($denom) < 1e-9) {
+            return 0.0;
+        }
+        $b = ($fvf * $fvf) / $denom;
+        $k = (1.0 - $a) * exp($b / 0.7);
+        $fvc = 0.86 * (1.0 - $k * exp(-$b / max(0.001, 1.0 - $pco)));
+
+        return min(2.0, max(-0.5, $fvc / $fvf));
+    }
+
+    /** Substitution propre aux phases ovines, Éq. 20.38, 20.40, 20.43-20.51. */
+    private static function calculerSubstitutionOvin(Ration $ration): float
+    {
+        if (RationHelper::categorie($ration->categorie_animal ?? '') === CategorieAnimal::AgneauCroissance) {
+            return 0.0;
+        }
+        $fourragesMS = self::calculerApportFourragesMS($ration);
+        $fvf = $fourragesMS > 0 ? self::calculerApportFourragesUE($ration) / $fourragesMS : 0.0;
+        if ($fvf <= 0) {
+            return 0.0;
+        }
+
+        $cat = RationHelper::categorie($ration->categorie_animal ?? '');
+        $dim = max(0.0, (float) ($ration->jours_lactation ?? 0));
+        if ($cat === CategorieAnimal::BrebisLaitiere && $dim > 0) {
+            return str_contains(RationHelper::normalizeRace($ration->race), 'lacaune')
+                ? 3.550 - 2.30 * $fvf
+                : 0.958 - 0.374 * $fvf;
+        }
+
+        if ($dim > 0) {
+            $week = $dim / 7.0;
+            $sr46 = -1.6 * $fvf + 2.9;
+            if ($week <= 3.0) {
+                $dmiCo = self::calculerApportConcentresMS($ration);
+                $cor = ($fourragesMS - 2.573) * (0.3572 * $dmiCo - 0.986) + 0.202;
+
+                return 0.8 * $sr46 + $cor;
+            }
+            if ($week <= 6.0) {
+                return $sr46;
+            }
+
+            return -0.82 * $fvf * $fvf + 1.654 * $fvf - 0.043;
+        }
+
+        $dg = max(0.0, (float) ($ration->jours_gestation ?? 0));
+        if ($dg >= 105.0) {
+            $wbl = min(6.0, max(1.0, (147.0 - $dg) / 7.0));
+
+            return (0.030 * $wbl - 1.402) * $fvf * $fvf
+                + (-0.048 * $wbl + 2.294) * $fvf + 0.005 * $wbl - 0.274;
+        }
+
+        return 1.43 - 0.65 * $fvf;
     }
 
     public static function calculerVEC(Ration $ration): float
@@ -352,6 +445,10 @@ class Apport
 
     public static function calculerApportTotalUE(Ration $ration): float
     {
+        if (RationHelper::categorie($ration->categorie_animal ?? '') === CategorieAnimal::AgneauCroissance) {
+            return self::calculerApportTotalMS($ration);
+        }
+
         return self::calculerApportFourragesUE($ration) + self::calculerVEC($ration);
     }
 
@@ -429,11 +526,62 @@ class Apport
 
     public static function calculerEffPDI_PDIMS(Ration $ration): float
     {
+        $cat = RationHelper::categorie($ration->categorie_animal ?? '');
         $PDI = self::calculerApportTotalPDI($ration);
         $totalMS = self::calculerApportTotalMS($ration);
-        $EffPDI = ($totalMS != 0) ? 0.67 * exp(-0.007 * (($PDI / $totalMS) - 100)) : 0.67;
+        $concentration = $totalMS > 0 ? $PDI / $totalMS : 100.0;
 
-        return min(1.0, $EffPDI);
+        $EffPDI = match ($cat) {
+            // Éq. 7.18 : chèvres laitières.
+            CategorieAnimal::ChevreLaitiere => 0.66 * exp(-0.007 * ($concentration - 100.0)),
+            // Éq. 7.24 : agneaux en croissance/engraissement. L'équation 7.25 est utilisée
+            // lorsque poids adulte et GMQ sont tous deux disponibles.
+            CategorieAnimal::AgneauCroissance => self::effPdiAgneau($ration, $concentration),
+            // Chapitre 20 : pivot observé pour les brebis en lactation.
+            CategorieAnimal::BrebisLaitiere, CategorieAnimal::BrebisAllaitante => 0.58,
+            // Chapitres 7 et 18 : pivots simplifiés 0,67 en lactation, 0,50 à sec.
+            CategorieAnimal::VacheAllaitante => (float) ($ration->mois_lactation ?? 0) > 0
+                ? 0.67 * exp(-0.007 * ($concentration - 100.0))
+                : 0.50,
+            // Éq. 7.19/7.20, calcul algébrique des bovins en croissance.
+            CategorieAnimal::BovinCroissance, CategorieAnimal::BovinEngraissement => self::effPdiBovinCroissance($ration),
+            CategorieAnimal::ChevretteCroissance => 0.50,
+            default => 0.67 * exp(-0.007 * ($concentration - 100.0)), // Éq. 7.17.
+        };
+
+        return min(0.90, max(0.20, $EffPDI));
+    }
+
+    private static function effPdiAgneau(Ration $ration, float $pdi): float
+    {
+        $bw = max(1.0, RationHelper::poidsVif($ration));
+        $bwAdult = (float) ($ration->poids_adulte ?? 0);
+        $adg = (float) ($ration->gmq ?? 0);
+
+        if ($bwAdult > 0 && $adg > 0) {
+            return (78.1 - 0.60 * ($pdi - 100.0) + 0.94 * ($adg / $bw) - 108.0 * ($bw / $bwAdult)) / 100.0;
+        }
+
+        return (50.7 - 0.56 * ($pdi - 100.0)) / 100.0;
+    }
+
+    /** Éq. 7.20 : dépenses protéiques nettes / (PDI ingérées - EUP). */
+    private static function effPdiBovinCroissance(Ration $ration): float
+    {
+        $bw = max(1.0, RationHelper::poidsVif($ration));
+        $dmi = self::calculerApportTotalMS($ration);
+        $pdi = self::calculerApportTotalPDI($ration);
+        $denom = $pdi - 0.312 * $bw;
+        if ($denom <= 0 || $dmi <= 0) {
+            return 0.50;
+        }
+
+        $efp = $dmi * 0.5 * (5.7 + 0.074 * self::calculerApportMOND($ration));
+        $scurf = 0.2 * pow($bw, 0.6);
+        // Le dépôt protéique net est obtenu sans rappeler le besoin PDI (qui créerait une boucle).
+        $gainPdi = BovinCroissanceBesoin::depotProteiqueNet($ration);
+
+        return ($efp + $scurf + $gainPdi) / $denom;
     }
 
     public static function calculerApportLysDI(Ration $ration): float
@@ -523,19 +671,21 @@ class Apport
 
     public static function calculerApportUFL_VPR(Ration $ration, bool $potentiel = false): float
     {
-        $semGestation = RationHelper::calculerSemainesGestation($ration);
         $semLactation = RationHelper::calculerSemainesLactation($ration);
-        $NEC = (float) ($ration->nec ?? 0);
+        $NEC = (float) ($ration->nec_velage ?? 0);
+        if ($NEC < 1.5 || $semLactation <= 0) {
+            return 0.0;
+        }
         $pourcentagePrimipare = (float) ($ration->pourcentage_primipare ?? 0);
-        $PL = RationHelper::calculerProductionLaitPotentielle($ration);
+        $PL = RationHelper::calculerPicLaitPotentiel($ration);
 
         $partPrimipare = $pourcentagePrimipare / 100;
         $A = $partPrimipare * (-9.5 + 0.4 * $PL + 1.89 * $NEC)
             + (1 - $partPrimipare) * (-13.2 + 0.4 * $PL + 1.89 * $NEC);
-        $B = ($NEC != 0 && $NEC != 1) ? 1 / $NEC : 0;
-        $K = ($B != 0) ? $A / (52 * $B) : 0;
+        $B = 1 / $NEC;
+        $K = $A / (52 * $B);
 
-        return -$K + (($A / (1 - $B)) * (exp(-$B * $semLactation) - exp(-$semLactation)));
+        return -$K + ($A / (1 - $B)) * (exp(-$B * $semLactation) - exp(-$semLactation));
     }
 
     // ─── BPR, DT_N, MAT, MAmic_duo ────────────────────────────────────────────
@@ -556,6 +706,11 @@ class Apport
     public static function calculerApportMAT(Ration $ration): float
     {
         return self::calculerApportAttributParKgMS($ration, 'mat');
+    }
+
+    public static function calculerApportMOParKgMS(Ration $ration): float
+    {
+        return self::calculerApportAttributParKgMS($ration, 'mo');
     }
 
     public static function calculerApportFourragesMAT(Ration $ration): float
@@ -849,9 +1004,14 @@ class Apport
         foreach (self::getIngredients($ration) as $item) {
             $caabs = $item['aliment']->caabs;
             if ($caabs === null) {
-                $caabs = ($item['aliment']->ca !== null && $item['type'] === 'Mineral')
-                    ? (float) $item['aliment']->ca * 0.4
-                    : 0.0;
+                $ca = (float) ($item['aliment']->ca ?? 0);
+                $legumineuse = in_array(
+                    $item['aliment']->famille_botanique,
+                    ['luzerne', 'legumineuse'],
+                    true,
+                );
+                $coefficient = $item['type'] === 'Fourrage' && $legumineuse ? 0.30 : 0.40;
+                $caabs = $ca * $coefficient;
             }
             $total += $item['qty_ms'] * (float) $caabs;
         }
@@ -871,8 +1031,8 @@ class Apport
             $pabs = $item['aliment']->pabs;
             if ($pabs === null) {
                 // Source minérale sans Pabs tabulée : absorbabilité moyenne P = 0,65 (p. 227).
-                $pabs = ($item['aliment']->p !== null && $item['type'] === 'Mineral')
-                    ? (float) $item['aliment']->p * 0.65
+                $pabs = in_array($item['type'], ['Mineral', 'Fourrage'], true)
+                    ? (float) ($item['aliment']->p ?? 0) * 0.65
                     : 0.0;
             }
             $total += $item['qty_ms'] * (float) $pabs;
@@ -954,6 +1114,11 @@ class Apport
     public static function calculerApportI(Ration $ration): float
     {
         return self::calculerApportMineral($ration, 'i');
+    }
+
+    public static function calculerApportMolybdene(Ration $ration): float
+    {
+        return self::calculerApportMineral($ration, 'molybdene');
     }
 
     public static function calculerApportVitA(Ration $ration): float

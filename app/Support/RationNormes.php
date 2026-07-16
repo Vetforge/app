@@ -24,7 +24,7 @@ final class RationNormes
             'group' => 'Protéines',
             'unit' => '%',
             'decimals' => 0,
-            'default_min' => 85,
+            'default_min' => null,
             'default_max' => null,
         ],
         'bpr' => [
@@ -32,55 +32,55 @@ final class RationNormes
             'group' => 'Protéines',
             'unit' => 'g/kg MS',
             'decimals' => 2,
-            'default_min' => 0,
-            'default_max' => 3,
+            'default_min' => null,
+            'default_max' => null,
         ],
         'be' => [
             'label' => 'Bilan électrolytique',
             'group' => 'Santé ruminale',
             'unit' => 'mEq/kg MS',
             'decimals' => 0,
-            'default_min' => 200,
-            'default_max' => 250,
+            'default_min' => null,
+            'default_max' => null,
         ],
         'amid_ru' => [
             'label' => 'Amidon digestible dans le rumen',
             'group' => 'Santé ruminale',
             'unit' => 'g/kg MS',
             'decimals' => 0,
-            'default_min' => 200,
-            'default_max' => 250,
+            'default_min' => null,
+            'default_max' => null,
         ],
         'pco_percent' => [
             'label' => 'Proportion de concentré',
             'group' => 'Santé ruminale',
             'unit' => '% MS',
             'decimals' => 0,
-            'default_min' => 40,
-            'default_max' => 50,
+            'default_min' => null,
+            'default_max' => null,
         ],
         'ndf_total' => [
             'label' => 'NDF total',
             'group' => 'Fibres et structure',
             'unit' => 'g/kg MS',
             'decimals' => 0,
-            'default_min' => 300,
-            'default_max' => 350,
+            'default_min' => null,
+            'default_max' => null,
         ],
         'ira' => [
             'label' => "Indice de risque d'acidose",
             'group' => 'Santé ruminale',
             'unit' => null,
             'decimals' => 2,
-            'default_min' => 0.8,
-            'default_max' => 1.2,
+            'default_min' => null,
+            'default_max' => null,
         ],
         'ph_ruminal' => [
             'label' => 'pH ruminal estimé via AmiD_ru',
             'group' => 'Santé ruminale',
             'unit' => null,
             'decimals' => 2,
-            'default_min' => 6.2,
+            'default_min' => null,
             'default_max' => null,
         ],
         'cb_par_kg_ms' => [
@@ -88,7 +88,7 @@ final class RationNormes
             'group' => 'Fibres et structure',
             'unit' => 'g/kg MS',
             'decimals' => 0,
-            'default_min' => 170,
+            'default_min' => null,
             'default_max' => null,
         ],
         'bil_ufl' => [
@@ -149,10 +149,10 @@ final class RationNormes
             }
 
             $active[$key] = [
-                'min' => self::supportsMin($definition)
+                'min' => self::supportsMin($key)
                     ? self::normalizeMetricValue($key, $override['min'] ?? $active[$key]['min'])
                     : null,
-                'max' => self::supportsMax($definition)
+                'max' => self::supportsMax($key)
                     ? self::normalizeMetricValue($key, $override['max'] ?? $active[$key]['max'])
                     : null,
             ];
@@ -253,10 +253,10 @@ final class RationNormes
             }
 
             $normalized = [
-                'min' => self::supportsMin($definition)
+                'min' => self::supportsMin($key)
                     ? self::normalizeMetricValue($key, $activeNorme['min'] ?? $defaults[$key]['min'])
                     : null,
-                'max' => self::supportsMax($definition)
+                'max' => self::supportsMax($key)
                     ? self::normalizeMetricValue($key, $activeNorme['max'] ?? $defaults[$key]['max'])
                     : null,
             ];
@@ -269,34 +269,17 @@ final class RationNormes
         return $overrides === [] ? null : $overrides;
     }
 
-    /**
-     * @param  array{
-     *     label: string,
-     *     group: string,
-     *     unit: string|null,
-     *     decimals: int,
-     *     default_min: float|int|null,
-     *     default_max: float|int|null
-     * }  $definition
-     */
-    private static function supportsMin(array $definition): bool
+    private static function supportsMin(string $key): bool
     {
-        return $definition['default_min'] !== null;
+        // Toutes les métriques proposaient historiquement une borne basse. Les valeurs par
+        // défaut ont été retirées car elles n'étaient pas des normes INRA universelles, mais
+        // une préférence locale explicite de l'utilisateur reste autorisée.
+        return array_key_exists($key, self::DEFINITIONS);
     }
 
-    /**
-     * @param  array{
-     *     label: string,
-     *     group: string,
-     *     unit: string|null,
-     *     decimals: int,
-     *     default_min: float|int|null,
-     *     default_max: float|int|null
-     * }  $definition
-     */
-    private static function supportsMax(array $definition): bool
+    private static function supportsMax(string $key): bool
     {
-        return $definition['default_max'] !== null;
+        return in_array($key, ['bpr', 'be', 'amid_ru', 'pco_percent', 'ndf_total', 'ira'], true);
     }
 
     private static function normalizeMetricValue(string $key, mixed $value): float|int|null

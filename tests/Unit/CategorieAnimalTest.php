@@ -35,7 +35,7 @@ test('encombrement unit follows the INRA 2018 reference per category', function 
     [CategorieAnimal::BovinEngraissement, 'ueb'],
     [CategorieAnimal::BrebisLaitiere, 'uem'],
     [CategorieAnimal::BrebisAllaitante, 'uem'],
-    [CategorieAnimal::AgneauCroissance, 'uem'],
+    [CategorieAnimal::AgneauCroissance, 'kg_ms'],
     [CategorieAnimal::ChevreLaitiere, 'uel'],
     [CategorieAnimal::ChevretteCroissance, 'uel'],
 ]);

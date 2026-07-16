@@ -111,6 +111,9 @@ test('updating the description validates the enum and persists species fields', 
             'nom' => 'Chèvres 70 kg',
             'categorie_animal' => 'chevre_laitiere',
             'poids_vif' => 70,
+            'race' => 'alpine',
+            'parite' => 2,
+            'lait_objectif' => 3.5,
             'mfc' => 35,
             'mpc' => 31,
             'jours_lactation' => 60,
@@ -134,10 +137,69 @@ test('updating the description normalizes a legacy category value', function () 
         ->put(route('plans.rations.description.update', [$plan, $ration]), [
             'nom' => $ration->nom,
             'categorie_animal' => 'vacheLaitiere',
+            'poids_vif' => $ration->poids_vif,
+            'race' => 'prim_holstein',
         ])
         ->assertRedirect();
 
     expect($ration->refresh()->categorie_animal)->toBe('vache_laitiere');
+});
+
+test('updating the description requires a race', function () {
+    [$user, $plan] = planForUser('2018');
+    $ration = Ration::factory()->vacheLaitiere()->create(['plan_rationnement_id' => $plan->id]);
+
+    actingAs($user)
+        ->put(route('plans.rations.description.update', [$plan, $ration]), [
+            'nom' => $ration->nom,
+            'categorie_animal' => 'vache_laitiere',
+            'poids_vif' => 650,
+        ])
+        ->assertSessionHasErrors('race');
+});
+
+test('the caprine model accepts alpine, saanen and autre but rejects any other race', function () {
+    [$user, $plan] = planForUser('2018');
+    $ration = Ration::factory()->vacheLaitiere()->create(['plan_rationnement_id' => $plan->id]);
+
+    $payload = fn (string $race): array => [
+        'nom' => 'Chèvres 70 kg',
+        'categorie_animal' => 'chevre_laitiere',
+        'poids_vif' => 70,
+        'race' => $race,
+        'parite' => 2,
+        'lait_objectif' => 3.5,
+        'jours_lactation' => 60,
+        'nombre_jeunes' => 2,
+    ];
+
+    actingAs($user)
+        ->put(route('plans.rations.description.update', [$plan, $ration]), $payload('autre'))
+        ->assertSessionHasNoErrors();
+
+    expect($ration->refresh()->race)->toBe('autre');
+
+    actingAs($user)
+        ->put(route('plans.rations.description.update', [$plan, $ration]), $payload('lacaune'))
+        ->assertSessionHasErrors('race');
+});
+
+test('a generic race is accepted outside the caprine model', function () {
+    [$user, $plan] = planForUser('2018');
+    $ration = Ration::factory()->vacheLaitiere()->create(['plan_rationnement_id' => $plan->id]);
+
+    actingAs($user)
+        ->put(route('plans.rations.description.update', [$plan, $ration]), [
+            'nom' => $ration->nom,
+            'categorie_animal' => 'vache_laitiere',
+            'poids_vif' => 650,
+            'race' => 'autre',
+            'lait_objectif' => 28,
+            'mois_lactation' => 3,
+        ])
+        ->assertSessionHasNoErrors();
+
+    expect($ration->refresh()->race)->toBe('autre');
 });
 
 test('a suckler cow ration never exposes an expected milk production', function () {

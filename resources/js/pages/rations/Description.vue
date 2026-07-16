@@ -26,6 +26,15 @@ interface CategorieOption {
     unite_encombrement: string;
     unite_fourragere: string;
     poids_defaut: number;
+    validation: {
+        version: string;
+        modele: string;
+        niveau: string;
+        champs_requis: string[];
+        champs_interdits: string[];
+        domaines: Record<string, string>;
+        limites: string[];
+    };
 }
 
 interface EspeceGroup {
@@ -50,6 +59,12 @@ interface Ration {
     ivv: number | null;
     poids_veau_naissance: number | null;
     age_velage: number | null;
+    age_jours: number | null;
+    sexe: string | null;
+    parite: number | null;
+    poids_adulte: number | null;
+    reference_bovine: number | null;
+    lait_potentiel: number | null;
     lait_objectif305j: number | null;
     stade_moyen: number | null;
     lait_objectif: number | null;
@@ -116,7 +131,13 @@ const form = useForm({
     effectif: props.ration.effectif,
     poids_vif:
         props.ration.poids_vif ?? poidsDefautPourCategorie(initialCategorie),
+    age_jours: props.ration.age_jours,
+    sexe: props.ration.sexe ?? '',
+    parite: props.ration.parite,
+    poids_adulte: props.ration.poids_adulte,
+    reference_bovine: props.ration.reference_bovine,
     lait_potentiel305j: props.ration.lait_potentiel305j,
+    lait_potentiel: props.ration.lait_potentiel,
     lait_objectif: props.ration.lait_objectif,
     tb_annuel: props.ration.tb_annuel ?? 40,
     tp_annuel: props.ration.tp_annuel ?? 32,
@@ -128,8 +149,6 @@ const form = useForm({
     jours_gestation: props.ration.jours_gestation,
     poids_veau_naissance: props.ration.poids_veau_naissance ?? 42,
     gmq: props.ration.gmq,
-    stade_physiologique: props.ration.stade_physiologique ?? '',
-    type_production_ovin: props.ration.type_production_ovin ?? 'lait',
     nombre_jeunes: props.ration.nombre_jeunes,
     poids_portee: props.ration.poids_portee,
     gmq_portee: props.ration.gmq_portee,
@@ -138,6 +157,7 @@ const form = useForm({
     activite: props.ration.activite ?? 'stabulation',
     temperature_ambiante: props.ration.temperature_ambiante ?? 15,
     ecart_variation_reserve: props.ration.ecart_variation_reserve ?? 0,
+    nec_velage: props.ration.nec_velage,
 });
 
 // Sur une ration non encore enregistrée, proposer le poids de référence de l'espèce
@@ -148,6 +168,22 @@ watch(
         if (props.ration.poids_vif == null) {
             form.poids_vif = poidsDefautPourCategorie(value);
         }
+
+        // Ne jamais resoumettre des données physiologiques appartenant à l'ancienne catégorie.
+        form.clearErrors();
+        // Une race de l'ancienne espèce n'a aucun sens pour la nouvelle : forcer une nouvelle sélection.
+        const races = racesParEspece[espece.value] ?? [];
+        if (!races.some((o) => o.value === form.race)) {
+            form.race = '';
+        }
+        form.lait_objectif = null;
+        form.lait_potentiel = null;
+        form.gmq = null;
+        form.jours_lactation = null;
+        form.jours_gestation = null;
+        form.nombre_jeunes = null;
+        form.poids_portee = null;
+        form.gmq_portee = null;
     },
 );
 
@@ -175,6 +211,40 @@ const stadeEnJours = computed(() => isOvin.value || isCaprin.value);
 const afficheObjectifLait = computed(
     () => estLaitiere.value || estAllaitante.value,
 );
+const affichePortee = computed(
+    () => (isOvin.value || isCaprin.value) && !estCroissance.value,
+);
+const afficheParite = computed(() =>
+    [
+        'vache_allaitante',
+        'brebis_laitiere',
+        'brebis_allaitante',
+        'chevre_laitiere',
+    ].includes(form.categorie_animal),
+);
+const productionOvine = computed(() =>
+    form.categorie_animal === 'brebis_laitiere' ? 'Lait' : 'Viande',
+);
+const stadePhysiologique = computed(() => {
+    if (form.categorie_animal === 'bovin_engraissement' || form.categorie_animal === 'agneau_croissance') {
+        return 'Engraissement';
+    }
+    if (estCroissance.value) {
+        return 'Croissance';
+    }
+    const lactation = stadeEnJours.value
+        ? Number(form.jours_lactation ?? 0)
+        : Number(form.mois_lactation ?? 0);
+    if (lactation > 0) {
+        if (estAllaitante.value) return 'Allaitement';
+        if (form.categorie_animal === 'brebis_laitiere') return 'Traite';
+        return 'Lactation';
+    }
+    const gestation = stadeEnJours.value
+        ? Number(form.jours_gestation ?? 0)
+        : Number(form.mois_gestation ?? 0);
+    return gestation > 0 ? 'Gestation' : 'Tarie / entretien';
+});
 
 const baseActivityOptions = [
     { label: 'Stabulation', value: 'stabulation' },
@@ -195,19 +265,45 @@ const activityOptions =
           ]
         : baseActivityOptions;
 
-const baseRaceOptions = [
-    { label: 'Autre / non précisée', value: '' },
-    { label: 'Limousine', value: 'limousine' },
-    { label: 'Croisée laitière', value: 'croiselaitiere' },
-    { label: 'Lacaune', value: 'lacaune' },
-];
-const raceOptions =
-    form.race !== '' && !baseRaceOptions.some((o) => o.value === form.race)
-        ? [
-              { label: `${form.race} (valeur actuelle)`, value: form.race },
-              ...baseRaceOptions,
-          ]
-        : baseRaceOptions;
+// Races proposées par espèce : uniquement celles paramétrées dans les équations
+// INRA (CI vache allaitante, références bovines Table 19.2/19.3, Lacaune vs autres
+// brebis laitières, Alpine/Saanen caprins), plus « Autre » traitée par les valeurs
+// par défaut du modèle (Alpine pour les caprins, race de référence).
+const racesParEspece: Record<string, { label: string; value: string }[]> = {
+    bovin: [
+        { label: 'Charolaise', value: 'charolaise' },
+        { label: 'Limousine', value: 'limousine' },
+        { label: "Blonde d'Aquitaine", value: 'blonde_aquitaine' },
+        { label: 'Salers / Aubrac', value: 'salers' },
+        { label: "Prim'Holstein", value: 'prim_holstein' },
+        { label: 'Montbéliarde', value: 'montbeliarde' },
+        { label: 'Normande', value: 'normande' },
+        { label: 'Croisée laitière', value: 'croiselaitiere' },
+        { label: 'Autre', value: 'autre' },
+    ],
+    ovin: [
+        { label: 'Lacaune', value: 'lacaune' },
+        { label: 'Manech / Basco-Béarnaise', value: 'manech' },
+        { label: 'Autre', value: 'autre' },
+    ],
+    caprin: [
+        { label: 'Alpine', value: 'alpine' },
+        { label: 'Saanen', value: 'saanen' },
+        { label: 'Autre (calculée comme Alpine)', value: 'autre' },
+    ],
+};
+const raceOptions = computed<{ label: string; value: string }[]>(() => {
+    const options = racesParEspece[espece.value] ?? [];
+    // Une race héritée d'une ancienne saisie reste visible tant qu'elle n'est pas remplacée.
+    if (form.race !== '' && !options.some((o) => o.value === form.race)) {
+        return [
+            { label: `${form.race} (valeur actuelle)`, value: form.race },
+            ...options,
+        ];
+    }
+
+    return options;
+});
 
 function submit(): void {
     form.put(
@@ -296,32 +392,47 @@ function submit(): void {
                                 Encombrement {{ selected.unite_encombrement }} ·
                                 Énergie {{ selected.unite_fourragere }}
                             </p>
+                            <div
+                                v-if="selected"
+                                class="rounded-md border border-border bg-muted/40 p-2 text-xs text-muted-foreground"
+                            >
+                                <p class="font-medium text-foreground">
+                                    Matrice {{ selected.validation.version }} ·
+                                    {{ selected.validation.modele }}
+                                </p>
+                                <p v-for="limit in selected.validation.limites" :key="limit">
+                                    {{ limit }}
+                                </p>
+                            </div>
                             <InputError
                                 :message="form.errors.categorie_animal"
                             />
                         </div>
-                        <div
-                            v-if="isBovin || isOvin"
-                            class="flex flex-col gap-1.5"
-                        >
+                        <div class="flex flex-col gap-1.5">
                             <label
                                 class="text-sm font-medium text-foreground"
                                 for="race"
-                                >Race</label
+                                >Race
+                                <span class="text-destructive">*</span></label
                             >
                             <select
                                 id="race"
                                 v-model="form.race"
                                 class="h-10 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-primary focus:outline-none"
+                                required
                             >
+                                <option value="" disabled>
+                                    Sélectionner une race…
+                                </option>
                                 <option
                                     v-for="option in raceOptions"
-                                    :key="option.value || 'empty'"
+                                    :key="option.value"
                                     :value="option.value"
                                 >
                                     {{ option.label }}
                                 </option>
                             </select>
+                            <InputError :message="form.errors.race" />
                         </div>
                         <div class="flex flex-col gap-1.5">
                             <label
@@ -369,6 +480,96 @@ function submit(): void {
                             <p class="text-xs text-muted-foreground">
                                 Gain moyen quotidien visé.
                             </p>
+                            <InputError :message="form.errors.gmq" />
+                        </div>
+                        <div v-if="estCroissance" class="flex flex-col gap-1.5">
+                            <label
+                                class="text-sm font-medium text-foreground"
+                                for="age_jours"
+                                >Âge réel (jours)</label
+                            >
+                            <input
+                                id="age_jours"
+                                v-model="form.age_jours"
+                                type="number"
+                                min="1"
+                                step="1"
+                                class="rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                            />
+                            <InputError :message="form.errors.age_jours" />
+                        </div>
+                        <div v-if="estCroissance" class="flex flex-col gap-1.5">
+                            <label
+                                class="text-sm font-medium text-foreground"
+                                for="sexe"
+                                >Sexe</label
+                            >
+                            <select
+                                id="sexe"
+                                v-model="form.sexe"
+                                class="h-10 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                            >
+                                <option value="">Sélectionner</option>
+                                <option value="femelle">Femelle</option>
+                                <option value="male">Mâle entier</option>
+                                <option value="male_castre">Mâle castré</option>
+                            </select>
+                            <InputError :message="form.errors.sexe" />
+                        </div>
+                        <div v-if="estCroissance" class="flex flex-col gap-1.5">
+                            <label
+                                class="text-sm font-medium text-foreground"
+                                for="poids_adulte"
+                                >Poids adulte cible (kg)</label
+                            >
+                            <input
+                                id="poids_adulte"
+                                v-model="form.poids_adulte"
+                                type="number"
+                                min="1"
+                                step="0.1"
+                                class="rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                            />
+                            <InputError :message="form.errors.poids_adulte" />
+                        </div>
+                        <div
+                            v-if="estCroissance && isBovin"
+                            class="flex flex-col gap-1.5 md:col-span-2"
+                        >
+                            <label
+                                class="text-sm font-medium text-foreground"
+                                for="reference_bovine"
+                                >Référence animale INRA (Table 19.2)</label
+                            >
+                            <select
+                                id="reference_bovine"
+                                v-model="form.reference_bovine"
+                                class="h-10 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                            >
+                                <option :value="null">Sélectionner</option>
+                                <template
+                                    v-if="
+                                        form.categorie_animal ===
+                                        'bovin_engraissement'
+                                    "
+                                >
+                                    <option v-for="n in 9" :key="n" :value="n">
+                                        Référence {{ n }} — finition UFV
+                                    </option>
+                                </template>
+                                <template v-else>
+                                    <option
+                                        v-for="n in [10, 11, 12, 13, 14]"
+                                        :key="n"
+                                        :value="n"
+                                    >
+                                        Référence {{ n }} — croissance UFL
+                                    </option>
+                                </template>
+                            </select>
+                            <InputError
+                                :message="form.errors.reference_bovine"
+                            />
                         </div>
                     </div>
                 </section>
@@ -399,6 +600,25 @@ function submit(): void {
                                 step="1"
                                 class="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-primary focus:outline-none"
                             />
+                        </div>
+                        <div
+                            v-if="estLaitiere && isCaprin"
+                            class="flex flex-col gap-1.5"
+                        >
+                            <label
+                                class="text-sm font-medium text-foreground"
+                                for="lait_potentiel"
+                                >Lait potentiel standard (kg/j)</label
+                            >
+                            <input
+                                id="lait_potentiel"
+                                v-model="form.lait_potentiel"
+                                type="number"
+                                min="0"
+                                step="0.1"
+                                class="rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                            />
+                            <InputError :message="form.errors.lait_potentiel" />
                         </div>
                         <div class="flex flex-col gap-1.5">
                             <label
@@ -484,7 +704,7 @@ function submit(): void {
 
                 <!-- Portée (mère allaitante) -->
                 <section
-                    v-if="estAllaitante && (isOvin || isCaprin)"
+                    v-if="affichePortee"
                     class="rounded-xl border border-border bg-card p-5 shadow-sm"
                 >
                     <h2 class="mb-4 font-semibold text-foreground">Portée</h2>
@@ -499,7 +719,7 @@ function submit(): void {
                                 id="nombre_jeunes"
                                 v-model="form.nombre_jeunes"
                                 type="number"
-                                min="0"
+                                min="1"
                                 max="6"
                                 class="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-primary focus:outline-none"
                             />
@@ -617,6 +837,13 @@ function submit(): void {
                                 />
                             </div>
                         </template>
+                        <div class="flex flex-col gap-1.5">
+                            <span class="text-sm font-medium text-foreground">État physiologique</span>
+                            <div class="h-10 rounded-lg border border-border bg-muted px-3 py-2 text-sm text-foreground">
+                                {{ stadePhysiologique }}
+                            </div>
+                            <p class="text-xs text-muted-foreground">Déduit automatiquement de la catégorie et des stades saisis.</p>
+                        </div>
                         <div v-if="isBovin" class="flex flex-col gap-1.5">
                             <label
                                 class="text-sm font-medium text-foreground"
@@ -676,20 +903,65 @@ function submit(): void {
                                 class="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-primary focus:outline-none"
                             />
                         </div>
-                        <div v-if="isOvin" class="flex flex-col gap-1.5">
+                        <div v-if="afficheParite" class="flex flex-col gap-1.5">
                             <label
                                 class="text-sm font-medium text-foreground"
-                                for="type_production_ovin"
-                                >Type de production</label
+                                for="parite"
+                                >Parité</label
                             >
-                            <select
-                                id="type_production_ovin"
-                                v-model="form.type_production_ovin"
-                                class="h-10 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-primary focus:outline-none"
+                            <input
+                                id="parite"
+                                v-model="form.parite"
+                                type="number"
+                                min="0"
+                                max="15"
+                                step="1"
+                                class="rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                            />
+                            <InputError :message="form.errors.parite" />
+                        </div>
+                        <div
+                            v-if="estLaitiere && isBovin"
+                            class="flex flex-col gap-1.5"
+                        >
+                            <label
+                                class="text-sm font-medium text-foreground"
+                                for="nec_velage"
+                                >NEC au vêlage</label
                             >
-                                <option value="lait">Lait</option>
-                                <option value="viande">Viande</option>
-                            </select>
+                            <input
+                                id="nec_velage"
+                                v-model="form.nec_velage"
+                                type="number"
+                                min="0"
+                                max="5"
+                                step="0.25"
+                                class="rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                            />
+                        </div>
+                        <div
+                            v-if="estLaitiere || estAllaitante"
+                            class="flex flex-col gap-1.5"
+                        >
+                            <label
+                                class="text-sm font-medium text-foreground"
+                                for="ecart_variation_reserve"
+                                >Variation corrigée des réserves (kg/j)</label
+                            >
+                            <input
+                                id="ecart_variation_reserve"
+                                v-model="form.ecart_variation_reserve"
+                                type="number"
+                                step="0.01"
+                                class="rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                            />
+                        </div>
+                        <div v-if="isOvin" class="flex flex-col gap-1.5">
+                            <span class="text-sm font-medium text-foreground">Filière ovine</span>
+                            <div class="h-10 rounded-lg border border-border bg-muted px-3 py-2 text-sm text-foreground">
+                                {{ productionOvine }}
+                            </div>
+                            <p class="text-xs text-muted-foreground">Imposée par la catégorie : aucun modèle incompatible ne peut être sélectionné.</p>
                         </div>
                         <div class="flex flex-col gap-1.5">
                             <label

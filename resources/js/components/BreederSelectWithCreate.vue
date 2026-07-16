@@ -19,11 +19,13 @@ const props = withDefaults(
         inputId?: string;
         name?: string;
         placeholder?: string;
+        required?: boolean;
     }>(),
     {
         inputId: 'breeder_id',
         name: undefined,
         placeholder: 'Rechercher un eleveur...',
+        required: false,
     },
 );
 
@@ -246,6 +248,7 @@ function csrfHeader(): Record<string, string> {
                 :aria-expanded="dropdownOpen"
                 :value="query"
                 :placeholder="placeholder"
+                :required="required"
                 class="h-10 w-full rounded-lg border border-border bg-background py-2 pr-3 pl-9! text-sm leading-5 text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-primary focus:outline-none"
                 autocomplete="off"
                 @focus="dropdownOpen = true"

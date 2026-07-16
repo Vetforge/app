@@ -15,10 +15,18 @@ class AlimentFactory extends Factory
 {
     public function definition(): array
     {
+        $type = fake()->randomElement(['Fourrage', 'Conc', 'Mineral']);
+
         return [
             'user_id' => User::factory(),
             'code_inra' => fake()->optional()->bothify('####'),
-            'type' => fake()->optional()->randomElement(['fourrage', 'concentre', 'mineral']),
+            'type' => $type,
+            'famille_botanique' => 'autre',
+            'procede_technologique' => match ($type) {
+                'Conc' => 'concentre',
+                'Mineral' => 'mineral',
+                default => 'autre',
+            },
             'libelle0' => fake()->words(2, true),
             'libelle1' => fake()->optional()->words(2, true),
             'libelle2' => null,
