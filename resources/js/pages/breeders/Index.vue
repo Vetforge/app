@@ -8,6 +8,7 @@ import {
     edit as breederEdit,
     importCsv as breederImport,
     index as breedersIndex,
+    show as breederShow,
 } from '@/actions/App/Http/Controllers/BreederController';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { dashboard } from '@/routes';
@@ -147,7 +148,12 @@ function uploadCsv(): void {
                         <tbody class="divide-y divide-border/50">
                             <tr v-for="breeder in breeders.data" :key="breeder.id" class="hover:bg-accent/20">
                                 <td class="px-4 py-3">
-                                    <p class="font-medium text-foreground">{{ breeder.name }}</p>
+                                    <Link
+                                        :href="breederShow({ breeder: breeder.id }).url"
+                                        class="font-medium text-foreground hover:underline"
+                                    >
+                                        {{ breeder.name }}
+                                    </Link>
                                     <p class="text-xs text-muted-foreground">{{ breeder.address }}</p>
                                 </td>
                                 <td class="px-4 py-3 text-muted-foreground">
@@ -155,7 +161,15 @@ function uploadCsv(): void {
                                     <p>{{ breeder.phone ?? breeder.email ?? '-' }}</p>
                                 </td>
                                 <td class="px-4 py-3 text-muted-foreground">{{ breeder.herd_number ?? '-' }}</td>
-                                <td class="px-4 py-3 text-right tabular-nums">{{ breeder.analyses_count }}</td>
+                                <td class="px-4 py-3 text-right tabular-nums">
+                                    <Link
+                                        :href="breederShow({ breeder: breeder.id }).url"
+                                        class="hover:underline"
+                                        title="Voir les analyses"
+                                    >
+                                        {{ breeder.analyses_count }}
+                                    </Link>
+                                </td>
                                 <td class="px-4 py-3">
                                     <div class="flex items-center justify-center gap-1">
                                         <Link

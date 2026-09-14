@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3';
-import { Activity, Biohazard, ChartScatter, ClipboardCheck, ClipboardList, Columns4, Droplets, FlaskConical, NotebookPen, Salad, Scissors, Search, SquareActivity, TestTube2, Users, Worm, X, Zap } from 'lucide-vue-next';
+import { Activity, ClipboardList, Salad, Search, Users, X } from 'lucide-vue-next';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import type { Component } from 'vue';
 import { create as alimentCreate } from '@/actions/App/Http/Controllers/AlimentController';
@@ -8,6 +8,7 @@ import { search as dashboardSearch } from '@/actions/App/Http/Controllers/Dashbo
 import { create as planCreate } from '@/actions/App/Http/Controllers/PlanRationnementController';
 import { create as analysisCreate } from '@/actions/App/Http/Controllers/VeterinaryAnalysisController';
 import AppLayout from '@/layouts/AppLayout.vue';
+import { getModuleIcon } from '@/lib/moduleIcons';
 import { dashboard } from '@/routes';
 import type { BreadcrumbItem } from '@/types';
 
@@ -40,26 +41,6 @@ const breadcrumbs: BreadcrumbItem[] = [{ title: 'Accueil', href: dashboard() }];
 
 const analyseModules = computed(() => props.analysis_modules.filter((m) => m.type === 'analyse'));
 const rapportModules = computed(() => props.analysis_modules.filter((m) => m.type === 'rapport'));
-
-const moduleIconMap: Record<string, Component> = {
-    'coproscopie-parasitaire': Worm,
-    'diarrhee-neonatale': Columns4,
-    'gaz-du-sang': SquareActivity,
-    'comptage-cellulaire': Droplets,
-    'diagnostic-bacteriologique': Biohazard,
-    'analyse-diverse': TestTube2,
-    'tests-rapides': Zap,
-    'tests-biochimie': FlaskConical,
-    hemogramme: ChartScatter,
-    'bse-laitier': ClipboardCheck,
-    'bse-allaitant': ClipboardCheck,
-    autopsie: Scissors,
-    'compte-rendu': NotebookPen,
-};
-
-function getModuleIcon(slug: string): Component {
-    return moduleIconMap[slug] ?? Activity;
-}
 
 const query = ref('');
 const searchResults = ref<RecentElement[]>([]);

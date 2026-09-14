@@ -22,6 +22,104 @@ it('lists only breeders owned by the authenticated user', function () {
         );
 });
 
+it('shows a breeder with all of its analyses', function () {
+    $user = User::factory()->create();
+    $breeder = Breeder::factory()->create(['user_id' => $user->id, 'name' => 'GAEC du Val']);
+    Analysis::factory()->create([
+        'user_id' => $user->id,
+        'breeder_id' => $breeder->id,
+        'module' => 'coproscopie-parasitaire',
+        'animal_nom' => 'Vache 123',
+        'analyzed_at' => '2026-07-10',
+    ]);
+    Analysis::factory()->create([
+        'user_id' => $user->id,
+        'breeder_id' => $breeder->id,
+        'module' => 'hemogramme',
+        'animal_nom' => 'Titine',
+        'analyzed_at' => '2026-07-12',
+    ]);
+    Analysis::factory()->create(['user_id' => $user->id]);
+
+    $this->actingAs($user)
+        ->get(route('breeders.show', $breeder))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('breeders/Show')
+            ->where('breeder.id', $breeder->id)
+            ->where('breeder.analyses_count', 2)
+            ->has('analyses.data', 2)
+            ->where('analyses.data.0.label', 'Hemogramme — Titine')
+            ->where('analyses.data.1.label', 'Coproscopie — Vache 123')
+        );
+});
+
+it('does not show another users breeder analyses', function () {
+    $user = User::factory()->create();
+    $breeder = Breeder::factory()->create();
+
+    $this->actingAs($user)
+        ->get(route('breeders.show', $breeder))
+        ->assertNotFound();
+});
+
+it('searches breeder analyses by animal name and module label', function () {
+    $user = User::factory()->create();
+    $breeder = Breeder::factory()->create(['user_id' => $user->id]);
+    $copro = Analysis::factory()->create([
+        'user_id' => $user->id,
+        'breeder_id' => $breeder->id,
+        'module' => 'coproscopie-parasitaire',
+        'animal_nom' => 'Vache 123',
+    ]);
+    $hemogramme = Analysis::factory()->create([
+        'user_id' => $user->id,
+        'breeder_id' => $breeder->id,
+        'module' => 'hemogramme',
+        'animal_nom' => 'Titine',
+    ]);
+
+    $this->actingAs($user)
+        ->get(route('breeders.show', ['breeder' => $breeder, 'search' => 'titine']))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('analyses.data', 1)
+            ->where('analyses.data.0.id', $hemogramme->id)
+        );
+
+    $this->actingAs($user)
+        ->get(route('breeders.show', ['breeder' => $breeder, 'search' => 'copro']))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('analyses.data', 1)
+            ->where('analyses.data.0.id', $copro->id)
+        );
+});
+
+it('paginates breeder analyses for infinite scroll', function () {
+    $user = User::factory()->create();
+    $breeder = Breeder::factory()->create(['user_id' => $user->id]);
+    Analysis::factory()->count(30)->create([
+        'user_id' => $user->id,
+        'breeder_id' => $breeder->id,
+    ]);
+
+    $this->actingAs($user)
+        ->get(route('breeders.show', $breeder))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('analyses.data', 25)
+            ->where('analyses.total', 30)
+        );
+
+    $this->actingAs($user)
+        ->get(route('breeders.show', ['breeder' => $breeder, 'page' => 2]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('analyses.data', 5)
+        );
+});
+
 it('creates breeders with names unique per user only', function () {
     $user = User::factory()->create();
     $otherUser = User::factory()->create();

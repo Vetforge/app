@@ -15,7 +15,6 @@ use App\Support\VeterinaryModules;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 use Spatie\LaravelPdf\Enums\Format;
@@ -292,8 +291,8 @@ class VeterinaryAnalysisController extends Controller
             return;
         }
 
-        $sampledAtSearchSql = $this->dateSearchSql($query, 'sampled_at');
-        $analyzedAtSearchSql = $this->dateSearchSql($query, 'analyzed_at');
+        $sampledAtSearchSql = SearchTerm::dateSearchSql($query, 'sampled_at');
+        $analyzedAtSearchSql = SearchTerm::dateSearchSql($query, 'analyzed_at');
 
         $query->where(function (Builder $searchQuery) use ($analyzedAtSearchSql, $sampledAtSearchSql, $tokens): void {
             foreach ($tokens as $token) {
@@ -314,17 +313,5 @@ class VeterinaryAnalysisController extends Controller
                 });
             }
         });
-    }
-
-    private function dateSearchSql(Builder $query, string $column): string
-    {
-        $wrappedColumn = $query->getQuery()->getGrammar()->wrap($column);
-
-        return match (DB::getDriverName()) {
-            'pgsql' => "LOWER(COALESCE(TO_CHAR({$wrappedColumn}, 'YYYY-MM-DD'), '')) LIKE ? ESCAPE '\\'",
-            'sqlite' => "LOWER(COALESCE(CAST({$wrappedColumn} AS TEXT), '')) LIKE ? ESCAPE '\\'",
-            'sqlsrv' => "LOWER(COALESCE(CONVERT(varchar(10), {$wrappedColumn}, 23), '')) LIKE ?",
-            default => "LOWER(COALESCE(CAST({$wrappedColumn} AS CHAR), '')) LIKE ?",
-        };
     }
 }

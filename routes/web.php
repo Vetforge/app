@@ -86,6 +86,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('eleveurs/quick', [BreederController::class, 'quickStore'])->name('breeders.quick-store');
     Route::get('eleveurs/import/exemple', [BreederController::class, 'importExample'])->name('breeders.import-example');
     Route::post('eleveurs/import', [BreederController::class, 'importCsv'])->middleware('throttle:5,1')->name('breeders.import');
+    Route::get('eleveurs/{breeder}', [BreederController::class, 'show'])->whereNumber('breeder')->name('breeders.show');
     Route::get('eleveurs/{breeder}/edit', [BreederController::class, 'edit'])->name('breeders.edit');
     Route::put('eleveurs/{breeder}', [BreederController::class, 'update'])->name('breeders.update');
     Route::delete('eleveurs/{breeder}', [BreederController::class, 'destroy'])->name('breeders.destroy');

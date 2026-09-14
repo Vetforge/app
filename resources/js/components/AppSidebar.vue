@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Link, usePage } from '@inertiajs/vue3';
-import { SquareActivity, Worm, ClipboardList, ClipboardCheck, Droplets, Biohazard, FlaskConical, LayoutGrid, Columns4, Settings, Salad, Users, TestTube2, Scissors, NotebookPen, Zap, Leaf, ChartScatter, ShieldCheck } from 'lucide-vue-next';
+import { SquareActivity, Worm, ClipboardList, ClipboardCheck, Droplets, Biohazard, FlaskConical, LayoutGrid, Columns4, Settings, Salad, Users, TestTube2, NotebookPen, Zap, Leaf, ChartScatter, ShieldCheck, Slice } from 'lucide-vue-next';
 import { computed } from 'vue';
 import { index as adminUsersIndex } from '@/actions/App/Http/Controllers/Admin/UserController';
 import { show as agrinirShow } from '@/actions/App/Http/Controllers/AgrinirController';
@@ -51,7 +51,7 @@ const analysisNavItems: NavItem[] = [
 const rapportNavItems: NavItem[] = [
     { title: 'BSE Laitier', href: analysesIndex({ module: 'bse-laitier' }).url, icon: ClipboardCheck },
     { title: 'BSE Allaitant', href: analysesIndex({ module: 'bse-allaitant' }).url, icon: ClipboardCheck },
-    { title: 'Autopsie', href: analysesIndex({ module: 'autopsie' }).url, icon: Scissors },
+    { title: 'Autopsie', href: analysesIndex({ module: 'autopsie' }).url, icon: Slice },
     { title: 'Compte-rendu', href: analysesIndex({ module: 'compte-rendu' }).url, icon: NotebookPen },
 ];
 

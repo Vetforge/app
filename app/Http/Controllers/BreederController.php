@@ -7,9 +7,11 @@ namespace App\Http\Controllers;
 use App\Http\Requests\ImportBreedersRequest;
 use App\Http\Requests\StoreBreederRequest;
 use App\Http\Requests\UpdateBreederRequest;
+use App\Models\Analysis;
 use App\Models\Breeder;
 use App\Services\BreederImporter;
 use App\Support\SearchTerm;
+use App\Support\VeterinaryModules;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -69,6 +71,49 @@ class BreederController extends Controller
         return response()->json([
             'breeder' => $this->breederOption($breeder),
         ], 201);
+    }
+
+    public function show(Request $request, Breeder $breeder): Response
+    {
+        $this->ensureOwned($request, $breeder);
+
+        $query = Analysis::query()->whereBelongsTo($breeder);
+
+        if ($request->filled('search')) {
+            $this->applyAnalysesSearch($query, trim((string) $request->input('search')));
+        }
+
+        $analyses = $query
+            ->latest('analyzed_at')
+            ->latest()
+            ->paginate(25)
+            ->withQueryString()
+            ->through(fn (Analysis $analysis): array => [
+                'id' => $analysis->id,
+                'module' => $analysis->module,
+                'module_label' => data_get(VeterinaryModules::all(), "{$analysis->module}.short_label", $analysis->module),
+                'module_type' => data_get(VeterinaryModules::all(), "{$analysis->module}.type", 'analyse'),
+                'label' => data_get(VeterinaryModules::all(), "{$analysis->module}.short_label", $analysis->module).($analysis->animal_nom ? ' — '.$analysis->animal_nom : ''),
+                'sub' => $analysis->intervenant,
+                'analyzed_at' => $analysis->analyzed_at ?? $analysis->updated_at,
+                'url' => route('analyses.show', $analysis, false),
+            ]);
+
+        return Inertia::render('breeders/Show', [
+            'breeder' => [
+                'id' => $breeder->id,
+                'name' => $breeder->name,
+                'address' => $breeder->address,
+                'postal_code' => $breeder->postal_code,
+                'city' => $breeder->city,
+                'phone' => $breeder->phone,
+                'email' => $breeder->email,
+                'herd_number' => $breeder->herd_number,
+                'analyses_count' => $breeder->analyses()->count(),
+            ],
+            'analyses' => Inertia::scroll($analyses),
+            'filters' => $request->only('search'),
+        ]);
     }
 
     public function edit(Request $request, Breeder $breeder): Response
@@ -149,6 +194,45 @@ class BreederController extends Controller
             'city' => $breeder->city,
             'herd_number' => $breeder->herd_number,
         ];
+    }
+
+    /**
+     * @param  Builder<Analysis>  $query
+     */
+    private function applyAnalysesSearch(Builder $query, string $search): void
+    {
+        $tokens = array_values(array_filter(preg_split('/\s+/', $search) ?: []));
+
+        if ($tokens === []) {
+            return;
+        }
+
+        $sampledAtSearchSql = SearchTerm::dateSearchSql($query, 'sampled_at');
+        $analyzedAtSearchSql = SearchTerm::dateSearchSql($query, 'analyzed_at');
+
+        $query->where(function (Builder $searchQuery) use ($analyzedAtSearchSql, $sampledAtSearchSql, $tokens): void {
+            foreach ($tokens as $token) {
+                $like = SearchTerm::likeContains(mb_strtolower($token));
+
+                $matchingSlugs = collect(VeterinaryModules::all())
+                    ->filter(fn (array $module): bool => str_contains(mb_strtolower($module['label']), mb_strtolower($token))
+                        || str_contains(mb_strtolower($module['short_label']), mb_strtolower($token)))
+                    ->keys()
+                    ->all();
+
+                $searchQuery->where(function (Builder $tokenQuery) use ($analyzedAtSearchSql, $like, $matchingSlugs, $sampledAtSearchSql): void {
+                    $tokenQuery
+                        ->whereRaw("LOWER(COALESCE(animal_nom, '')) LIKE ? ESCAPE '\\'", [$like])
+                        ->orWhereRaw("LOWER(COALESCE(intervenant, '')) LIKE ? ESCAPE '\\'", [$like])
+                        ->orWhereRaw($sampledAtSearchSql, [$like])
+                        ->orWhereRaw($analyzedAtSearchSql, [$like]);
+
+                    if ($matchingSlugs !== []) {
+                        $tokenQuery->orWhereIn('module', $matchingSlugs);
+                    }
+                });
+            }
+        });
     }
 
     private function applySearch(Builder $query, string $search): void
