@@ -55,6 +55,8 @@ export interface RationNormeDefinition {
     decimals: number;
     default_min: number | null;
     default_max: number | null;
+    supports_min: boolean;
+    supports_max: boolean;
 }
 
 export interface RationNormesPayload {

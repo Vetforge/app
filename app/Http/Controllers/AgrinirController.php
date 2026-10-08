@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Enums\TypeAliment;
 use App\Http\Requests\CalculateAgrinirRequest;
 use App\Http\Requests\StoreAgrinirAlimentRequest;
 use App\Models\Aliment;
+use App\Models\Breeder;
 use App\Services\Agrinir\ForageCalculator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -16,7 +18,7 @@ use Inertia\Response;
 
 class AgrinirController extends Controller
 {
-    public function show(): Response
+    public function show(Request $request): Response
     {
         $referenceAliments = Aliment::query()
             ->whereNotNull('code_inra')
@@ -36,6 +38,8 @@ class AgrinirController extends Controller
 
         return Inertia::render('agrinir/Show', [
             'referenceAliments' => $referenceAliments,
+            'breeders' => Breeder::query()->where('user_id', $request->user()->id)->orderBy('name')->get(['id', 'name', 'city', 'herd_number']),
+            'quickBreederStoreUrl' => route('breeders.quick-store'),
         ]);
     }
 
@@ -78,12 +82,25 @@ class AgrinirController extends Controller
 
         $aliment->user_id = $request->user()->id;
         $aliment->code_inra = null;
+        $aliment->breeder_id = $validated['breeder_id'] ?? null;
         $aliment->libelle1 = $validated['nom'];
 
         if (! isset($validated['aliment_de_reference_id'])) {
             $aliment->libelle0 = $this->defaultLibelle0($validated['type']);
-            $aliment->type = $validated['type'] === 'luzerneD' ? 'Conc' : 'Fourrage';
         }
+
+        $aliment->type = $validated['type'] === 'luzerneD' ? TypeAliment::Concentre->value : TypeAliment::Fourrage->value;
+        $aliment->famille_botanique = match (true) {
+            str_starts_with($validated['type'], 'luzerne') => 'luzerne',
+            str_starts_with($validated['type'], 'mais') => 'mais',
+            default => 'graminee',
+        };
+        $aliment->procede_technologique = match (true) {
+            $validated['type'] === 'luzerneD' => 'deshydrate',
+            str_contains($validated['type'], 'FV') => 'vert',
+            str_contains($validated['type'], 'F1'), str_contains($validated['type'], 'F2'), $validated['type'] === 'luzerneF' => 'foin',
+            default => 'ensile',
+        };
 
         $aliment->fill($this->agriNirValues($resultats2018, $resultats2007));
         $aliment->save();

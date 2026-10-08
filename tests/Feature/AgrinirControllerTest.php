@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Aliment;
+use App\Models\Breeder;
 use App\Models\User;
 use App\Services\Agrinir\ForageCalculator;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -282,9 +283,25 @@ it('creates an agrinir aliment without a reference aliment when the model is omi
     expect($aliment->code_inra)->toBeNull()
         ->and($aliment->libelle0)->toBe('Foins')
         ->and($aliment->libelle1)->toBe('Foin prairie printemps')
-        ->and($aliment->type)->toBe('Fourrage')
+        ->and($aliment->type)->toBe('fourrage')
         ->and($aliment->na)->toBeNull()
         ->and(round((float) $aliment->pdi, 1))->toBe($payload['valeurs']['pdi'])
         ->and($aliment->ufl2007)->not->toBeNull()
         ->and($aliment->pdie2007)->not->toBeNull();
+});
+
+it('stores an agrinir aliment with an optional owned breeder', function (bool $assigned) {
+    $user = User::factory()->create();
+    $breeder = Breeder::factory()->create(['user_id' => $user->id]);
+    $this->actingAs($user)->post(route('agrinir.sauvegarder'), agrinirPayload(['breeder_id' => $assigned ? $breeder->id : null]))
+        ->assertSessionHasNoErrors()->assertRedirect();
+    expect(Aliment::where('user_id', $user->id)->sole()->breeder_id)->toBe($assigned ? $breeder->id : null);
+})->with([true, false]);
+
+it('rejects another users breeder during agrinir creation', function () {
+    $user = User::factory()->create();
+    $breeder = Breeder::factory()->create();
+    $this->actingAs($user)->post(route('agrinir.sauvegarder'), agrinirPayload(['breeder_id' => $breeder->id]))
+        ->assertSessionHasErrors('breeder_id');
+    expect(Aliment::count())->toBe(0);
 });

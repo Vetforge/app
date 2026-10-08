@@ -150,10 +150,10 @@ final class RationNormes
 
             $active[$key] = [
                 'min' => self::supportsMin($key)
-                    ? self::normalizeMetricValue($key, $override['min'] ?? $active[$key]['min'])
+                    ? self::normalizeMetricValue($key, array_key_exists('min', $override) ? $override['min'] : $active[$key]['min'])
                     : null,
                 'max' => self::supportsMax($key)
-                    ? self::normalizeMetricValue($key, $override['max'] ?? $active[$key]['max'])
+                    ? self::normalizeMetricValue($key, array_key_exists('max', $override) ? $override['max'] : $active[$key]['max'])
                     : null,
             ];
         }
@@ -164,6 +164,8 @@ final class RationNormes
     /**
      * @return array<int, array{
      *     key: string,
+     *     supports_min: bool,
+     *     supports_max: bool,
      *     label: string,
      *     group: string,
      *     unit: string|null,
@@ -185,6 +187,8 @@ final class RationNormes
                 'decimals' => $definition['decimals'],
                 'default_min' => $definition['default_min'],
                 'default_max' => $definition['default_max'],
+                'supports_min' => self::supportsMin($key),
+                'supports_max' => self::supportsMax($key),
             ];
         }
 
@@ -197,6 +201,8 @@ final class RationNormes
      *     active: array<string, array{min: float|int|null, max: float|int|null}>,
      *     editable: array<int, array{
      *         key: string,
+     *         supports_min: bool,
+     *         supports_max: bool,
      *         label: string,
      *         group: string,
      *         unit: string|null,
@@ -219,6 +225,8 @@ final class RationNormes
      *     active: array<string, array{min: float|int|null, max: float|int|null}>,
      *     editable: array<int, array{
      *         key: string,
+     *         supports_min: bool,
+     *         supports_max: bool,
      *         label: string,
      *         group: string,
      *         unit: string|null,
@@ -254,14 +262,19 @@ final class RationNormes
 
             $normalized = [
                 'min' => self::supportsMin($key)
-                    ? self::normalizeMetricValue($key, $activeNorme['min'] ?? $defaults[$key]['min'])
+                    ? self::normalizeMetricValue($key, array_key_exists('min', $activeNorme) ? $activeNorme['min'] : $defaults[$key]['min'])
                     : null,
                 'max' => self::supportsMax($key)
-                    ? self::normalizeMetricValue($key, $activeNorme['max'] ?? $defaults[$key]['max'])
+                    ? self::normalizeMetricValue($key, array_key_exists('max', $activeNorme) ? $activeNorme['max'] : $defaults[$key]['max'])
                     : null,
             ];
 
-            if ($normalized !== $defaults[$key]) {
+            $normalizedDefaults = [
+                'min' => self::normalizeMetricValue($key, $defaults[$key]['min']),
+                'max' => self::normalizeMetricValue($key, $defaults[$key]['max']),
+            ];
+
+            if ($normalized !== $normalizedDefaults) {
                 $overrides[$key] = $normalized;
             }
         }

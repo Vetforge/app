@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Database\Factories;
 
+use App\Enums\TypeAliment;
 use App\Models\Aliment;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -15,7 +16,7 @@ class AlimentFactory extends Factory
 {
     public function definition(): array
     {
-        $type = fake()->randomElement(['Fourrage', 'Conc', 'Mineral']);
+        $type = fake()->randomElement(TypeAliment::values());
 
         return [
             'user_id' => User::factory(),
@@ -23,8 +24,8 @@ class AlimentFactory extends Factory
             'type' => $type,
             'famille_botanique' => 'autre',
             'procede_technologique' => match ($type) {
-                'Conc' => 'concentre',
-                'Mineral' => 'mineral',
+                TypeAliment::Concentre->value => 'concentre',
+                TypeAliment::Mineral->value => 'mineral',
                 default => 'autre',
             },
             'libelle0' => fake()->words(2, true),

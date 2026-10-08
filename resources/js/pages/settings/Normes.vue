@@ -3,7 +3,10 @@ import { Head, router } from '@inertiajs/vue3';
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import Heading from '@/components/Heading.vue';
 import InputError from '@/components/InputError.vue';
-import type { RationNormeDefinition, RationNormesPayload } from '@/components/rations/types';
+import type {
+    RationNormeDefinition,
+    RationNormesPayload,
+} from '@/components/rations/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -46,7 +49,10 @@ const editableNormGroups = computed<NormeGroup[]>(() => {
         groups.set(definition.group, items);
     }
 
-    return Array.from(groups.entries()).map(([label, items]) => ({ label, items }));
+    return Array.from(groups.entries()).map(([label, items]) => ({
+        label,
+        items,
+    }));
 });
 
 function fmtNorm(val: number | null | undefined, decimals = 1): string {
@@ -58,13 +64,20 @@ function buildNormesDraft(useDefaults: boolean = false): NormeDraft {
         props.normes.editable.map((definition) => {
             const source = useDefaults
                 ? { min: definition.default_min, max: definition.default_max }
-                : props.normes.active[definition.key] ?? { min: definition.default_min, max: definition.default_max };
+                : (props.normes.active[definition.key] ?? {
+                      min: definition.default_min,
+                      max: definition.default_max,
+                  });
 
             return [
                 definition.key,
                 {
-                    min: definition.default_min === null ? '' : formatNumberInput(source.min, definition.decimals),
-                    max: definition.default_max === null ? '' : formatNumberInput(source.max, definition.decimals),
+                    min: definition.supports_min
+                        ? formatNumberInput(source.min, definition.decimals)
+                        : '',
+                    max: definition.supports_max
+                        ? formatNumberInput(source.max, definition.decimals)
+                        : '',
                 },
             ];
         }),
@@ -81,28 +94,38 @@ function resetNormesDraftToDefaults(): void {
     recentlySaved.value = false;
 }
 
-function parseNormInput(value: string): number | null {
+function parseNormInput(value: string): number | string | null {
     const normalized = value.replace(',', '.').trim();
 
-    if (! normalized) {
+    if (!normalized) {
         return null;
     }
 
     const parsed = Number(normalized);
 
-    return Number.isNaN(parsed) ? null : parsed;
+    return Number.isFinite(parsed) ? parsed : normalized;
 }
 
-function normePayload(): Record<string, { min: number | null; max: number | null }> {
+function normePayload(): Record<
+    string,
+    { min: number | string | null; max: number | string | null }
+> {
     return Object.fromEntries(
         props.normes.editable.map((definition) => {
-            const draft = normesDraft.value[definition.key] ?? { min: '', max: '' };
+            const draft = normesDraft.value[definition.key] ?? {
+                min: '',
+                max: '',
+            };
 
             return [
                 definition.key,
                 {
-                    min: definition.default_min === null ? null : parseNormInput(draft.min),
-                    max: definition.default_max === null ? null : parseNormInput(draft.max),
+                    min: definition.supports_min
+                        ? parseNormInput(draft.min)
+                        : null,
+                    max: definition.supports_max
+                        ? parseNormInput(draft.max)
+                        : null,
                 },
             ];
         }),
@@ -134,31 +157,42 @@ function saveNormes(): void {
     recentlySaved.value = false;
     normesErrors.value = {};
 
-    router.patch(updateNormes().url, {
-        normes: normePayload(),
-    }, {
-        preserveScroll: true,
-        onError: (errors) => {
-            normesErrors.value = Object.fromEntries(
-                Object.entries(errors).filter(([key]) => key.startsWith('normes.')),
-            );
+    router.patch(
+        updateNormes().url,
+        {
+            normes: normePayload(),
         },
-        onSuccess: () => {
-            flashSavedState();
+        {
+            preserveScroll: true,
+            onError: (errors) => {
+                normesErrors.value = Object.fromEntries(
+                    Object.entries(errors).filter(([key]) =>
+                        key.startsWith('normes.'),
+                    ),
+                );
+            },
+            onSuccess: () => {
+                syncNormesDraft();
+                flashSavedState();
+            },
+            onFinish: () => {
+                savingNormes.value = false;
+            },
         },
-        onFinish: () => {
-            savingNormes.value = false;
-        },
-    });
+    );
 }
 
 syncNormesDraft();
 
-watch(() => props.normes, () => {
-    if (! savingNormes.value) {
-        syncNormesDraft();
-    }
-}, { deep: true, immediate: true });
+watch(
+    () => props.normes,
+    () => {
+        if (!savingNormes.value) {
+            syncNormesDraft();
+        }
+    },
+    { deep: true, immediate: true },
+);
 
 onBeforeUnmount(() => {
     clearRecentlySavedTimer();
@@ -179,8 +213,12 @@ onBeforeUnmount(() => {
                     description="Ajustez les seuils techniques utilisés dans vos analyses de ration et dans les PDF."
                 />
 
-                <div class="rounded-2xl border border-border bg-muted/30 p-4 text-sm text-muted-foreground">
-                    Ces réglages s’appliquent à l’ensemble de votre compte. Ils sont repris dans les résultats et dans les exports PDF.
+                <div
+                    class="rounded-2xl border border-border bg-muted/30 p-4 text-sm text-muted-foreground"
+                >
+                    Ces réglages s’appliquent à tous vos plans de rationnement
+                    et aux exports PDF. Laissez une borne vide pour ne pas
+                    appliquer ce seuil.
                 </div>
 
                 <form class="space-y-6" @submit.prevent="saveNormes">
@@ -190,7 +228,11 @@ onBeforeUnmount(() => {
                         class="space-y-3 rounded-[1.75rem] border border-border bg-card p-5 shadow-sm"
                     >
                         <div>
-                            <h2 class="text-sm font-semibold uppercase tracking-[0.18em] text-muted-foreground">{{ group.label }}</h2>
+                            <h2
+                                class="text-sm font-semibold tracking-[0.18em] text-muted-foreground uppercase"
+                            >
+                                {{ group.label }}
+                            </h2>
                         </div>
 
                         <div class="grid gap-3">
@@ -199,43 +241,134 @@ onBeforeUnmount(() => {
                                 :key="definition.key"
                                 class="rounded-2xl border border-border bg-background/80 p-4"
                             >
-                                <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                                <div
+                                    class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between"
+                                >
                                     <div class="space-y-1">
-                                        <p class="font-medium text-foreground">{{ definition.label }}</p>
-                                        <p class="text-sm text-muted-foreground">
-                                            {{ definition.unit ?? 'Lecture sans unité' }}
+                                        <p class="font-medium text-foreground">
+                                            {{ definition.label }}
+                                        </p>
+                                        <p
+                                            class="text-sm text-muted-foreground"
+                                        >
+                                            {{
+                                                definition.unit ??
+                                                'Lecture sans unité'
+                                            }}
                                         </p>
                                     </div>
 
-                                    <div class="grid gap-3 sm:grid-cols-2 lg:w-[24rem]">
-                                        <div v-if="definition.default_min !== null" class="grid gap-2">
-                                            <Label :for="`${definition.key}-min`">Borne basse</Label>
+                                    <div
+                                        class="grid gap-3 sm:grid-cols-2 lg:w-[24rem]"
+                                    >
+                                        <div
+                                            v-if="definition.supports_min"
+                                            class="grid gap-2"
+                                        >
+                                            <Label
+                                                :for="`${definition.key}-min`"
+                                                >Borne basse</Label
+                                            >
                                             <Input
                                                 :id="`${definition.key}-min`"
-                                                v-model="normesDraft[definition.key].min"
+                                                v-model="
+                                                    normesDraft[definition.key]
+                                                        .min
+                                                "
                                                 type="text"
                                                 inputmode="decimal"
-                                                :placeholder="fmtNorm(definition.default_min, definition.decimals)"
+                                                :placeholder="
+                                                    definition.default_min ===
+                                                    null
+                                                        ? 'Sans borne'
+                                                        : fmtNorm(
+                                                              definition.default_min,
+                                                              definition.decimals,
+                                                          )
+                                                "
                                             />
-                                            <p class="text-xs text-muted-foreground">
-                                                Défaut : {{ fmtNorm(definition.default_min, definition.decimals) }}{{ definition.unit ? ` ${definition.unit}` : '' }}
+                                            <p
+                                                v-if="
+                                                    definition.default_min !==
+                                                    null
+                                                "
+                                                class="text-xs text-muted-foreground"
+                                            >
+                                                Défaut :
+                                                {{
+                                                    fmtNorm(
+                                                        definition.default_min,
+                                                        definition.decimals,
+                                                    )
+                                                }}{{
+                                                    definition.unit
+                                                        ? ` ${definition.unit}`
+                                                        : ''
+                                                }}
                                             </p>
-                                            <InputError :message="normeError(definition.key, 'min')" />
+                                            <InputError
+                                                :message="
+                                                    normeError(
+                                                        definition.key,
+                                                        'min',
+                                                    )
+                                                "
+                                            />
                                         </div>
 
-                                        <div v-if="definition.default_max !== null" class="grid gap-2">
-                                            <Label :for="`${definition.key}-max`">Borne haute</Label>
+                                        <div
+                                            v-if="definition.supports_max"
+                                            class="grid gap-2"
+                                        >
+                                            <Label
+                                                :for="`${definition.key}-max`"
+                                                >Borne haute</Label
+                                            >
                                             <Input
                                                 :id="`${definition.key}-max`"
-                                                v-model="normesDraft[definition.key].max"
+                                                v-model="
+                                                    normesDraft[definition.key]
+                                                        .max
+                                                "
                                                 type="text"
                                                 inputmode="decimal"
-                                                :placeholder="fmtNorm(definition.default_max, definition.decimals)"
+                                                :placeholder="
+                                                    definition.default_max ===
+                                                    null
+                                                        ? 'Sans borne'
+                                                        : fmtNorm(
+                                                              definition.default_max,
+                                                              definition.decimals,
+                                                          )
+                                                "
                                             />
-                                            <p class="text-xs text-muted-foreground">
-                                                Défaut : {{ fmtNorm(definition.default_max, definition.decimals) }}{{ definition.unit ? ` ${definition.unit}` : '' }}
+                                            <p
+                                                v-if="
+                                                    definition.default_max !==
+                                                    null
+                                                "
+                                                class="text-xs text-muted-foreground"
+                                            >
+                                                Défaut :
+                                                {{
+                                                    fmtNorm(
+                                                        definition.default_max,
+                                                        definition.decimals,
+                                                    )
+                                                }}{{
+                                                    definition.unit
+                                                        ? ` ${definition.unit}`
+                                                        : ''
+                                                }}
                                             </p>
-                                            <InputError :message="normeError(definition.key, 'max')" />
+                                            <InputError
+                                                :message="
+                                                    normeError(
+                                                        definition.key,
+                                                        'max',
+                                                    )
+                                                "
+                                            />
                                         </div>
                                     </div>
                                 </div>
@@ -243,7 +376,9 @@ onBeforeUnmount(() => {
                         </div>
                     </section>
 
-                    <div class="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div
+                        class="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between"
+                    >
                         <Button
                             type="button"
                             variant="outline"
@@ -253,7 +388,9 @@ onBeforeUnmount(() => {
                             Réinitialiser
                         </Button>
 
-                        <div class="flex items-center gap-4 self-end sm:self-auto">
+                        <div
+                            class="flex items-center gap-4 self-end sm:self-auto"
+                        >
                             <Transition
                                 enter-active-class="transition ease-in-out"
                                 enter-from-class="opacity-0"
@@ -269,7 +406,11 @@ onBeforeUnmount(() => {
                             </Transition>
 
                             <Button type="submit" :disabled="savingNormes">
-                                {{ savingNormes ? 'Enregistrement…' : 'Enregistrer' }}
+                                {{
+                                    savingNormes
+                                        ? 'Enregistrement…'
+                                        : 'Enregistrer'
+                                }}
                             </Button>
                         </div>
                     </div>

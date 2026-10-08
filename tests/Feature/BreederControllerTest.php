@@ -1,8 +1,15 @@
 <?php
 
+use App\Models\Aliment;
 use App\Models\Analysis;
 use App\Models\Breeder;
+use App\Models\Melange;
+use App\Models\MelangeAliment;
+use App\Models\PlanRationnement;
+use App\Models\Ration;
+use App\Models\RationAliment;
 use App\Models\User;
+use App\Support\VeterinaryModules;
 use Illuminate\Http\UploadedFile;
 use Inertia\Testing\AssertableInertia as Assert;
 
@@ -61,6 +68,158 @@ it('does not show another users breeder analyses', function () {
     $this->actingAs($user)
         ->get(route('breeders.show', $breeder))
         ->assertNotFound();
+});
+
+it('includes every analysis and report module in the breeder dossier', function () {
+    $user = User::factory()->create();
+    $breeder = Breeder::factory()->create(['user_id' => $user->id]);
+    $modules = array_keys(VeterinaryModules::all());
+
+    foreach ($modules as $module) {
+        Analysis::factory()->create(['user_id' => $user->id, 'breeder_id' => $breeder->id, 'module' => $module]);
+    }
+
+    $this->actingAs($user)->get(route('breeders.show', $breeder))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('breeder.analyses_count', count($modules))
+            ->has('analyses.data', count($modules))
+            ->where('analyses.data', fn ($rows) => collect($rows)->pluck('module')->sort()->values()->all() === collect($modules)->sort()->values()->all())
+        );
+});
+
+it('shows only the breeders owned analyses reports rations and aliments', function () {
+    $user = User::factory()->create();
+    $breeder = Breeder::factory()->create(['user_id' => $user->id]);
+    $otherBreeder = Breeder::factory()->create(['user_id' => $user->id]);
+    $otherUser = User::factory()->create();
+    $report = Analysis::factory()->create(['user_id' => $user->id, 'breeder_id' => $breeder->id, 'module' => 'compte-rendu']);
+    $plan = PlanRationnement::factory()->create(['user_id' => $user->id, 'breeder_id' => $breeder->id]);
+    $ration = Ration::factory()->create(['plan_rationnement_id' => $plan->id]);
+    $aliment = Aliment::factory()->create(['user_id' => $user->id, 'breeder_id' => $breeder->id, 'usage_aliment' => 2]);
+
+    foreach ([['user_id' => $user->id, 'breeder_id' => $otherBreeder->id], ['user_id' => $otherUser->id, 'breeder_id' => $breeder->id], ['user_id' => $user->id, 'breeder_id' => null]] as $attributes) {
+        if ($attributes['breeder_id'] !== null) {
+            Analysis::factory()->create($attributes);
+        }
+        Aliment::factory()->create($attributes);
+        $excludedPlan = PlanRationnement::factory()->create($attributes);
+        Ration::factory()->create(['plan_rationnement_id' => $excludedPlan->id]);
+    }
+
+    $this->actingAs($user)->get(route('breeders.show', $breeder))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('breeder.analyses_count', 1)
+            ->where('breeder.rations_count', 1)
+            ->where('breeder.aliments_count', 1)
+            ->has('analyses.data', 1)
+            ->where('analyses.data.0.id', $report->id)
+            ->where('analyses.data.0.module_type', 'rapport')
+            ->where('analyses.data.0.url', route('analyses.show', $report, false))
+            ->has('rations.data', 1)
+            ->where('rations.data.0.id', $ration->id)
+            ->where('rations.data.0.plan_rationnement.id', $plan->id)
+            ->has('aliments.data', 1)
+            ->where('aliments.data.0.id', $aliment->id)
+        );
+});
+
+it('paginates rations and aliments independently from analyses', function () {
+    $user = User::factory()->create();
+    $breeder = Breeder::factory()->create(['user_id' => $user->id]);
+    $plan = PlanRationnement::factory()->create(['user_id' => $user->id, 'breeder_id' => $breeder->id]);
+    Analysis::factory()->count(30)->create(['user_id' => $user->id, 'breeder_id' => $breeder->id]);
+    Ration::factory()->count(30)->create(['plan_rationnement_id' => $plan->id]);
+    Aliment::factory()->count(30)->create(['user_id' => $user->id, 'breeder_id' => $breeder->id]);
+
+    $this->actingAs($user)->get(route('breeders.show', $breeder))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('analyses.data', 25)->has('rations.data', 25)->has('aliments.data', 25)
+            ->where('rations.total', 30)->where('aliments.total', 30)
+            ->where('breeder.rations_count', 30)->where('breeder.aliments_count', 30)
+        );
+
+    $this->get(route('breeders.show', ['breeder' => $breeder, 'rations_page' => 2]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('rations.data', 5)->where('rations.current_page', 2)
+            ->has('analyses.data', 25)->where('analyses.current_page', 1)
+            ->has('aliments.data', 25)->where('aliments.current_page', 1)
+        );
+
+    $this->get(route('breeders.show', ['breeder' => $breeder, 'aliments_page' => 2]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('aliments.data', 5)->where('aliments.current_page', 2)
+            ->has('rations.data', 25)->where('rations.current_page', 1)
+            ->has('analyses.data', 25)->where('analyses.current_page', 1)
+        );
+});
+
+it('includes aliments used in rations and mixtures without direct breeder attribution only once', function () {
+    $user = User::factory()->create();
+    $breeder = Breeder::factory()->create(['user_id' => $user->id]);
+    $plan = PlanRationnement::factory()->create(['user_id' => $user->id, 'breeder_id' => $breeder->id, 'nom' => 'Plan génisses']);
+    $ration = Ration::factory()->create(['plan_rationnement_id' => $plan->id, 'nom' => 'Ration génisses']);
+    $melange = Melange::create(['ration_id' => $ration->id, 'nom' => 'Mélange ferme', 'ordre' => 1]);
+    $direct = Aliment::factory()->create(['user_id' => $user->id, 'breeder_id' => $breeder->id, 'libelle0' => 'Foin prairie']);
+    $inRation = Aliment::factory()->create(['user_id' => $user->id, 'breeder_id' => null, 'usage_aliment' => 2, 'libelle0' => 'Orge ferme']);
+    $inMixture = Aliment::factory()->create(['user_id' => $user->id, 'breeder_id' => null, 'usage_aliment' => 2, 'libelle0' => 'Maïs ensilage']);
+    RationAliment::factory()->create(['ration_id' => $ration->id, 'aliment_id' => $direct->id]);
+    RationAliment::factory()->create(['ration_id' => $ration->id, 'aliment_id' => $inRation->id]);
+    MelangeAliment::factory()->create(['melange_id' => $melange->id, 'aliment_id' => $inMixture->id]);
+
+    $otherBreeder = Breeder::factory()->create(['user_id' => $user->id]);
+    $otherPlan = PlanRationnement::factory()->create(['user_id' => $user->id, 'breeder_id' => $otherBreeder->id]);
+    $otherRation = Ration::factory()->create(['plan_rationnement_id' => $otherPlan->id]);
+    $otherMixture = Melange::create(['ration_id' => $otherRation->id, 'nom' => 'Autre mélange', 'ordre' => 1]);
+    $excluded = Aliment::factory()->create(['user_id' => $user->id, 'breeder_id' => null]);
+    RationAliment::factory()->create(['ration_id' => $otherRation->id, 'aliment_id' => $excluded->id]);
+    MelangeAliment::factory()->create(['melange_id' => $otherMixture->id, 'aliment_id' => $excluded->id]);
+
+    $expected = collect([$direct->id, $inRation->id, $inMixture->id])->sort()->values()->all();
+    $this->actingAs($user)->get(route('breeders.show', $breeder))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('breeder.aliments_count', 3)->has('aliments.data', 3)
+            ->where('aliments.data', fn ($rows) => collect($rows)->pluck('id')->sort()->values()->all() === $expected)
+        );
+
+    $this->get(route('breeders.show', ['breeder' => $breeder, 'search' => 'ensilage']))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('rations.data', 0)->has('aliments.data', 1)
+            ->where('aliments.data.0.id', $inMixture->id)
+        );
+});
+
+it('searches the breeder reports rations plans and all aliment labels', function () {
+    $user = User::factory()->create();
+    $breeder = Breeder::factory()->create(['user_id' => $user->id]);
+    $plan = PlanRationnement::factory()->create(['user_id' => $user->id, 'breeder_id' => $breeder->id, 'nom' => 'Suivi été']);
+    $ration = Ration::factory()->create(['plan_rationnement_id' => $plan->id, 'nom' => 'Lot laitier']);
+    $otherPlan = PlanRationnement::factory()->create(['user_id' => $user->id, 'breeder_id' => $breeder->id, 'nom' => 'Autre plan']);
+    Ration::factory()->create(['plan_rationnement_id' => $otherPlan->id, 'nom' => 'Lot génisses']);
+    $aliment = Aliment::factory()->create(['user_id' => $user->id, 'breeder_id' => $breeder->id, 'libelle0' => 'Foin prairie', 'libelle4' => 'Récolte été']);
+    Aliment::factory()->create(['user_id' => $user->id, 'breeder_id' => $breeder->id, 'libelle0' => 'Orge', 'libelle1' => null]);
+    $report = Analysis::factory()->create(['user_id' => $user->id, 'breeder_id' => $breeder->id, 'module' => 'compte-rendu']);
+
+    $this->actingAs($user)->get(route('breeders.show', ['breeder' => $breeder, 'search' => 'ÉTÉ']))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('rations.data', 1)->where('rations.data.0.id', $ration->id)
+            ->has('aliments.data', 1)->where('aliments.data.0.id', $aliment->id)
+            ->where('breeder.rations_count', 2)->where('breeder.aliments_count', 2)
+        );
+
+    $this->get(route('breeders.show', ['breeder' => $breeder, 'search' => 'laitier']))
+        ->assertInertia(fn (Assert $page) => $page->has('rations.data', 1)->where('rations.data.0.id', $ration->id));
+    $this->get(route('breeders.show', ['breeder' => $breeder, 'search' => 'compte-rendu']))
+        ->assertInertia(fn (Assert $page) => $page->has('analyses.data', 1)->where('analyses.data.0.id', $report->id));
+    $this->get(route('breeders.show', ['breeder' => $breeder, 'search' => '%']))
+        ->assertInertia(fn (Assert $page) => $page->has('analyses.data', 0)->has('rations.data', 0)->has('aliments.data', 0));
 });
 
 it('searches breeder analyses by animal name and module label', function () {

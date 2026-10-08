@@ -1156,6 +1156,16 @@ class ForageCalculator
         };
     }
 
+    /** @return list<string> */
+    public static function typeValues(): array
+    {
+        return collect(['herbeG', 'herbePP', 'mais', 'legumineuse'])
+            ->flatMap(fn (string $famille): array => self::typesForFamille($famille))
+            ->flatMap(fn (array $group): array => $group['options'])
+            ->pluck('value')
+            ->all();
+    }
+
     /**
      * Indique si un type nécessite le paramètre 'amidon'.
      */

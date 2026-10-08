@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Services\Equations2007;
 
+use App\Enums\TypeAliment;
 use App\Models\Aliment;
 use App\Models\Ration;
+use App\Services\RationCalculator;
 use App\Services\RationHelper;
 
 /**
@@ -18,6 +20,7 @@ class Apport
 
     public static function precompute(Ration $ration): void
     {
+        RationCalculator::validateTypes($ration);
         self::$ctxIngredients = self::buildIngredients($ration);
     }
 
@@ -39,6 +42,7 @@ class Apport
      */
     private static function buildIngredients(Ration $ration): array
     {
+        RationCalculator::validateTypes($ration);
         $items = [];
 
         foreach ($ration->rationAliments as $rationAliment) {
@@ -92,12 +96,12 @@ class Apport
 
     public static function calculerApportFourragesMS(Ration $ration): float
     {
-        return self::sumQtyMs($ration, 'Fourrage');
+        return self::sumQtyMs($ration, TypeAliment::Fourrage->value);
     }
 
     public static function calculerApportConcentresMS(Ration $ration): float
     {
-        return self::sumQtyMs($ration, 'Conc');
+        return self::sumQtyMs($ration, TypeAliment::Concentre->value);
     }
 
     public static function calculerApportFourragesUE(Ration $ration): float
@@ -105,7 +109,7 @@ class Apport
         $categorie = RationHelper::normalizeCategorieAnimal($ration->categorie_animal ?? '');
         $champ = $categorie === 'vacheAllaitante' ? 'ueb2007' : 'uel2007';
 
-        return self::sumProperty($ration, $champ, 'Fourrage');
+        return self::sumProperty($ration, $champ, TypeAliment::Fourrage->value);
     }
 
     public static function calculerSg(Ration $ration): float
@@ -154,7 +158,7 @@ class Apport
 
     public static function calculerApportFourragesUF(Ration $ration): float
     {
-        return self::sumProperty($ration, 'ufl2007', 'Fourrage');
+        return self::sumProperty($ration, 'ufl2007', TypeAliment::Fourrage->value);
     }
 
     public static function calculerApportFourragesUFL(Ration $ration): float
@@ -164,7 +168,7 @@ class Apport
 
     public static function calculerApportConcentresUF(Ration $ration): float
     {
-        return self::sumProperty($ration, 'ufl2007', 'Conc');
+        return self::sumProperty($ration, 'ufl2007', TypeAliment::Concentre->value);
     }
 
     public static function calculerApportConcentresUFL(Ration $ration): float
@@ -189,7 +193,7 @@ class Apport
 
     public static function calculerApportFourragesMAT(Ration $ration): float
     {
-        return self::sumProperty($ration, 'mat', 'Fourrage');
+        return self::sumProperty($ration, 'mat', TypeAliment::Fourrage->value);
     }
 
     public static function calculerApportCB(Ration $ration): float
@@ -390,7 +394,7 @@ class Apport
         foreach (self::getIngredients($ration) as $item) {
             $value = $item['aliment']->{$property};
             if ($value === null) {
-                $value = $item['type'] === 'Mineral'
+                $value = $item['type'] === TypeAliment::Mineral->value
                     ? (float) ($item['aliment']->{$fallbackProperty} ?? 0) * 0.4
                     : 0.0;
             }

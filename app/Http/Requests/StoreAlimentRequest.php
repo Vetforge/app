@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Requests;
 
+use App\Enums\TypeAliment;
 use App\Models\Aliment;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
@@ -18,22 +19,26 @@ class StoreAlimentRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
-        if ($this->has('type') && $this->input('type') !== null && $this->input('type') !== '') {
-            // Normaliser vers le jeton canonique (« Concentré » → « Conc », « Minéral » → « Mineral »).
-            $this->merge(['type' => Aliment::canonicalType($this->input('type'))]);
+        if ($this->has('type')) {
+            $value = $this->input('type');
+            $type = TypeAliment::tryFromLoose($value);
+            $this->merge(['type' => $type === null ? $value : $type->value]);
         }
     }
 
     public function rules(): array
     {
-        return self::sharedRules();
+        return [
+            ...self::sharedRules(),
+            'breeder_id' => ['nullable', 'integer', Rule::exists('breeders', 'id')->where('user_id', $this->user()->id)],
+        ];
     }
 
     /** @return array<string, array<int, mixed>> */
     public static function sharedRules(): array
     {
         return [
-            'type' => ['required', Rule::in(Aliment::TYPES_CANONIQUES)],
+            'type' => ['required', 'string', Rule::enum(TypeAliment::class)],
             'famille_botanique' => ['nullable', Rule::in(Aliment::FAMILLES_BOTANIQUES)],
             'procede_technologique' => ['nullable', Rule::in(Aliment::PROCEDES_TECHNOLOGIQUES)],
             'libelle0' => ['required', 'string', 'max:255'],
@@ -153,6 +158,13 @@ class StoreAlimentRequest extends FormRequest
     /** @param array<string, mixed> $data */
     public static function appendContractErrors(Validator $validator, array $data): void
     {
+        self::appendNumericErrors($validator, $data);
+        self::appendNutritionContractErrors($validator, $data);
+    }
+
+    /** @param array<string, mixed> $data */
+    protected static function appendNumericErrors(Validator $validator, array $data): void
+    {
         $value = static fn (string $field): mixed => $data[$field] ?? null;
 
         foreach (['ms', 'mo', 'mat', 'cb', 'ndf', 'adf', 'adl', 'ee', 'ag', 'eb', 'em', 'amidon', 'sucres', 'pf', 'ufl', 'ufv', 'uem', 'uel', 'ueb', 'pdia', 'pdi', 'ca', 'caabs', 'p', 'pabs', 'mg', 'na', 'k', 'cl', 's', 'cu', 'zn', 'mn', 'co', 'se', 'i', 'molybdene', 'vit_a', 'vit_d', 'vit_e'] as $field) {
@@ -165,16 +177,27 @@ class StoreAlimentRequest extends FormRequest
                 $validator->errors()->add($field, 'La valeur doit être comprise entre 0 et 100 %.');
             }
         }
+    }
 
-        $type = (string) $value('type');
+    /** @param array<string, mixed> $data */
+    protected static function appendNutritionContractErrors(Validator $validator, array $data, bool $requireCompleteNutrition = true): void
+    {
+        $value = static fn (string $field): mixed => $data[$field] ?? null;
+
+        $type = TypeAliment::tryFromLoose($value('type'));
+        $type = $type === null ? '' : $type->value;
         if ($type === '') {
             return;
         }
-        if ($type === 'Mineral') {
+        if ($type === TypeAliment::Mineral->value) {
             if ($value('procede_technologique') !== 'mineral') {
                 $validator->errors()->add('procede_technologique', 'Une source minérale doit utiliser le procédé « mineral ».');
             }
 
+            return;
+        }
+
+        if (! $requireCompleteNutrition) {
             return;
         }
 

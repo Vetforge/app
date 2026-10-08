@@ -18,8 +18,9 @@ class StoreAgrinirAlimentRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'breeder_id' => ['nullable', 'integer', Rule::exists('breeders', 'id')->where('user_id', $this->user()->id)],
             'nom' => ['required', 'string', 'max:255'],
-            'type' => ['required', 'string'],
+            'type' => ['required', 'string', Rule::in(ForageCalculator::typeValues())],
             'inra' => ['required', 'in:2007,2018'],
             'aliment_de_reference_id' => [
                 'nullable',
@@ -34,7 +35,7 @@ class StoreAgrinirAlimentRequest extends FormRequest
             'params.cendres' => ['required', 'numeric', 'min:0'],
             'params.matiere_grasse' => ['required', 'numeric', 'min:0'],
             'params.amidon' => [
-                Rule::requiredIf(fn (): bool => ForageCalculator::requiresAmidon((string) $this->input('type'))),
+                Rule::requiredIf(fn (): bool => ForageCalculator::requiresAmidon(is_string($this->input('type')) ? $this->input('type') : '')),
                 'nullable',
                 'numeric',
                 'min:0',

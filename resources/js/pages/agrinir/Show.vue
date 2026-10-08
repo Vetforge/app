@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, router } from '@inertiajs/vue3';
+import { Head, router, usePage } from '@inertiajs/vue3';
 import {
     Database,
     FlaskConical,
@@ -15,6 +15,8 @@ import {
     sauvegarder as agrinirSauvegarder,
     types as agrinirTypes,
 } from '@/actions/App/Http/Controllers/AgrinirController';
+import BreederSelectWithCreate from '@/components/BreederSelectWithCreate.vue';
+import type { BreederOption } from '@/components/BreederSelectWithCreate.vue';
 import InputError from '@/components/InputError.vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { formatNumber } from '@/lib/utils';
@@ -110,9 +112,14 @@ interface ParamField {
 
 const props = defineProps<{
     referenceAliments: ReferenceAliment[];
+    breeders: BreederOption[];
+    quickBreederStoreUrl: string;
 }>();
 
 // ─── État ──────────────────────────────────────────────────────────────────────
+
+const breederId = ref<string | number | null>('');
+const page = usePage();
 
 const inra = '2018' as const;
 const famille = ref('');
@@ -338,6 +345,7 @@ function sauvegarder() {
         agrinirSauvegarder().url,
         {
             nom: saveNom.value.trim(),
+            breeder_id: breederId.value,
             type: typeSelected.value,
             inra,
             aliment_de_reference_id: referenceAlimentId.value,
@@ -1361,6 +1369,21 @@ function isRecord(value: unknown): value is Record<string, unknown> {
                             </div>
 
                             <div class="mt-4 space-y-3">
+                                <div>
+                                    <label
+                                        for="breeder_id"
+                                        class="mb-1.5 block text-sm font-medium"
+                                        >Éleveur (facultatif)</label
+                                    >
+                                    <BreederSelectWithCreate
+                                        v-model="breederId"
+                                        :breeders="breeders"
+                                        :create-url="quickBreederStoreUrl"
+                                    />
+                                    <InputError
+                                        :message="page.props.errors.breeder_id"
+                                    />
+                                </div>
                                 <div>
                                     <label
                                         class="mb-1.5 block text-xs font-semibold tracking-[0.18em] text-muted-foreground uppercase"

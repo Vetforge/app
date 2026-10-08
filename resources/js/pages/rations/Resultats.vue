@@ -1,8 +1,17 @@
 <script setup lang="ts">
 import { Head } from '@inertiajs/vue3';
-import { index as plansIndex, show as planShow } from '@/actions/App/Http/Controllers/PlanRationnementController';
+import {
+    index as plansIndex,
+    show as planShow,
+} from '@/actions/App/Http/Controllers/PlanRationnementController';
 import RationWorkspace from '@/components/rations/RationWorkspace.vue';
-import type { Aliment, Plan, Ration, RationNormesPayload, Resultats } from '@/components/rations/types';
+import type {
+    Aliment,
+    Plan,
+    Ration,
+    RationNormesPayload,
+    Resultats,
+} from '@/components/rations/types';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { dashboard } from '@/routes';
 import type { BreadcrumbItem } from '@/types';
@@ -11,7 +20,8 @@ const props = defineProps<{
     plan: Plan;
     ration: Ration;
     aliments_disponibles: Aliment[];
-    resultats: Resultats;
+    resultats: Resultats | null;
+    erreurs_types: string[];
     iterations_volonte: number;
     normes: RationNormesPayload;
 }>();
@@ -34,6 +44,7 @@ const breadcrumbs: BreadcrumbItem[] = [
             :ration="ration"
             :aliments_disponibles="aliments_disponibles"
             :resultats="resultats"
+            :erreurs_types="erreurs_types"
             :iterations_volonte="iterations_volonte"
             :normes="normes"
             active-view="resultats"

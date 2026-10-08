@@ -24,12 +24,14 @@ class UpdateUserNormesRequest extends FormRequest
             'normes' => ['required', 'array'],
         ];
 
-        foreach (RationNormes::definitions() as $key => $definition) {
+        foreach (RationNormes::editable() as $definition) {
+            $key = $definition['key'];
             $rules["normes.$key"] = ['required', 'array'];
             $rules["normes.$key.min"] = ['nullable', 'numeric'];
             $rules["normes.$key.max"] = ['nullable', 'numeric'];
 
-            if ($definition['default_min'] !== null && $definition['default_max'] !== null) {
+            if ($definition['supports_min'] && $definition['supports_max']
+                && is_numeric($this->input("normes.$key.min")) && is_numeric($this->input("normes.$key.max"))) {
                 $rules["normes.$key.max"][] = "gte:normes.$key.min";
             }
         }

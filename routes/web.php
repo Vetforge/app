@@ -51,6 +51,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::scopeBindings()->group(function () {
         Route::get('plans/{plan}/rations/create', [RationController::class, 'create'])->name('plans.rations.create');
         Route::post('plans/{plan}/rations', [RationController::class, 'store'])->name('plans.rations.store');
+        Route::post('plans/{plan}/rations/{ration}/duplicate', [RationController::class, 'duplicate'])->name('plans.rations.duplicate');
         Route::get('plans/{plan}/rations/{ration}/description', [RationController::class, 'description'])->name('plans.rations.description');
         Route::put('plans/{plan}/rations/{ration}/description', [RationController::class, 'updateDescription'])->name('plans.rations.description.update');
         Route::get('plans/{plan}/rations/{ration}/composition', [RationController::class, 'composition'])->name('plans.rations.composition');

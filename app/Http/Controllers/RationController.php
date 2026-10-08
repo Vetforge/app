@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Enums\CategorieAnimal;
+use App\Enums\TypeAliment;
 use App\Http\Requests\StoreRationRequest;
 use App\Http\Requests\UpdateAlimentRequest;
 use App\Http\Requests\UpdateRationDescriptionRequest;
@@ -18,6 +19,7 @@ use App\Services\Equations2007\Besoin as Besoin2007;
 use App\Services\Equations2018\Apport as Apport2018;
 use App\Services\Equations2018\Besoin as Besoin2018;
 use App\Services\RationCalculator;
+use App\Services\RationDuplicator;
 use App\Support\PdfClinicHeader;
 use App\Support\RationNormes;
 use Illuminate\Database\Eloquent\Collection;
@@ -51,6 +53,16 @@ class RationController extends Controller
 
         return redirect()->route('plans.rations.description', [$plan, $ration])
             ->with('success', 'Ration créée.');
+    }
+
+    public function duplicate(PlanRationnement $plan, Ration $ration, RationDuplicator $duplicator): RedirectResponse
+    {
+        $this->authorize('update', $plan);
+
+        $copy = $duplicator->duplicate($ration);
+
+        return redirect()->route('plans.rations.description', [$plan, $copy])
+            ->with('success', 'Ration dupliquée. Vous pouvez modifier cette nouvelle ration.');
     }
 
     public function description(PlanRationnement $plan, Ration $ration): Response
@@ -94,8 +106,14 @@ class RationController extends Controller
 
         $original = Aliment::query()->whereKey($validated['aliment_id'])->firstOrFail();
         $this->authorize('view', $original);
+        if (TypeAliment::tryFromLoose($original->type) === null) {
+            return back()->withErrors(['aliment_id' => "Corrigez d'abord le type de cet aliment : fourrage, concentre ou mineral."]);
+        }
+        if ($original->breeder_id !== null && $original->breeder_id !== $plan->breeder_id) {
+            return back()->withErrors(['aliment_id' => 'Cet aliment appartient à un autre éleveur.']);
+        }
 
-        if (($validated['is_volonte'] ?? false) && $original->type !== 'Fourrage') {
+        if (($validated['is_volonte'] ?? false) && $original->type !== TypeAliment::Fourrage->value) {
             return back()->withErrors(['is_volonte' => 'Seul un fourrage peut être distribué à volonté.']);
         }
         if (($validated['is_volonte'] ?? false) && $this->rationPossedeDejaUnComposantAVolonte($ration)) {
@@ -147,7 +165,7 @@ class RationController extends Controller
             'is_mb' => ['boolean'],
         ]);
 
-        if (($validated['is_volonte'] ?? false) && $rationAliment->aliment?->type !== 'Fourrage') {
+        if (($validated['is_volonte'] ?? false) && $rationAliment->aliment?->type !== TypeAliment::Fourrage->value) {
             return back()->withErrors(['is_volonte' => 'Seul un fourrage peut être distribué à volonté.']);
         }
         if (($validated['is_volonte'] ?? false) && $this->rationPossedeDejaUnComposantAVolonte($ration, $rationAliment)) {
@@ -230,15 +248,17 @@ class RationController extends Controller
             'planRationnement',
         ]);
 
-        $iterationsVolonte = $this->calculerVolonte($ration);
-        $resultats = RationCalculator::calculer($ration);
+        $typeErrors = RationCalculator::typeErrors($ration);
+        $iterationsVolonte = $typeErrors === [] ? $this->calculerVolonte($ration) : 0;
+        $resultats = $typeErrors === [] ? RationCalculator::calculer($ration) : null;
         $categorie = $ration->categorie();
 
         return [
             'plan' => $plan,
             'ration' => $ration,
-            'aliments_disponibles' => $this->alimentsDisponibles(),
+            'aliments_disponibles' => $this->alimentsDisponibles($plan),
             'resultats' => $resultats,
+            'erreurs_types' => $typeErrors,
             'iterations_volonte' => $iterationsVolonte,
             'normes' => RationNormes::payloadForUser(request()->user()),
             'categorie_meta' => [
@@ -255,9 +275,10 @@ class RationController extends Controller
         ];
     }
 
-    private function alimentsDisponibles(): Collection
+    private function alimentsDisponibles(PlanRationnement $plan): Collection
     {
         return Aliment::query()
+            ->forBreeder($plan->breeder_id)
             ->where(fn ($query) => $query->whereNull('user_id')->orWhere('user_id', request()->user()->id))
             ->where(fn ($query) => $query->whereNull('usage_aliment')->orWhere('usage_aliment', '!=', 2))
             ->orderBy('libelle0')
@@ -271,6 +292,7 @@ class RationController extends Controller
      */
     private function calculerVolonte(Ration $ration): int
     {
+        RationCalculator::validateTypes($ration);
         $inra = $ration->planRationnement->inra ?? '2018';
 
         /** @var array<RationAliment|Melange> $composants */

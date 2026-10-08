@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Enums\CategorieAnimal;
+use App\Enums\TypeAliment;
 use App\Models\Aliment;
 use App\Models\Melange;
 use App\Models\Ration;
@@ -27,7 +28,7 @@ class RationHelper
      * Calculer la moyenne pondérée d'une valeur nutritionnelle pour un mélange.
      *
      * @param  string  $champ  Nom du champ (ex: 'UFL', 'ms', 'Ca')
-     * @param  string|null  $type  Filtre par type: 'Fourrage', 'Concentre', ou null (tous)
+     * @param  string|null  $type  Filtre par type canonique ou ancien alias, ou null (tous)
      */
     public static function calculerMoyennePondereeMelange(
         Ration $ration,
@@ -35,11 +36,10 @@ class RationHelper
         string $champ,
         ?string $type = null
     ): float {
-        $typeFilter = match ($type) {
-            'Fourrage' => 'Fourrage',
-            'Concentre' => 'Conc',
-            default => null,
-        };
+        $typeFilter = $type === null ? null : TypeAliment::tryFromLoose($type)?->value;
+        if ($type !== null && $typeFilter === null) {
+            throw new \InvalidArgumentException("Type d'aliment inconnu : {$type}");
+        }
 
         $totalValeurPonderee = 0.0;
         $totalMS = 0.0;
@@ -73,14 +73,14 @@ class RationHelper
                 $totalMS += $qtyMS * $mo;
             } elseif ($champ === 'Caabs' && $aliment->caabs === null) {
                 // Valeur de repli pour le type minéral
-                $caabs = ($aliment->ca !== null && $aliment->type === 'Mineral')
+                $caabs = ($aliment->ca !== null && $aliment->type === TypeAliment::Mineral->value)
                     ? (float) $aliment->ca * 0.4
                     : 0.0;
                 $totalValeurPonderee += $qtyMS * $caabs;
                 $totalMS += $qtyMS;
             } elseif ($champ === 'Pabs' && $aliment->pabs === null) {
                 // Valeur de repli pour le type minéral
-                $pabs = ($aliment->p !== null && $aliment->type === 'Mineral')
+                $pabs = ($aliment->p !== null && $aliment->type === TypeAliment::Mineral->value)
                     ? (float) $aliment->p * 0.4
                     : 0.0;
                 $totalValeurPonderee += $qtyMS * $pabs;
@@ -110,7 +110,7 @@ class RationHelper
             $ms = (float) ($ma->aliment->ms ?? 0);
             $qtyMS = $ma->is_mb ? ($ma->quantite * $ms / 100) : $ma->quantite;
             $totalMS += $qtyMS;
-            if ($ma->aliment->type === 'Fourrage') {
+            if ($ma->aliment->type === TypeAliment::Fourrage->value) {
                 $fourrageMS += $qtyMS;
             }
         }
@@ -143,7 +143,7 @@ class RationHelper
 
         // NIref : les fourrages utilisent la valeur stockée, les autres utilisent 2 par défaut
         if ($champ === 'NIref') {
-            return ($aliment->type === 'Fourrage')
+            return ($aliment->type === TypeAliment::Fourrage->value)
                 ? (float) ($aliment->niref ?? 2.0)
                 : 2.0;
         }

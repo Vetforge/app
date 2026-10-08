@@ -30,13 +30,13 @@ function ration2018(CategorieAnimal $categorie, array $overrides = []): Ration
 // ─── ALI-01 : type d'aliment canonique ───────────────────────────────────────
 
 test('aliment type is canonicalised to the tokens the engine expects (ALI-01)', function () {
-    expect(Aliment::canonicalType('Concentré'))->toBe('Conc');
-    expect(Aliment::canonicalType('concentre'))->toBe('Conc');
-    expect(Aliment::canonicalType('Minéral'))->toBe('Mineral');
-    expect(Aliment::canonicalType('FOURRAGES'))->toBe('Fourrage');
+    expect(Aliment::canonicalType('Concentré'))->toBe('concentre');
+    expect(Aliment::canonicalType('concentre'))->toBe('concentre');
+    expect(Aliment::canonicalType('Minéral'))->toBe('mineral');
+    expect(Aliment::canonicalType('FOURRAGES'))->toBe('fourrage');
 
     $aliment = Aliment::factory()->create(['type' => 'Concentré']);
-    expect($aliment->refresh()->type)->toBe('Conc');
+    expect($aliment->refresh()->type)->toBe('concentre');
 });
 
 // ─── ALI-03 : classification des familles de fourrage insensible à la casse ───

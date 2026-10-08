@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Admin;
 
+use App\Enums\TypeAliment;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\StoreAlimentRequest;
+use App\Http\Requests\Admin\UpdateAlimentRequest;
 use App\Models\Aliment;
 use App\Models\User;
 use App\Support\SearchTerm;
@@ -24,7 +27,11 @@ class AlimentController extends Controller
         }
 
         if ($request->filled('type')) {
-            $query->where('type', $request->type);
+            $type = TypeAliment::tryFromLoose($request->input('type'));
+            $query->where('type', $type === null ? $request->input('type') : $type->value);
+            if ($type !== null) {
+                $request->merge(['type' => $type->value]);
+            }
         }
 
         if ($request->filled('user_id')) {
@@ -32,7 +39,7 @@ class AlimentController extends Controller
         }
 
         $aliments = $query->orderBy('libelle0')->paginate(100)->withQueryString();
-        $types = Aliment::query()->select('type')->distinct()->orderBy('type')->pluck('type');
+        $types = TypeAliment::values();
         $users = User::query()->select('id', 'name')->orderBy('name')->get();
 
         return Inertia::render('admin/aliments/Index', [
@@ -48,14 +55,9 @@ class AlimentController extends Controller
         return Inertia::render('admin/aliments/Form');
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(StoreAlimentRequest $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'code_inra' => ['nullable', 'string', 'unique:aliments,code_inra'],
-            'user_id' => ['nullable', 'exists:users,id'],
-            'libelle0' => ['required', 'string', 'max:255'],
-            'type' => ['nullable', 'string', 'max:100'],
-        ]);
+        $validated = $request->validated();
 
         Aliment::create($validated);
 
@@ -69,9 +71,9 @@ class AlimentController extends Controller
         ]);
     }
 
-    public function update(Request $request, Aliment $aliment): RedirectResponse
+    public function update(UpdateAlimentRequest $request, Aliment $aliment): RedirectResponse
     {
-        $aliment->update($request->except('code_inra'));
+        $aliment->update($request->validated());
 
         return back()->with('success', 'Aliment mis à jour.');
     }

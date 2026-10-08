@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Enums\TypeAliment;
 use App\Http\Requests\StoreAlimentRequest;
 use App\Http\Requests\UpdateAlimentRequest;
 use App\Models\Aliment;
+use App\Models\Breeder;
 use App\Models\User;
 use App\Support\PdfClinicHeader;
 use App\Support\SearchTerm;
@@ -31,7 +33,11 @@ class AlimentController extends Controller
         }
 
         if ($request->filled('type')) {
-            $query->where('type', $request->type);
+            $type = TypeAliment::tryFromLoose($request->input('type'));
+            $query->where('type', $type === null ? $request->input('type') : $type->value);
+            if ($type !== null) {
+                $request->merge(['type' => $type->value]);
+            }
         }
 
         $aliments = $query
@@ -39,11 +45,7 @@ class AlimentController extends Controller
             ->paginate(50)
             ->withQueryString();
 
-        $types = Aliment::query()
-            ->select('type')
-            ->distinct()
-            ->orderBy('type')
-            ->pluck('type');
+        $types = TypeAliment::values();
 
         return Inertia::render('aliments/Index', [
             'aliments' => $aliments,
@@ -52,9 +54,9 @@ class AlimentController extends Controller
         ]);
     }
 
-    public function create(): Response
+    public function create(Request $request): Response
     {
-        return Inertia::render('aliments/Form');
+        return Inertia::render('aliments/Form', $this->breederFields($request));
     }
 
     public function store(StoreAlimentRequest $request): RedirectResponse
@@ -76,12 +78,14 @@ class AlimentController extends Controller
             return Inertia::render('aliments/Form', [
                 'aliment' => $aliment,
                 'mode' => 'edit',
+                ...$this->breederFields($request),
             ]);
         }
 
         return Inertia::render('aliments/Form', [
             'aliment' => $this->copyDraft($aliment),
             'mode' => 'copy',
+            ...$this->breederFields($request),
             'sourceAliment' => [
                 'id' => $aliment->id,
                 'libelle0' => $aliment->libelle0,
@@ -151,6 +155,15 @@ class AlimentController extends Controller
         return collect($copy->attributesToArray())
             ->except(['id', 'user_id', 'created_at', 'updated_at'])
             ->all();
+    }
+
+    /** @return array<string, mixed> */
+    private function breederFields(Request $request): array
+    {
+        return [
+            'breeders' => Breeder::query()->where('user_id', $request->user()->id)->orderBy('name')->get(['id', 'name', 'city', 'herd_number']),
+            'quickBreederStoreUrl' => route('breeders.quick-store'),
+        ];
     }
 
     private function canUpdateAliment(?Authenticatable $user, Aliment $aliment): bool

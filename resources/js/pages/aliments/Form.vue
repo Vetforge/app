@@ -1,19 +1,23 @@
 <script setup lang="ts">
-import { Head, router } from '@inertiajs/vue3';
+import { Head, router, usePage } from '@inertiajs/vue3';
 import { ref } from 'vue';
 import {
     index as alimentsIndex,
     store as alimentStore,
     update as alimentUpdate,
 } from '@/actions/App/Http/Controllers/AlimentController';
-import AppLayout from '@/layouts/AppLayout.vue';
+import BreederSelectWithCreate from '@/components/BreederSelectWithCreate.vue';
+import type { BreederOption } from '@/components/BreederSelectWithCreate.vue';
 import { alimentFieldLabel } from '@/components/rations/alimentEditableFields';
+import AppLayout from '@/layouts/AppLayout.vue';
 import { formatNumberInput } from '@/lib/utils';
 import { dashboard } from '@/routes';
 import type { BreadcrumbItem } from '@/types';
+import { ALIMENT_TYPES } from '@/types/aliment';
 
 interface Aliment {
     id?: number;
+    breeder_id?: number | null;
     code_inra: string | null;
     type: string | null;
     famille_botanique: string | null;
@@ -56,15 +60,22 @@ interface SourceAliment {
 }
 
 const props = defineProps<{
+    breeders: BreederOption[];
+    quickBreederStoreUrl: string;
     aliment?: Aliment;
     mode?: 'create' | 'edit' | 'copy';
     sourceAliment?: SourceAliment | null;
 }>();
 
+const breederId = ref<string | number | null>(props.aliment?.breeder_id ?? '');
+const page = usePage();
+
 const mode = props.mode ?? (props.aliment ? 'edit' : 'create');
 const isEdit = mode === 'edit';
 const isCopy = mode === 'copy';
 const activeTab = ref('identification');
+const processing = ref(false);
+const saved = ref(false);
 const pageTitle =
     isEdit || isCopy
         ? (props.aliment?.libelle0 ?? 'Nouvel aliment')
@@ -100,12 +111,49 @@ function fieldLabel(field: string): string {
 
 function submit(event: Event) {
     const form = event.target as HTMLFormElement;
-    const data = new FormData(form);
+    const data = Object.fromEntries(new FormData(form));
+    if (isEdit && props.aliment) {
+        for (const [field, value] of Object.entries(data)) {
+            if (field === 'type' || field === 'libelle0') {
+                continue;
+            }
+            const input = form.elements.namedItem(field);
+            const initialValue =
+                input instanceof HTMLInputElement && input.type === 'number'
+                    ? numericFieldValue(field)
+                    : String(
+                          props.aliment[field] ??
+                              (field === 'famille_botanique' ||
+                              field === 'procede_technologique'
+                                  ? 'autre'
+                                  : ''),
+                      );
+            if (value === initialValue) {
+                delete data[field];
+            }
+        }
+    }
+    const options = {
+        onStart: () => {
+            processing.value = true;
+            saved.value = false;
+        },
+        onSuccess: () => {
+            saved.value = true;
+        },
+        onFinish: () => {
+            processing.value = false;
+        },
+    };
 
     if (isEdit && props.aliment?.id !== undefined) {
-        router.put(alimentUpdate({ aliment: props.aliment.id }).url, data);
+        router.put(
+            alimentUpdate({ aliment: props.aliment.id }).url,
+            data,
+            options,
+        );
     } else {
-        router.post(alimentStore().url, data);
+        router.post(alimentStore().url, data, options);
     }
 }
 </script>
@@ -163,11 +211,58 @@ function submit(event: Event) {
             </div>
 
             <form @submit.prevent="submit" class="flex flex-col gap-6">
+                <div
+                    v-if="Object.keys(page.props.errors).length"
+                    role="alert"
+                    class="rounded-lg border border-destructive p-4 text-sm text-destructive"
+                >
+                    <p>
+                        L'aliment n'a pas été enregistré. Corrigez les erreurs
+                        suivantes :
+                    </p>
+                    <ul>
+                        <li
+                            v-for="(message, field) in page.props.errors"
+                            :key="field"
+                        >
+                            {{ fieldLabel(String(field)) }} : {{ message }}
+                        </li>
+                    </ul>
+                </div>
+                <p
+                    v-else-if="saved"
+                    role="status"
+                    class="text-sm text-emerald-700 dark:text-emerald-300"
+                >
+                    Aliment enregistré.
+                </p>
                 <!-- Identification -->
                 <section
                     v-show="activeTab === 'identification'"
                     class="grid gap-4 md:grid-cols-2"
                 >
+                    <div
+                        v-if="!isEdit || !aliment?.code_inra"
+                        class="flex flex-col gap-1.5 md:col-span-2"
+                    >
+                        <label
+                            for="breeder_id"
+                            class="text-sm font-medium text-foreground"
+                            >Éleveur (facultatif)</label
+                        >
+                        <BreederSelectWithCreate
+                            v-model="breederId"
+                            name="breeder_id"
+                            :breeders="breeders"
+                            :create-url="quickBreederStoreUrl"
+                        />
+                        <p
+                            v-if="page.props.errors.breeder_id"
+                            class="text-sm text-red-600"
+                        >
+                            {{ page.props.errors.breeder_id }}
+                        </p>
+                    </div>
                     <div class="flex flex-col gap-1.5 md:col-span-2">
                         <label
                             class="text-sm font-medium text-foreground"
@@ -225,24 +320,50 @@ function submit(event: Event) {
                             class="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-primary focus:outline-none"
                         >
                             <option value="">Sélectionner</option>
-                            <option value="Fourrage">Fourrage</option>
-                            <option value="Conc">Concentré</option>
-                            <option value="Mineral">Minéral</option>
+                            <option
+                                v-for="type in ALIMENT_TYPES"
+                                :key="type"
+                                :value="type"
+                            >
+                                {{ type }}
+                            </option>
                         </select>
                     </div>
                     <div class="flex flex-col gap-1.5">
-                        <label class="text-sm font-medium text-foreground" for="famille_botanique">Famille botanique *</label>
-                        <select id="famille_botanique" name="famille_botanique" :value="aliment?.famille_botanique ?? 'autre'" required class="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-primary focus:outline-none">
+                        <label
+                            class="text-sm font-medium text-foreground"
+                            for="famille_botanique"
+                            >Famille botanique *</label
+                        >
+                        <select
+                            id="famille_botanique"
+                            name="famille_botanique"
+                            :value="aliment?.famille_botanique ?? 'autre'"
+                            required
+                            class="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-primary focus:outline-none"
+                        >
                             <option value="mais">Maïs</option>
                             <option value="luzerne">Luzerne</option>
-                            <option value="legumineuse">Autre légumineuse</option>
+                            <option value="legumineuse">
+                                Autre légumineuse
+                            </option>
                             <option value="graminee">Graminée</option>
                             <option value="autre">Autre</option>
                         </select>
                     </div>
                     <div class="flex flex-col gap-1.5">
-                        <label class="text-sm font-medium text-foreground" for="procede_technologique">Procédé technologique *</label>
-                        <select id="procede_technologique" name="procede_technologique" :value="aliment?.procede_technologique ?? 'autre'" required class="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-primary focus:outline-none">
+                        <label
+                            class="text-sm font-medium text-foreground"
+                            for="procede_technologique"
+                            >Procédé technologique *</label
+                        >
+                        <select
+                            id="procede_technologique"
+                            name="procede_technologique"
+                            :value="aliment?.procede_technologique ?? 'autre'"
+                            required
+                            class="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-primary focus:outline-none"
+                        >
                             <option value="vert">Fourrage vert</option>
                             <option value="ensile">Ensilé</option>
                             <option value="foin">Foin</option>
@@ -530,6 +651,7 @@ function submit(event: Event) {
                 >
                     <button
                         type="submit"
+                        :disabled="processing"
                         class="rounded-lg bg-primary px-6 py-2 text-sm font-medium text-primary-foreground shadow hover:bg-primary/90 sm:w-auto"
                     >
                         {{

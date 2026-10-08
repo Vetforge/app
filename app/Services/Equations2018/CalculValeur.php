@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Services\Equations2018;
 
 use App\Enums\Espece;
+use App\Enums\TypeAliment;
 use App\Models\Aliment;
 use App\Models\Ration;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Calcul dynamique des valeurs nutritionnelles INRA 2018 pour un aliment dans le contexte d'une ration.
@@ -21,6 +23,9 @@ class CalculValeur
         private readonly Ration $ration,
         private readonly Aliment $aliment,
     ) {
+        if (TypeAliment::tryFromLoose($aliment->type) === null) {
+            throw ValidationException::withMessages(['type' => "Corrigez le type de l'aliment « {$aliment->libelle0} » : fourrage, concentre ou mineral."]);
+        }
         $this->bpr = (float) ($aliment->bpr ?? 0);
     }
 
@@ -29,7 +34,7 @@ class CalculValeur
      */
     public function calculerDMOcAliment(?float $bpr = null): float
     {
-        if ($this->aliment->type === 'Mineral') {
+        if ($this->aliment->type === TypeAliment::Mineral->value) {
             return 0.0;
         }
 
@@ -102,7 +107,7 @@ class CalculValeur
      */
     public function calculerUFLAliment(): float
     {
-        if ($this->aliment->type === 'Mineral') {
+        if ($this->aliment->type === TypeAliment::Mineral->value) {
             return 0.0;
         }
 
@@ -140,7 +145,7 @@ class CalculValeur
      */
     public function calculerUFVAliment(): float
     {
-        if ($this->aliment->type === 'Mineral') {
+        if ($this->aliment->type === TypeAliment::Mineral->value) {
             return 0.0;
         }
 
@@ -178,7 +183,7 @@ class CalculValeur
      */
     public function calculerPDIAliment(): float
     {
-        if ($this->aliment->type === 'Mineral') {
+        if ($this->aliment->type === TypeAliment::Mineral->value) {
             return 0.0;
         }
 
@@ -212,7 +217,7 @@ class CalculValeur
      */
     public function calculerPDIAAliment(): float
     {
-        if ($this->aliment->type === 'Mineral') {
+        if ($this->aliment->type === TypeAliment::Mineral->value) {
             return 0.0;
         }
 
@@ -228,7 +233,7 @@ class CalculValeur
      */
     public function calculerMODAliment(): float
     {
-        if ($this->aliment->type === 'Mineral') {
+        if ($this->aliment->type === TypeAliment::Mineral->value) {
             return 0.0;
         }
 
@@ -243,15 +248,15 @@ class CalculValeur
      */
     public function calculerNDFNDAliment(?float $bpr = null): float
     {
-        if ($this->aliment->type === 'Mineral') {
+        if ($this->aliment->type === TypeAliment::Mineral->value) {
             return 0.0;
         }
 
         $dMO = $this->calculerDMOcAliment($bpr);
 
         return match ($this->aliment->type) {
-            'Fourrage' => 785 - 8.63 * $dMO,
-            'Conc' => 591 - 6.09 * $dMO,
+            TypeAliment::Fourrage->value => 785 - 8.63 * $dMO,
+            TypeAliment::Concentre->value => 591 - 6.09 * $dMO,
             default => 0.0,
         };
     }
@@ -261,7 +266,7 @@ class CalculValeur
      */
     public function calculerNDFD_intAliment(): float
     {
-        if ($this->aliment->type === 'Mineral') {
+        if ($this->aliment->type === TypeAliment::Mineral->value) {
             return 0.0;
         }
 
@@ -273,7 +278,7 @@ class CalculValeur
      */
     public function calculerDT_NAliment(): float
     {
-        if ($this->aliment->type === 'Mineral') {
+        if ($this->aliment->type === TypeAliment::Mineral->value) {
             return 0.0;
         }
 
@@ -282,8 +287,8 @@ class CalculValeur
         $DT6_N = (float) ($this->aliment->dt6_n ?? 0);
 
         return match ($this->aliment->type) {
-            'Fourrage' => 27.6 + 0.76 * $DT6_N - 0.000468 * $DT6_N * $DT6_N - 5.45 * $NI + 0.0312 * $NI * $DT6_N + 10.6 * $PCO * $PCO,
-            'Conc' => 17.9 + 0.888 * $DT6_N - 0.000811 * $DT6_N * $DT6_N - 5.49 * $NI + 0.0285 * $NI * $DT6_N + 7.42 * $PCO * $PCO,
+            TypeAliment::Fourrage->value => 27.6 + 0.76 * $DT6_N - 0.000468 * $DT6_N * $DT6_N - 5.45 * $NI + 0.0312 * $NI * $DT6_N + 10.6 * $PCO * $PCO,
+            TypeAliment::Concentre->value => 17.9 + 0.888 * $DT6_N - 0.000811 * $DT6_N * $DT6_N - 5.49 * $NI + 0.0285 * $NI * $DT6_N + 7.42 * $PCO * $PCO,
             default => 0.0,
         };
     }
@@ -293,7 +298,7 @@ class CalculValeur
      */
     public function calculerAmiD_intAliment(): float
     {
-        if ($this->aliment->type === 'Mineral') {
+        if ($this->aliment->type === TypeAliment::Mineral->value) {
             return 0.0;
         }
 
@@ -313,7 +318,7 @@ class CalculValeur
      */
     public function calculerAmiD_ruAliment(): float
     {
-        if ($this->aliment->type === 'Mineral') {
+        if ($this->aliment->type === TypeAliment::Mineral->value) {
             return 0.0;
         }
 
@@ -325,7 +330,7 @@ class CalculValeur
      */
     public function calculerMAmic_duoAliment(?float $bpr = null): float
     {
-        if ($this->aliment->type === 'Mineral') {
+        if ($this->aliment->type === TypeAliment::Mineral->value) {
             return 0.0;
         }
 
@@ -354,7 +359,7 @@ class CalculValeur
      */
     public function calculerBPRAliment(): float
     {
-        if ($this->aliment->type === 'Mineral') {
+        if ($this->aliment->type === TypeAliment::Mineral->value) {
             return 0.0;
         }
 

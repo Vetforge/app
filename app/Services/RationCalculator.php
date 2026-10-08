@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Enums\CategorieAnimal;
+use App\Enums\TypeAliment;
+use App\Models\Aliment;
 use App\Models\Ration;
 use App\Services\Equations2007\Apport as Apport2007;
 use App\Services\Equations2007\Besoin as Besoin2007;
@@ -12,6 +14,7 @@ use App\Services\Equations2007\Impact as Impact2007;
 use App\Services\Equations2018\Apport as Apport2018;
 use App\Services\Equations2018\Besoin as Besoin2018;
 use App\Services\Equations2018\Impact as Impact2018;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Orchestrateur des calculs nutritionnels — dispatche vers INRA 2007 ou 2018.
@@ -25,11 +28,45 @@ class RationCalculator
      */
     public static function calculer(Ration $ration): array
     {
+        self::validateTypes($ration);
         $inra = $ration->planRationnement->inra ?? '2018';
 
         return $inra === '2007'
             ? self::calculer2007($ration)
             : self::calculer2018($ration);
+    }
+
+    /** @return list<string> */
+    public static function typeErrors(Ration $ration): array
+    {
+        $errors = $ration->rationAliments->pluck('aliment')
+            ->concat($ration->melanges->flatMap(fn ($melange) => $melange->melangeAliments->pluck('aliment')))
+            ->filter(fn (?Aliment $aliment): bool => $aliment !== null && TypeAliment::tryFromLoose($aliment->type) === null)
+            ->unique('id')
+            ->map(fn (Aliment $aliment): string => "Corrigez le type de l'aliment « {$aliment->libelle0} » ({$aliment->type}) : fourrage, concentre ou mineral.")
+            ->values()
+            ->all();
+
+        foreach ($ration->rationAliments as $item) {
+            if ($item->is_volonte && $item->aliment?->type !== TypeAliment::Fourrage->value) {
+                $errors[] = 'Seul un fourrage peut être distribué à volonté.';
+            }
+        }
+        foreach ($ration->melanges as $melange) {
+            if ($melange->is_volonte && $melange->melangeAliments->contains(fn ($item): bool => $item->aliment?->type !== TypeAliment::Fourrage->value)) {
+                $errors[] = 'Un mélange à volonté doit contenir exclusivement des fourrages.';
+            }
+        }
+
+        return $errors;
+    }
+
+    public static function validateTypes(Ration $ration): void
+    {
+        $errors = self::typeErrors($ration);
+        if ($errors !== []) {
+            throw ValidationException::withMessages(['type' => $errors]);
+        }
     }
 
     // ─── INRA 2007 ─────────────────────────────────────────────────────────────

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Enums\TypeAliment;
 use App\Http\Requests\UpdateAlimentRequest;
 use App\Models\Aliment;
 use App\Models\Melange;
@@ -43,7 +44,7 @@ class MelangeController extends Controller
             'is_mb' => ['boolean'],
         ]);
 
-        if (($validated['is_volonte'] ?? false) && $melange->melangeAliments()->whereHas('aliment', fn ($q) => $q->where('type', '!=', 'Fourrage'))->exists()) {
+        if (($validated['is_volonte'] ?? false) && $melange->melangeAliments()->with('aliment')->get()->contains(fn (MelangeAliment $item): bool => $item->aliment?->type !== TypeAliment::Fourrage->value)) {
             return back()->withErrors(['is_volonte' => 'Un mélange à volonté doit contenir exclusivement des fourrages.']);
         }
         if (($validated['is_volonte'] ?? false)) {
@@ -80,6 +81,15 @@ class MelangeController extends Controller
 
         $original = Aliment::findOrFail($validated['aliment_id']);
         $this->authorize('view', $original);
+        if (TypeAliment::tryFromLoose($original->type) === null) {
+            return back()->withErrors(['aliment_id' => "Corrigez d'abord le type de cet aliment : fourrage, concentre ou mineral."]);
+        }
+        if ($melange->is_volonte && $original->type !== TypeAliment::Fourrage->value) {
+            return back()->withErrors(['aliment_id' => 'Un mélange à volonté doit contenir exclusivement des fourrages.']);
+        }
+        if ($original->breeder_id !== null && $original->breeder_id !== $plan->breeder_id) {
+            return back()->withErrors(['aliment_id' => 'Cet aliment appartient à un autre éleveur.']);
+        }
 
         $clone = $original->replicate();
         $clone->usage_aliment = 2;

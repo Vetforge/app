@@ -22,14 +22,17 @@ it('resets whrrdnbreports imported data for the target user', function () {
     ]);
 
     Aliment::query()->create([
+        'type' => 'fourrage',
         'user_id' => $user->id,
         'libelle0' => 'Foin import',
     ]);
     Aliment::query()->create([
+        'type' => 'fourrage',
         'user_id' => $otherUser->id,
         'libelle0' => 'Foin autre',
     ]);
     Aliment::query()->create([
+        'type' => 'fourrage',
         'user_id' => null,
         'libelle0' => 'Foin systeme',
     ]);
@@ -87,6 +90,7 @@ it('dry-runs the whrrdnbreports reset without deleting data', function () {
     ]);
 
     Aliment::query()->create([
+        'type' => 'fourrage',
         'user_id' => $user->id,
         'libelle0' => 'Foin import',
     ]);

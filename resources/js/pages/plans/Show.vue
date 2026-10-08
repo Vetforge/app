@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3';
-import { Plus, Trash2, ClipboardList, Settings } from 'lucide-vue-next';
+import { Plus, Trash2, ClipboardList, Settings, Copy } from 'lucide-vue-next';
+import { ref } from 'vue';
 import {
     index as plansIndex,
     show as planShow,
@@ -8,6 +9,7 @@ import {
 import {
     create as rationCreate,
     destroy as rationDestroy,
+    duplicate as rationDuplicate,
 } from '@/actions/App/Http/Controllers/RationController';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { dashboard } from '@/routes';
@@ -38,6 +40,25 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Plans', href: plansIndex() },
     { title: props.plan.nom, href: planShow({ plan: props.plan.id }).url },
 ];
+
+const duplicatingRationId = ref<number | null>(null);
+
+function duplicateRation(ration: Ration) {
+    if (duplicatingRationId.value !== null) {
+        return;
+    }
+
+    duplicatingRationId.value = ration.id;
+    router.post(
+        rationDuplicate({ plan: props.plan.id, ration: ration.id }).url,
+        {},
+        {
+            onFinish: () => {
+                duplicatingRationId.value = null;
+            },
+        },
+    );
+}
 
 function deleteRation(ration: Ration) {
     if (confirm(`Supprimer la ration "${ration.nom}" ?`)) {
@@ -123,6 +144,17 @@ function deleteRation(ration: Ration) {
                         >
                             <ClipboardList class="size-4" />
                         </Link>
+                        <button
+                            type="button"
+                            @click="duplicateRation(ration)"
+                            :disabled="duplicatingRationId !== null"
+                            :aria-label="`Dupliquer la ration ${ration.nom}`"
+                            :aria-busy="duplicatingRationId === ration.id"
+                            class="rounded p-1.5 text-muted-foreground hover:bg-accent hover:text-accent-foreground disabled:cursor-wait disabled:opacity-50"
+                            title="Dupliquer la ration"
+                        >
+                            <Copy class="size-4" />
+                        </button>
                         <button
                             @click="deleteRation(ration)"
                             class="rounded p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"

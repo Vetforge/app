@@ -15,7 +15,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 const requiredColumns = [
     ['code_inra', 'Identifiant stable'],
-    ['type', 'Fourrage, Conc ou Mineral'],
+    ['type', 'fourrage, concentre ou mineral'],
     ['libelle0', 'Texte'],
     ['famille_botanique', 'mais, luzerne, legumineuse, graminee ou autre'],
     [

@@ -331,6 +331,16 @@ it('updates custom norms for the authenticated user', function () {
         'ira' => ['min' => 0.7, 'max' => 1.1],
         'ph_ruminal' => ['min' => 6.4, 'max' => null],
     ]);
+
+    [$plan, $ration] = createWorkspaceRation($user);
+    foreach (['plans.rations.composition', 'plans.rations.resultats'] as $route) {
+        $this->get(route($route, [$plan, $ration]))->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('normes.active.bpr.min', 1)->where('normes.active.bpr.max', 4)
+                ->where('normes.active.ira.min', 0.7)->where('normes.active.ira.max', 1.1)
+                ->where('normes.active.ph_ruminal.min', 6.4)
+            );
+    }
 });
 
 it('downloads the ration pdf', function () {

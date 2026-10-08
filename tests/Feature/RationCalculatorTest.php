@@ -297,6 +297,7 @@ test('ration calculator exposes protein and health indicators for inra 2018 resu
     expect($resultats['besoins']['co'])->toBe(round(Besoin2018::calculerBesoinCo($ration), 1));
     expect($resultats['supplementations']['vit_e'])->toBe(round(Besoin2018::calculerSupplementationVitE($ration), 0));
 
+    $fourrage->refresh();
     $expectedMAmicDuo = 12 * (new CalculValeur2018($ration, $fourrage))->calculerMAmic_duoAliment()
         / Apport2018::calculerApportTotalMS($ration);
 

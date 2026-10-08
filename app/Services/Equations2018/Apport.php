@@ -6,8 +6,10 @@ namespace App\Services\Equations2018;
 
 use App\Enums\CategorieAnimal;
 use App\Enums\Espece;
+use App\Enums\TypeAliment;
 use App\Models\Aliment;
 use App\Models\Ration;
+use App\Services\RationCalculator;
 use App\Services\RationHelper;
 
 /**
@@ -29,6 +31,7 @@ class Apport
      */
     public static function precompute(Ration $ration): void
     {
+        RationCalculator::validateTypes($ration);
         $items = [];
         $totalMS = 0.0;
         $concentresMS = 0.0;
@@ -44,7 +47,7 @@ class Apport
             $type = $ra->aliment->type ?? '';
             $items[] = ['qty_ms' => $qtyMS, 'qty_mb' => $qtyMB, 'aliment' => $ra->aliment, 'type' => $type];
             $totalMS += $qtyMS;
-            if ($type === 'Conc') {
+            if ($type === TypeAliment::Concentre->value) {
                 $concentresMS += $qtyMS;
             }
         }
@@ -58,7 +61,7 @@ class Apport
                 $type = $ma->aliment->type ?? '';
                 $items[] = ['qty_ms' => $contribution['qty_ms'], 'qty_mb' => $contribution['qty_mb'], 'aliment' => $ma->aliment, 'type' => $type];
                 $totalMS += $contribution['qty_ms'];
-                if ($type === 'Conc') {
+                if ($type === TypeAliment::Concentre->value) {
                     $concentresMS += $contribution['qty_ms'];
                 }
             }
@@ -89,6 +92,7 @@ class Apport
             return self::$ctxIngredients;
         }
 
+        RationCalculator::validateTypes($ration);
         $items = [];
         foreach ($ration->rationAliments as $ra) {
             $qtyRaw = (float) ($ra->quantite ?? 0);
@@ -141,7 +145,7 @@ class Apport
     {
         $total = 0.0;
         foreach (self::getIngredients($ration) as $item) {
-            if ($item['type'] === 'Fourrage') {
+            if ($item['type'] === TypeAliment::Fourrage->value) {
                 $total += $item['qty_ms'];
             }
         }
@@ -153,7 +157,7 @@ class Apport
     {
         $total = 0.0;
         foreach (self::getIngredients($ration) as $item) {
-            if ($item['type'] === 'Conc') {
+            if ($item['type'] === TypeAliment::Concentre->value) {
                 $total += $item['qty_ms'];
             }
         }
@@ -195,7 +199,7 @@ class Apport
         $champUE = RationHelper::categorie($ration->categorie_animal ?? '')->uniteEncombrement();
         $total = 0.0;
         foreach (self::getIngredients($ration) as $item) {
-            if ($item['type'] === 'Fourrage') {
+            if ($item['type'] === TypeAliment::Fourrage->value) {
                 $total += $item['qty_ms'] * (float) ($item['aliment']->{$champUE} ?? 0);
             }
         }
@@ -207,7 +211,7 @@ class Apport
     {
         $total = 0.0;
         foreach (self::getIngredients($ration) as $item) {
-            if ($item['type'] === 'Fourrage') {
+            if ($item['type'] === TypeAliment::Fourrage->value) {
                 $total += $item['qty_ms'] * self::ufAliment($ration, $item['aliment']);
             }
         }
@@ -219,7 +223,7 @@ class Apport
     {
         $total = 0.0;
         foreach (self::getIngredients($ration) as $item) {
-            if ($item['type'] === 'Conc') {
+            if ($item['type'] === TypeAliment::Concentre->value) {
                 $total += $item['qty_ms'] * self::ufAliment($ration, $item['aliment']);
             }
         }
@@ -231,7 +235,7 @@ class Apport
     {
         $total = 0.0;
         foreach (self::getIngredients($ration) as $item) {
-            if ($item['type'] === 'Fourrage' || $item['type'] === 'Conc') {
+            if ($item['type'] === TypeAliment::Fourrage->value || $item['type'] === TypeAliment::Concentre->value) {
                 $total += $item['qty_ms'] * self::ufAliment($ration, $item['aliment']);
             }
         }
@@ -259,7 +263,7 @@ class Apport
         $totalBVec = 0.0;
         $concentresMS = 0.0;
         foreach (self::getIngredients($ration) as $item) {
-            if ($item['type'] === 'Conc') {
+            if ($item['type'] === TypeAliment::Concentre->value) {
                 $totalBVec += $item['qty_ms'] * (float) ($item['aliment']->b_vec ?? 0);
                 $concentresMS += $item['qty_ms'];
             }
@@ -715,7 +719,7 @@ class Apport
 
     public static function calculerApportFourragesMAT(Ration $ration): float
     {
-        return self::calculerApportAttributPourType($ration, 'mat', 'Fourrage');
+        return self::calculerApportAttributPourType($ration, 'mat', TypeAliment::Fourrage->value);
     }
 
     public static function calculerApportCB(Ration $ration): float
@@ -780,7 +784,7 @@ class Apport
     {
         $total = 0.0;
         foreach ($ration->rationAliments as $ra) {
-            if (($ra->quantite ?? 0) <= 0 || ($ra->aliment->type ?? '') !== 'Fourrage') {
+            if (($ra->quantite ?? 0) <= 0 || ($ra->aliment->type ?? '') !== TypeAliment::Fourrage->value) {
                 continue;
             }
 
@@ -817,7 +821,7 @@ class Apport
         $total = 0.0;
         $totalMS = 0.0;
         foreach (self::getIngredients($ration) as $item) {
-            if ($item['type'] === 'Fourrage') {
+            if ($item['type'] === TypeAliment::Fourrage->value) {
                 $total += $item['qty_ms'] * (float) ($item['aliment']->ndf ?? 0);
             }
             $totalMS += $item['qty_ms'];
@@ -909,7 +913,7 @@ class Apport
         $total = 0.0;
         $totalMS = 0.0;
         foreach (self::getIngredients($ration) as $item) {
-            if ($item['type'] === 'Conc') {
+            if ($item['type'] === TypeAliment::Concentre->value) {
                 $cv = new CalculValeur($ration, $item['aliment']);
                 $total += $item['qty_ms'] * $cv->calculerMODAliment();
             }
@@ -976,7 +980,7 @@ class Apport
         $totalNIref = 0.0;
         $totalMS = 0.0;
         foreach (self::getIngredients($ration) as $item) {
-            $NIref = $item['type'] === 'Fourrage'
+            $NIref = $item['type'] === TypeAliment::Fourrage->value
                 ? (float) ($item['aliment']->niref ?? 2.0)
                 : 2.0;
             $totalNIref += $item['qty_ms'] * $NIref;
@@ -1010,7 +1014,7 @@ class Apport
                     ['luzerne', 'legumineuse'],
                     true,
                 );
-                $coefficient = $item['type'] === 'Fourrage' && $legumineuse ? 0.30 : 0.40;
+                $coefficient = $item['type'] === TypeAliment::Fourrage->value && $legumineuse ? 0.30 : 0.40;
                 $caabs = $ca * $coefficient;
             }
             $total += $item['qty_ms'] * (float) $caabs;
@@ -1031,7 +1035,7 @@ class Apport
             $pabs = $item['aliment']->pabs;
             if ($pabs === null) {
                 // Source minérale sans Pabs tabulée : absorbabilité moyenne P = 0,65 (p. 227).
-                $pabs = in_array($item['type'], ['Mineral', 'Fourrage'], true)
+                $pabs = in_array($item['type'], [TypeAliment::Mineral->value, TypeAliment::Fourrage->value], true)
                     ? (float) ($item['aliment']->p ?? 0) * 0.65
                     : 0.0;
             }

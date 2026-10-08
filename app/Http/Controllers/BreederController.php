@@ -7,8 +7,12 @@ namespace App\Http\Controllers;
 use App\Http\Requests\ImportBreedersRequest;
 use App\Http\Requests\StoreBreederRequest;
 use App\Http\Requests\UpdateBreederRequest;
+use App\Models\Aliment;
 use App\Models\Analysis;
 use App\Models\Breeder;
+use App\Models\MelangeAliment;
+use App\Models\Ration;
+use App\Models\RationAliment;
 use App\Services\BreederImporter;
 use App\Support\SearchTerm;
 use App\Support\VeterinaryModules;
@@ -77,15 +81,36 @@ class BreederController extends Controller
     {
         $this->ensureOwned($request, $breeder);
 
-        $query = Analysis::query()->whereBelongsTo($breeder);
+        $query = Analysis::query()->whereBelongsTo($breeder)->where('user_id', $request->user()->id);
+        $rationsQuery = Ration::query()
+            ->whereHas('planRationnement', fn (Builder $planQuery) => $planQuery
+                ->whereBelongsTo($breeder)
+                ->where('user_id', $request->user()->id));
+        $rationIds = (clone $rationsQuery)->select('id');
+        $alimentsQuery = Aliment::query()
+            ->where('user_id', $request->user()->id)
+            ->where(fn (Builder $alimentQuery) => $alimentQuery
+                ->whereBelongsTo($breeder)
+                ->orWhereIn('id', RationAliment::query()->select('aliment_id')->whereIn('ration_id', clone $rationIds))
+                ->orWhereIn('id', MelangeAliment::query()->select('aliment_id')
+                    ->whereHas('melange', fn (Builder $melangeQuery) => $melangeQuery->whereIn('ration_id', clone $rationIds))));
+
+        $counts = [
+            'analyses_count' => (clone $query)->count(),
+            'rations_count' => (clone $rationsQuery)->count(),
+            'aliments_count' => (clone $alimentsQuery)->count(),
+        ];
 
         if ($request->filled('search')) {
             $this->applyAnalysesSearch($query, trim((string) $request->input('search')));
+            $this->applyRationsSearch($rationsQuery, trim((string) $request->input('search')));
+            $this->applyAlimentsSearch($alimentsQuery, trim((string) $request->input('search')));
         }
 
         $analyses = $query
             ->latest('analyzed_at')
             ->latest()
+            ->orderByDesc('id')
             ->paginate(25)
             ->withQueryString()
             ->through(fn (Analysis $analysis): array => [
@@ -109,9 +134,20 @@ class BreederController extends Controller
                 'phone' => $breeder->phone,
                 'email' => $breeder->email,
                 'herd_number' => $breeder->herd_number,
-                'analyses_count' => $breeder->analyses()->count(),
+                ...$counts,
             ],
             'analyses' => Inertia::scroll($analyses),
+            'rations' => Inertia::scroll(fn () => $rationsQuery
+                ->with('planRationnement:id,nom')
+                ->latest('updated_at')
+                ->orderByDesc('id')
+                ->paginate(25, ['id', 'plan_rationnement_id', 'nom', 'updated_at'], 'rations_page')
+                ->withQueryString()),
+            'aliments' => Inertia::scroll(fn () => $alimentsQuery
+                ->latest('updated_at')
+                ->orderByDesc('id')
+                ->paginate(25, ['id', 'libelle0', 'libelle1', 'libelle2', 'libelle3', 'libelle4', 'type', 'usage_aliment', 'updated_at'], 'aliments_page')
+                ->withQueryString()),
             'filters' => $request->only('search'),
         ]);
     }
@@ -233,6 +269,40 @@ class BreederController extends Controller
                 });
             }
         });
+    }
+
+    /** @param Builder<Ration> $query */
+    private function applyRationsSearch(Builder $query, string $search): void
+    {
+        $tokens = preg_split('/\s+/', $search, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        $dateSearchSql = SearchTerm::dateSearchSql($query, 'updated_at');
+
+        foreach ($tokens as $token) {
+            $like = SearchTerm::likeContains(mb_strtolower($token));
+            $query->where(fn (Builder $tokenQuery) => $tokenQuery
+                ->whereRaw("LOWER(COALESCE(nom, '')) LIKE ? ESCAPE '\\'", [$like])
+                ->orWhereRaw($dateSearchSql, [$like])
+                ->orWhereHas('planRationnement', fn (Builder $planQuery) => $planQuery
+                    ->whereRaw("LOWER(COALESCE(nom, '')) LIKE ? ESCAPE '\\'", [$like])));
+        }
+    }
+
+    /** @param Builder<Aliment> $query */
+    private function applyAlimentsSearch(Builder $query, string $search): void
+    {
+        $tokens = preg_split('/\s+/', $search, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        $dateSearchSql = SearchTerm::dateSearchSql($query, 'updated_at');
+
+        foreach ($tokens as $token) {
+            $like = SearchTerm::likeContains(mb_strtolower($token));
+            $query->where(function (Builder $tokenQuery) use ($dateSearchSql, $like): void {
+                foreach (['libelle0', 'libelle1', 'libelle2', 'libelle3', 'libelle4', 'type'] as $column) {
+                    $tokenQuery->orWhereRaw("LOWER(COALESCE({$column}, '')) LIKE ? ESCAPE '\\'", [$like]);
+                }
+
+                $tokenQuery->orWhereRaw($dateSearchSql, [$like]);
+            });
+        }
     }
 
     private function applySearch(Builder $query, string $search): void
