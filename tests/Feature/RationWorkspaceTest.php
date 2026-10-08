@@ -494,6 +494,29 @@ it('hides dairy-only blocks and separates vitamin supplementation in a non-dairy
     expect($html)->toContain('Supplémentation vitamine A');
 });
 
+it('hides milk production and milk deficits from a ration pdf without planned milk', function (string $inra, ?float $laitObjectif) {
+    $user = User::factory()->create();
+    [$plan, $ration] = createWorkspaceRation($user);
+    $plan->update(['inra' => $inra]);
+    $ration->update(['lait_objectif' => $laitObjectif]);
+    $ration->load(['rationAliments.aliment', 'melanges.melangeAliments.aliment', 'planRationnement']);
+
+    $html = view('pdf.ration', [
+        'plan' => $plan,
+        'ration' => $ration,
+        'resultats' => RationCalculator::calculer($ration),
+        'iterations_volonte' => 0,
+    ])->render();
+
+    foreach (['Lait permis', 'Lait attendu', 'Production attendue', 'Production laitière attendue', 'Objectif laitier', 'Coût / 1 000 L', 'PLPot'] as $label) {
+        expect($html)->not->toContain($label);
+    }
+    expect($html)->toContain('Apports vs besoins')->toContain('Coût / animal / jour')->toContain('Eau bue estimée');
+    if ($inra === '2018') {
+        expect($html)->toContain('Variation de poids estimée (énergie)');
+    }
+})->with(['2018', '2007'])->with(['missing' => [null], 'zero' => [0.0]]);
+
 it('renders custom norm labels in the ration pdf', function () {
     $user = User::factory()->create();
     [$plan, $ration] = createWorkspaceRation($user);

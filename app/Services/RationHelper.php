@@ -17,6 +17,17 @@ use Illuminate\Support\Str;
  */
 class RationHelper
 {
+    public static function aProductionLaitierePrevue(Ration $ration): bool
+    {
+        return (float) ($ration->lait_objectif ?? 0) > 0
+            && in_array(self::categorie($ration->categorie_animal ?? ''), [
+                CategorieAnimal::VacheLaitiere,
+                CategorieAnimal::VacheAllaitante,
+                CategorieAnimal::ChevreLaitiere,
+                CategorieAnimal::BrebisLaitiere,
+            ], true);
+    }
+
     /**
      * Champs nécessitant un calcul dynamique 2018 via CalculValeur.
      *

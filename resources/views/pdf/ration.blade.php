@@ -798,7 +798,8 @@
         // Unités affichées propres à la catégorie (UFV pour engraissement/agneaux ; UEL/UEM/UEB).
         $uniteEnergie = $meta['unite_fourragere'] ?? 'UFL';
         $uniteEncombrement = $meta['unite_encombrement'] ?? 'UE';
-        $estLaitiere = (bool) ($meta['est_laitiere'] ?? (($ration->categorie_animal ?? '') === 'vache_laitiere'));
+        $estLaitiere = (bool) ($meta['est_laitiere'] ?? (($ration->categorie_animal ?? '') === 'vache_laitiere'))
+            && \App\Services\RationHelper::aProductionLaitierePrevue($ration);
         $minerauxValides = (bool) ($meta['mineraux_valides'] ?? false);
         $is2018 = ($resultats['inra'] ?? '2018') === '2018';
         $normes = $normes ?? \App\Support\RationNormes::payloadForUser(request()->user());
@@ -1357,6 +1358,7 @@
             ['metricKey' => 'bil_ufl', 'label' => $metricLabel('bil_ufl'), 'value' => $impacts['bil_ufl'] ?? null, 'unit' => $uniteEnergie.'/j', 'decimals' => 2, ...$metricNorme('bil_ufl')],
             ['label' => 'Lait permis par les '.$uniteEnergie, 'value' => $impacts['lait_par_ufl'] ?? null, 'unit' => 'kg/j', 'decimals' => 2],
             ['label' => 'PLPot', 'value' => $indicateurs['pl_pot'] ?? null, 'unit' => 'kg/j', 'decimals' => 2],
+            ['label' => 'Variation de poids estimée (énergie)', 'value' => $impacts['variation_poids_energie'] ?? null, 'unit' => 'kg/j', 'decimals' => 2],
             ['label' => 'Production CH4', 'value' => $impacts['ch4'] ?? null, 'unit' => 'g/j', 'decimals' => 0],
         ] : [];
 
@@ -1807,6 +1809,11 @@
             ['label' => 'Coût / animal / jour', 'value' => $impacts['cout_animal'] ?? null, 'unit' => '€', 'decimals' => 2],
             ['label' => 'Eau bue estimée', 'value' => $impacts['eau_bue'] ?? null, 'unit' => 'L/j', 'decimals' => 1],
         ];
+        if (isset($impacts['variation_poids_energie'])) {
+            $impactSummaryRows[] = [
+                'label' => 'Variation de poids estimée (énergie)', 'value' => $impacts['variation_poids_energie'], 'unit' => 'kg/j', 'decimals' => 2,
+            ];
+        }
         if ($estLaitiere) {
             array_splice($impactSummaryRows, 1, 0, [[
                 'label' => 'Coût / 1 000 L', 'value' => $impacts['cout_1000l'] ?? null, 'unit' => '€', 'decimals' => 2,
@@ -2582,6 +2589,7 @@
                         <div class="table-wrap" style="margin-top: 12px;">
                             <table>
                                 <tbody>
+                                    @if($estLaitiere)
                                     <tr>
                                         <td>Lait permis par UFL</td>
                                         <td class="table-number">{{ $format($impacts['lait_par_ufl'] ?? null, 2) }} <span class="table-note">kg/j</span></td>
@@ -2594,6 +2602,7 @@
                                         <td>Lait permis par PDIN</td>
                                         <td class="table-number">{{ $format($impacts['lait_par_pdin'] ?? null, 2) }} <span class="table-note">kg/j</span></td>
                                     </tr>
+                                    @endif
                                     <tr>
                                         <td>Rmic</td>
                                         <td class="table-number">{{ $format($impacts['rmic'] ?? null, 2) }}</td>

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Equations2007;
 
 use App\Models\Ration;
+use App\Services\RationHelper;
 
 /**
  * Calculs des impacts (lait permis, eau, coût) INRA 2007.
@@ -13,6 +14,10 @@ class Impact
 {
     public static function calculerLaitPermisParUF(Ration $ration): float
     {
+        if (! RationHelper::aProductionLaitierePrevue($ration)) {
+            return 0.0;
+        }
+
         $totalUFL = Apport::calculerApportTotalUF($ration);
         $besoinEntretien = Besoin::calculerBesoinUF_NP($ration);
         $besoinCroissance = Besoin::calculerBesoinUF_gain($ration);
@@ -31,6 +36,10 @@ class Impact
 
     public static function calculerLaitPermisParPDIE(Ration $ration): float
     {
+        if (! RationHelper::aProductionLaitierePrevue($ration)) {
+            return 0.0;
+        }
+
         $totalPDIE = Apport::calculerApportTotalPDIE($ration);
         $besoinEntretien = Besoin::calculerBesoinPDI_NP($ration);
         $besoinCroissance = Besoin::calculerBesoinPDI_gain($ration);
@@ -44,6 +53,10 @@ class Impact
 
     public static function calculerLaitPermisParPDIN(Ration $ration): float
     {
+        if (! RationHelper::aProductionLaitierePrevue($ration)) {
+            return 0.0;
+        }
+
         $totalPDIN = Apport::calculerApportTotalPDIN($ration);
         $besoinEntretien = Besoin::calculerBesoinPDI_NP($ration);
         $besoinCroissance = Besoin::calculerBesoinPDI_gain($ration);

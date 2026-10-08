@@ -20,6 +20,10 @@ class Impact
      */
     public static function calculerLaitPermisParUF(Ration $ration): float
     {
+        if (! RationHelper::aProductionLaitierePrevue($ration)) {
+            return 0.0;
+        }
+
         $coutParLitre = self::coutUFLParLitreLait($ration);
         if ($coutParLitre <= 0) {
             return 0.0;
@@ -36,6 +40,10 @@ class Impact
      */
     public static function calculerLaitPermisParPDI(Ration $ration): float
     {
+        if (! RationHelper::aProductionLaitierePrevue($ration)) {
+            return 0.0;
+        }
+
         $coutParLitre = self::coutPDIParLitreLait($ration);
         if ($coutParLitre <= 0) {
             return 0.0;
@@ -80,6 +88,10 @@ class Impact
      */
     public static function calculerPL(Ration $ration): float
     {
+        if (! RationHelper::aProductionLaitierePrevue($ration)) {
+            return 0.0;
+        }
+
         $PLpot = RationHelper::calculerProductionLaitPotentielle($ration);
         $TP = Besoin::calculerTP($ration);
         $UFL = Apport::calculerApportTotalUF($ration);
@@ -175,6 +187,29 @@ class Impact
         $besoinTotalUF = Besoin::calculerBesoinTotalUF($ration) + self::calculerDeltaUFprod($ration);
 
         return $UFL + $UFL_VPR - $besoinTotalUF;
+    }
+
+    /** Estimation énergétique par inversion de l'équation de réserves 18.5, hors production de lait. */
+    public static function calculerVariationPoidsEnergie(Ration $ration): ?float
+    {
+        if (RationHelper::aProductionLaitierePrevue($ration)
+            || ! in_array(RationHelper::categorie($ration->categorie_animal ?? ''), [
+                CategorieAnimal::VacheLaitiere,
+                CategorieAnimal::VacheAllaitante,
+            ], true)
+            || (float) ($ration->poids_vif ?? 0) <= 0
+            || Apport::calculerApportTotalMS($ration) <= 0
+            || ($ration->parite === null && $ration->pourcentage_primipare === null)) {
+            return null;
+        }
+
+        $energieDisponible = Apport::calculerApportTotalUF($ration)
+            - Besoin::calculerBesoinUF_NP($ration)
+            - Besoin::calculerBesoinUF_gest($ration)
+            - Besoin::calculerBesoinUF_gain($ration);
+        $variationPoids = $energieDisponible / Besoin::calculerCoutUFVariationReserve($ration);
+
+        return is_finite($variationPoids) ? $variationPoids : null;
     }
 
     public static function calculerPH(Ration $ration): float
@@ -355,6 +390,10 @@ class Impact
 
     public static function calculerDeltaUFprod(Ration $ration): float
     {
+        if (! RationHelper::aProductionLaitierePrevue($ration)) {
+            return 0.0;
+        }
+
         $categorie = RationHelper::categorie($ration->categorie_animal ?? '');
         if (! in_array($categorie, [CategorieAnimal::VacheLaitiere, CategorieAnimal::VacheAllaitante], true)) {
             return 0.0;

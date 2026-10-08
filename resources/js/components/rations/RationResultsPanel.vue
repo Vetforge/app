@@ -80,8 +80,9 @@ const uniteEncombrement = computed(() => props.resultats.meta?.unite_encombremen
 const estLaitiere = computed(() => props.resultats.meta?.est_laitiere ?? false);
 const hasLaitMetrics = computed(
     () =>
-        props.resultats.impacts.lait_par_ufl !== undefined ||
-        props.resultats.impacts.lait_par_pdi !== undefined,
+        (props.ration.lait_objectif ?? 0) > 0 &&
+        (props.resultats.impacts.lait_par_ufl !== undefined ||
+            props.resultats.impacts.lait_par_pdi !== undefined),
 );
 const minerauxInterpretables = computed(
     () => props.resultats.meta?.mineraux_valides ?? true,
@@ -525,6 +526,10 @@ const ueBesoin = computed(() => props.resultats.besoins.ci ?? 0);
 const ueRatio = computed(() => safeRatio(ueApport.value, ueBesoin.value));
 
 const laitPermisRows = computed(() => {
+    if (!hasLaitMetrics.value) {
+        return [];
+    }
+
     if (props.resultats.inra === '2007') {
         return [
             { label: 'Par UFL', value: props.resultats.impacts.lait_par_ufl, decimals: 2, unit: 'kg/j' },
@@ -587,8 +592,10 @@ const proteinsRows = computed<DetailRow[]>(() => {
         { label: 'PDI', value: props.resultats.indicateurs?.pdi_par_kg_ms, unit: 'g/kg MS', decimals: 2 },
         { metricKey: 'eff_pdi', label: metricLabel('eff_pdi'), value: effPdi !== undefined ? effPdi * 100 : undefined, unit: '%', decimals: 0, ...metricThresholds('eff_pdi') },
         { metricKey: 'bpr', label: metricLabel('bpr'), value: props.resultats.indicateurs?.bpr, unit: 'g/kg MS', decimals: 2, ...metricThresholds('bpr') },
-        { label: 'Lait permis par les PDI', value: props.resultats.impacts.lait_par_pdi, unit: 'kg/j', decimals: 2 },
-        { label: 'Production laitière attendue', value: props.resultats.impacts.production_lait_attendue, unit: 'kg/j', decimals: 2 },
+        ...(hasLaitMetrics.value ? [
+            { label: 'Lait permis par les PDI', value: props.resultats.impacts.lait_par_pdi, unit: 'kg/j', decimals: 2 },
+            { label: 'Production laitière attendue', value: props.resultats.impacts.production_lait_attendue, unit: 'kg/j', decimals: 2 },
+        ] : []),
         { label: 'Azote urinaire', value: props.resultats.indicateurs?.azote_urinaire, unit: 'g/j', decimals: 0 },
         { label: 'Azote fecale', value: props.resultats.indicateurs?.azote_fecale, unit: 'g/j', decimals: 0 },
     ];
@@ -638,13 +645,16 @@ const energyRows = computed<DetailRow[]>(() => {
     ];
 
     // Le bilan UFL de production (régression bovine) n'est présent que pour les bovins reproducteurs.
-    if (props.resultats.impacts.bil_ufl !== undefined) {
+    if (hasLaitMetrics.value && props.resultats.impacts.bil_ufl !== undefined) {
         rows.push({ metricKey: 'bil_ufl', label: metricLabel('bil_ufl'), value: props.resultats.impacts.bil_ufl, unit: `${ue}/j`, decimals: 2, ...metricThresholds('bil_ufl') });
     }
 
     rows.push(
-        { label: `Lait permis par les ${ue}`, value: props.resultats.impacts.lait_par_ufl, unit: 'kg/j', decimals: 2 },
-        { label: 'PLPot', value: props.resultats.indicateurs?.pl_pot, unit: 'kg/j', decimals: 2 },
+        ...(hasLaitMetrics.value ? [
+            { label: `Lait permis par les ${ue}`, value: props.resultats.impacts.lait_par_ufl, unit: 'kg/j', decimals: 2 },
+            { label: 'PLPot', value: props.resultats.indicateurs?.pl_pot, unit: 'kg/j', decimals: 2 },
+        ] : []),
+        { label: 'Variation de poids estimée (énergie)', value: props.resultats.impacts.variation_poids_energie, unit: 'kg/j', decimals: 2 },
         { label: 'Production CH4', value: props.resultats.impacts.ch4, unit: 'g/j', decimals: 0 },
     );
 
@@ -843,6 +853,15 @@ const technicalPanels = computed<TechnicalPanel[]>(() => {
 
 const topMetrics = computed<CircleMetric[]>(() => {
     const metrics: CircleMetric[] = [];
+    const variationPoids = props.resultats.impacts.variation_poids_energie;
+    if (!hasLaitMetrics.value && variationPoids !== undefined) {
+        metrics.push({
+            label: 'Variation de poids estimée',
+            valueLabel: `${bilanSign(variationPoids, 2)} kg/j`,
+            note: 'Estimation selon le bilan énergétique',
+            status: 'neutral',
+        });
+    }
     if (hasLaitMetrics.value) {
         metrics.push({
             label: productionLaitAttendue.value !== undefined ? 'Lait attendu' : 'Lait permis',
@@ -993,7 +1012,7 @@ const strengthInsights = computed(() => insightCandidates.value.filter((item) =>
                                     :href="rationPdf({ plan: plan.id, ration: ration.id }).url"
                                     target="_blank"
                                     rel="noreferrer"
-                                    class="rounded-full bg-sky-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-sky-800 dark:bg-sky-500 dark:text-slate-950 dark:hover:bg-sky-400"
+                                    class="rounded-full bg-sky-700 px-4 py-2 text-sm font-medium text-white transition hover:bg-sky-800 dark:bg-sky-500 dark:text-sky-950 dark:hover:bg-sky-400"
                                 >
                                     PDF
                                 </a>
@@ -1491,7 +1510,7 @@ const strengthInsights = computed(() => insightCandidates.value.filter((item) =>
                 </section>
         </div>
 
-        <section v-if="estLaitiere" class="rounded-[1.75rem] border border-border bg-card p-5 shadow-sm">
+        <section v-if="estLaitiere && hasLaitMetrics" class="rounded-[1.75rem] border border-border bg-card p-5 shadow-sm">
                 <h2 class="text-lg font-semibold text-foreground">Taux laitiers ajustés au stade</h2>
 
                 <div class="mt-4 grid gap-3 sm:grid-cols-3">

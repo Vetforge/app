@@ -173,11 +173,15 @@ class Besoin
             return 0.0;
         }
 
-        $primipare = self::partPrimipare($ration) * 100.0;
         $deltaPV = (float) ($ration->ecart_variation_reserve ?? 0);
 
         // Éq. 18.5 : 2,4 UFL/kg (multipares) → 1,8 UFL/kg (primipares).
-        return (2.4 - 0.6 * $primipare / 100) * $deltaPV;
+        return self::calculerCoutUFVariationReserve($ration) * $deltaPV;
+    }
+
+    public static function calculerCoutUFVariationReserve(Ration $ration): float
+    {
+        return 2.4 - 0.6 * self::partPrimipare($ration);
     }
 
     public static function calculerBesoinTotalUF(Ration $ration): float

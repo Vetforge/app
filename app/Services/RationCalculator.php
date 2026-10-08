@@ -129,15 +129,29 @@ class RationCalculator
         $TP = Besoin2007::calculerTP($ration);
 
         // Impacts
-        $laitParUFL = Impact2007::calculerLaitPermisParUFL($ration);
-        $laitParPDIE = Impact2007::calculerLaitPermisParPDIE($ration);
-        $laitParPDIN = Impact2007::calculerLaitPermisParPDIN($ration);
         $eauBue = Impact2007::calculerEauBue($ration);
         $coutParAnimal = Impact2007::calculerCoutParAnimal($ration);
-        $coutPar1000 = Impact2007::calculerCoutPar1000Lait($ration);
         $rmic = Impact2007::calculerRapportRmic($ration);
         $PDINmin = Impact2007::calculerMinimumPDIN($ration);
         $PDINmax = Impact2007::calculerMaximumPDIN($ration);
+
+        $impacts = [
+            'eau_bue' => round($eauBue, 1),
+            'cout_animal' => round($coutParAnimal, 2),
+            'rmic' => round($rmic, 2),
+        ];
+        if (RationHelper::aProductionLaitierePrevue($ration)) {
+            $laitParUFL = Impact2007::calculerLaitPermisParUFL($ration);
+            $laitParPDIE = Impact2007::calculerLaitPermisParPDIE($ration);
+            $laitParPDIN = Impact2007::calculerLaitPermisParPDIN($ration);
+            $impacts += [
+                'lait_par_ufl' => round($laitParUFL, 2),
+                'lait_par_pdie' => round($laitParPDIE, 2),
+                'lait_par_pdin' => round($laitParPDIN, 2),
+                'lait_limitant' => round(min($laitParUFL, $laitParPDIE, $laitParPDIN), 2),
+                'cout_1000l' => round(Impact2007::calculerCoutPar1000Lait($ration), 2),
+            ];
+        }
 
         return [
             'inra' => '2007',
@@ -173,16 +187,7 @@ class RationCalculator
                 'tb_ajuste' => round($TB, 1),
                 'tp_ajuste' => round($TP, 1),
             ],
-            'impacts' => [
-                'lait_par_ufl' => round($laitParUFL, 2),
-                'lait_par_pdie' => round($laitParPDIE, 2),
-                'lait_par_pdin' => round($laitParPDIN, 2),
-                'lait_limitant' => round(min($laitParUFL, $laitParPDIE, $laitParPDIN), 2),
-                'eau_bue' => round($eauBue, 1),
-                'cout_animal' => round($coutParAnimal, 2),
-                'cout_1000l' => round($coutPar1000, 2),
-                'rmic' => round($rmic, 2),
-            ],
+            'impacts' => $impacts,
             'bilans' => [
                 'ufl' => round($apportUFL - $besoinTotalUF, 2),
                 'uf' => round($apportUFL - $besoinTotalUF, 2),
@@ -306,18 +311,10 @@ class RationCalculator
 
         // Impacts
         $categorie = RationHelper::categorie($ration->categorie_animal ?? '');
-        $laitParUFL = Impact2018::calculerLaitPermisParUF($ration);
-        $laitParPDI = Impact2018::calculerLaitPermisParPDI($ration);
-        $laitLimitant = min($laitParUFL, $laitParPDI);
-        // La production laitière attendue repose sur une formule spécifique à la vache laitière (ch. 17).
-        $productionLaitAttendue = $categorie === CategorieAnimal::VacheLaitiere
-            ? Impact2018::calculerPL($ration)
-            : null;
+        $aProductionLaitiere = RationHelper::aProductionLaitierePrevue($ration);
         $eauBue = Impact2018::calculerEauBue($ration);
         $coutParAnimal = Impact2018::calculerCoutParAnimal($ration);
-        $coutPar1000 = Impact2018::calculerCoutPar1000Lait($ration);
         $productionCH4 = Impact2018::calculerCH4($ration);
-        $bilUFL = Impact2018::calculerBilUFL($ration);
         $BE = Impact2018::calculerBE($ration);
         $BACA = Impact2018::calculerBACA($ration);
         $IRA = Impact2018::calculerIRA($ration);
@@ -328,21 +325,6 @@ class RationCalculator
         $acetate = Impact2018::calculerPourcentageAcetate($ration);
         $propionate = Impact2018::calculerPourcentagePropionate($ration);
         $butyrate = Impact2018::calculerPourcentageButyrate($ration);
-        $productionPotentielle = RationHelper::calculerProductionLaitPotentielle($ration);
-
-        // Le lait permis (par UFL, par PDI, facteur limitant) est exposé pour toutes les femelles
-        // laitières — vache, chèvre, brebis — via un coût énergétique/protéique propre à chaque espèce,
-        // ainsi que pour la vache allaitante.
-        $exposeLaitPermis = in_array(
-            $categorie,
-            [
-                CategorieAnimal::VacheLaitiere,
-                CategorieAnimal::VacheAllaitante,
-                CategorieAnimal::ChevreLaitiere,
-                CategorieAnimal::BrebisLaitiere,
-            ],
-            true,
-        );
 
         // Le bilan UFL de production est bovin ; l'eau dispose aussi d'une équation caprine 21.22.
         $estBovinReproducteur = in_array(
@@ -353,25 +335,31 @@ class RationCalculator
 
         $impacts = [
             'cout_animal' => round($coutParAnimal, 2),
-            'cout_1000l' => round($coutPar1000, 2),
             'ch4' => round($productionCH4, 1),
         ];
 
-        if ($exposeLaitPermis) {
+        if ($aProductionLaitiere) {
+            $laitParUFL = Impact2018::calculerLaitPermisParUF($ration);
+            $laitParPDI = Impact2018::calculerLaitPermisParPDI($ration);
             $impacts['lait_par_ufl'] = round($laitParUFL, 2);
             $impacts['lait_par_pdi'] = round($laitParPDI, 2);
-            $impacts['lait_limitant'] = round($laitLimitant, 2);
+            $impacts['lait_limitant'] = round(min($laitParUFL, $laitParPDI), 2);
+            $impacts['cout_1000l'] = round(Impact2018::calculerCoutPar1000Lait($ration), 2);
+            if ($categorie === CategorieAnimal::VacheLaitiere) {
+                $impacts['production_lait_attendue'] = round(Impact2018::calculerPL($ration), 2);
+            }
         }
 
-        if ($estBovinReproducteur) {
-            $impacts['bil_ufl'] = round($bilUFL, 2);
+        if ($estBovinReproducteur && $aProductionLaitiere) {
+            $impacts['bil_ufl'] = round(Impact2018::calculerBilUFL($ration), 2);
         }
         if ($estBovinReproducteur || $categorie === CategorieAnimal::ChevreLaitiere) {
             $impacts['eau_bue'] = round($eauBue, 1);
         }
 
-        if ($productionLaitAttendue !== null) {
-            $impacts['production_lait_attendue'] = round($productionLaitAttendue, 2);
+        $variationPoids = Impact2018::calculerVariationPoidsEnergie($ration);
+        if ($variationPoids !== null) {
+            $impacts['variation_poids_energie'] = round($variationPoids, 2);
         }
 
         return [
@@ -466,7 +454,7 @@ class RationCalculator
                 'ni' => round($NI, 2),
                 'pco' => round($PCO, 3),
                 'sg' => round($Sg, 3),
-                'pl_pot' => round($productionPotentielle, 2),
+                ...($aProductionLaitiere ? ['pl_pot' => round(RationHelper::calculerProductionLaitPotentielle($ration), 2)] : []),
                 'eff_pdi' => round($EffPDI, 3),
                 'ufl_par_kg_ms' => round($apportUFLParKgMS, 2),
                 'uf_par_kg_ms' => round($apportUFLParKgMS, 2),

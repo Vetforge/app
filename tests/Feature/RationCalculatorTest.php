@@ -140,6 +140,81 @@ function addReference2018Ingredients(Ration $ration): void
     ]);
 }
 
+test('ration calculator omits milk indicators without planned milk production', function (string $inra, string $categorie, ?float $laitObjectif) {
+    $ration = createCalculationRation($inra);
+    $ration->update(['categorie_animal' => $categorie, 'lait_objectif' => $laitObjectif]);
+    addReference2018Ingredients($ration);
+    $ration->load(['rationAliments.aliment', 'melanges.melangeAliments.aliment', 'planRationnement']);
+
+    $resultats = RationCalculator::calculer($ration);
+
+    foreach (['lait_par_ufl', 'lait_par_pdie', 'lait_par_pdin', 'lait_par_pdi', 'lait_limitant', 'production_lait_attendue', 'bil_ufl', 'cout_1000l'] as $key) {
+        expect($resultats['impacts'])->not->toHaveKey($key);
+    }
+    expect($resultats['indicateurs'])->not->toHaveKey('pl_pot');
+    expect($resultats['impacts'])->toHaveKey('cout_animal');
+    if ($categorie !== 'brebis_laitiere') {
+        expect($resultats['impacts'])->toHaveKey('eau_bue');
+    }
+    expect($resultats['besoins']['uf_production'])->toBe(0.0);
+    expect($resultats['besoins']['pdi_production'])->toBe(0.0);
+    expect($resultats['bilans'])->toHaveKeys(['ufl', 'ue']);
+
+    expect(Impact2018::calculerLaitPermisParUF($ration))->toBe(0.0);
+    expect(Impact2018::calculerLaitPermisParPDI($ration))->toBe(0.0);
+    expect(Impact2018::calculerPL($ration))->toBe(0.0);
+    expect(Impact2018::calculerDeltaUFprod($ration))->toBe(0.0);
+    expect(Impact2007::calculerLaitPermisParUF($ration))->toBe(0.0);
+    expect(Impact2007::calculerLaitPermisParPDIE($ration))->toBe(0.0);
+    expect(Impact2007::calculerLaitPermisParPDIN($ration))->toBe(0.0);
+})->with([
+    ['2018', 'vache_laitiere'],
+    ['2018', 'vache_allaitante'],
+    ['2018', 'chevre_laitiere'],
+    ['2018', 'brebis_laitiere'],
+    ['2007', 'vache_laitiere'],
+    ['2007', 'vache_allaitante'],
+])->with(['missing' => [null], 'zero' => [0.0]]);
+
+test('non-lactating cows expose an energy-based weight gain or loss independently of the reserve target', function (float $quantity, bool $gain, ?int $parite) {
+    $ration = createCalculationRation();
+    $ration->update(['lait_objectif' => 0, 'parite' => $parite, 'ecart_variation_reserve' => 0]);
+    addReference2018Ingredients($ration);
+    $ration->rationAliments()->update(['quantite' => $quantity]);
+    $ration->load(['rationAliments.aliment', 'melanges.melangeAliments.aliment', 'planRationnement']);
+
+    $resultats = RationCalculator::calculer($ration);
+    $expected = round(($resultats['apports']['ufl'] - $resultats['besoins']['uf_entretien'] - $resultats['besoins']['uf_gestation'] - $resultats['besoins']['uf_croissance']) / ($parite === 1 ? 1.8 : ($parite === 2 ? 2.4 : 2.22)), 2);
+
+    expect($resultats['impacts']['variation_poids_energie'])->toEqualWithDelta($expected, 0.01);
+    if ($gain) {
+        expect($resultats['impacts']['variation_poids_energie'])->toBeGreaterThan(0);
+    } else {
+        expect($resultats['impacts']['variation_poids_energie'])->toBeLessThan(0);
+    }
+
+    $ration->ecart_variation_reserve = 1.0;
+    expect(RationCalculator::calculer($ration)['impacts']['variation_poids_energie'])->toBe($resultats['impacts']['variation_poids_energie']);
+})->with(['gain' => [12.0, true], 'loss' => [0.5, false]])->with(['herd' => [null], 'primiparous' => [1], 'multiparous' => [2]]);
+
+test('weight estimates are omitted when the energy model cannot apply', function (array $attributes, bool $withIngredients) {
+    $ration = createCalculationRation();
+    $ration->update(array_merge(['lait_objectif' => null], $attributes));
+    if ($withIngredients) {
+        addReference2018Ingredients($ration);
+    }
+    $ration->load(['rationAliments.aliment', 'melanges.melangeAliments.aliment', 'planRationnement']);
+
+    expect(RationCalculator::calculer($ration)['impacts'])->not->toHaveKey('variation_poids_energie');
+})->with([
+    'no feed' => [[], false],
+    'unknown weight' => [['poids_vif' => null], true],
+    'unknown parity' => [['parite' => null, 'pourcentage_primipare' => null], true],
+    'goat' => [['categorie_animal' => 'chevre_laitiere'], true],
+    'sheep' => [['categorie_animal' => 'brebis_laitiere'], true],
+    'lactating cow' => [['lait_objectif' => 30], true],
+]);
+
 test('ration calculator exposes protein and health indicators for inra 2018 results', function () {
     $plan = PlanRationnement::factory()->create([
         'inra' => '2018',
