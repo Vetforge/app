@@ -1,0 +1,728 @@
+{
+  "version": 1,
+  "provenance_note": "PostgreSQL contient 467 aliments hérités, sans code INRA ni précurseurs EB/AG/dr_N/NIref/dMO/DT6_N renseignés. Les profils complets INRA proviennent des CSV importés par AlimentSeeder ; les AMV proviennent de la base réelle. Aucun enregistrement de production n’a été modifié.",
+  "missing_in_catalogue": [
+    "sucres",
+    "pf"
+  ],
+  "profiles": {
+    "CC0010": {
+      "label": "Orge",
+      "category": "Céréales",
+      "source": {
+        "kind": "inra_seed_catalogue",
+        "file": "database/seeders/csv/Classeur1.csv",
+        "line": 15,
+        "code_inra": "CC0010",
+        "sha256": "0342d08fc2a58d1b4df7fa4d5ba3cd80ea4b0116968d2ca8b0dfb6d9412d72e6"
+      },
+      "attributes": {
+        "ms": 87.1999969482422,
+        "ufl": 1.0900000333786,
+        "pdia": 29.0,
+        "pdi": 86.0,
+        "bpr": -23.0,
+        "lys_di": 6.61125387920594,
+        "met_di": 2.05277069648774,
+        "b_vec": 0.194000005722046,
+        "mo": 975.0,
+        "d_mo": 81.0,
+        "mat": 112.0,
+        "cb": 54.0,
+        "ndf": 215.0,
+        "adf": 65.0,
+        "amidon": 600.0,
+        "ag": 15.0,
+        "p": 3.90000009536743,
+        "pabs": 2.90000009536743,
+        "ca": 0.800000011920929,
+        "caabs": 0.400000005960464,
+        "mg": 1.29999995231628,
+        "eb": 4380.0,
+        "em": 2920.0,
+        "dt6_n": 71.0,
+        "dr_n": 91.0,
+        "dt6_ami": 89.0,
+        "s": 1.5,
+        "na": 0.11,
+        "k": 5.6,
+        "cl": 1.2
+      }
+    },
+    "CC0020": {
+      "label": "Maïs",
+      "category": "Céréales",
+      "source": {
+        "kind": "inra_seed_catalogue",
+        "file": "database/seeders/csv/Classeur1.csv",
+        "line": 16,
+        "code_inra": "CC0020",
+        "sha256": "0342d08fc2a58d1b4df7fa4d5ba3cd80ea4b0116968d2ca8b0dfb6d9412d72e6"
+      },
+      "attributes": {
+        "ms": 86.3000030517578,
+        "ufl": 1.24000000953674,
+        "pdia": 43.0,
+        "pdi": 94.0,
+        "bpr": -53.0,
+        "lys_di": 5.82335811350027,
+        "met_di": 2.14460247617986,
+        "b_vec": 0.335999995470047,
+        "mo": 986.0,
+        "d_mo": 87.0,
+        "mat": 89.0,
+        "cb": 26.0,
+        "ndf": 125.0,
+        "adf": 31.0,
+        "amidon": 739.0,
+        "ag": 43.0,
+        "p": 2.90000009536743,
+        "pabs": 2.20000004768372,
+        "ca": 0.5,
+        "caabs": 0.200000002980232,
+        "mg": 1.20000004768372,
+        "eb": 4450.0,
+        "em": 3240.0,
+        "dt6_n": 44.0,
+        "dr_n": 90.0,
+        "dt6_ami": 60.0,
+        "s": 1.3,
+        "na": 0.04,
+        "k": 3.6,
+        "cl": 0.6
+      }
+    },
+    "CC0130": {
+      "label": "Triticale",
+      "category": "Céréales",
+      "source": {
+        "kind": "inra_seed_catalogue",
+        "file": "database/seeders/csv/Classeur1.csv",
+        "line": 27,
+        "code_inra": "CC0130",
+        "sha256": "0342d08fc2a58d1b4df7fa4d5ba3cd80ea4b0116968d2ca8b0dfb6d9412d72e6"
+      },
+      "attributes": {
+        "ms": 86.8000030517578,
+        "ufl": 1.16999995708466,
+        "pdia": 24.0,
+        "pdi": 85.0,
+        "bpr": -21.0,
+        "lys_di": 6.82843080453401,
+        "met_di": 2.1043268144601,
+        "b_vec": 0.17399999499321,
+        "mo": 979.0,
+        "d_mo": 87.0,
+        "mat": 115.0,
+        "cb": 29.0,
+        "ndf": 150.0,
+        "adf": 38.0,
+        "amidon": 678.0,
+        "ag": 10.0,
+        "p": 3.90000009536743,
+        "pabs": 2.90000009536743,
+        "ca": 0.699999988079071,
+        "caabs": 0.400000005960464,
+        "mg": 1.20000004768372,
+        "eb": 4320.0,
+        "em": 3080.0,
+        "dt6_n": 78.0,
+        "dr_n": 90.0,
+        "dt6_ami": 95.0,
+        "s": 1.7,
+        "na": 0.07,
+        "k": 5.7,
+        "cl": 0.7
+      }
+    },
+    "CC0150": {
+      "label": "Blé tendre",
+      "category": "Céréales",
+      "source": {
+        "kind": "inra_seed_catalogue",
+        "file": "database/seeders/csv/Classeur1.csv",
+        "line": 29,
+        "code_inra": "CC0150",
+        "sha256": "0342d08fc2a58d1b4df7fa4d5ba3cd80ea4b0116968d2ca8b0dfb6d9412d72e6"
+      },
+      "attributes": {
+        "ms": 86.9000015258789,
+        "ufl": 1.19000005722046,
+        "pdia": 28.0,
+        "pdi": 89.0,
+        "bpr": -13.0,
+        "lys_di": 6.37594194963666,
+        "met_di": 2.0184393618732,
+        "b_vec": 0.152999997138977,
+        "mo": 983.0,
+        "d_mo": 87.0,
+        "mat": 126.0,
+        "cb": 28.0,
+        "ndf": 149.0,
+        "adf": 38.0,
+        "amidon": 691.0,
+        "ag": 12.0,
+        "p": 3.5,
+        "pabs": 2.59999990463257,
+        "ca": 0.699999988079071,
+        "caabs": 0.400000005960464,
+        "mg": 1.10000002384186,
+        "eb": 4360.0,
+        "em": 3120.0,
+        "dt6_n": 76.0,
+        "dr_n": 92.0,
+        "dt6_ami": 94.0,
+        "s": 1.7,
+        "na": 0.05,
+        "k": 4.4,
+        "cl": 0.9
+      }
+    },
+    "CX0210": {
+      "label": "Tourteau de colza, huile 5-20 %",
+      "category": "Tourteaux d'oléagineux",
+      "source": {
+        "kind": "inra_seed_catalogue",
+        "file": "database/seeders/csv/Classeur1.csv",
+        "line": 117,
+        "code_inra": "CX0210",
+        "sha256": "0342d08fc2a58d1b4df7fa4d5ba3cd80ea4b0116968d2ca8b0dfb6d9412d72e6"
+      },
+      "attributes": {
+        "ms": 91.4000015258789,
+        "ufl": 1.20000004768372,
+        "pdia": 81.0,
+        "pdi": 133.0,
+        "bpr": 138.0,
+        "lys_di": 6.76967866260196,
+        "met_di": 2.14399809870378,
+        "b_vec": 0.312999993562698,
+        "mo": 933.0,
+        "d_mo": 76.0,
+        "mat": 336.0,
+        "cb": 129.0,
+        "ndf": 295.0,
+        "adf": 197.0,
+        "amidon": 68.0,
+        "ag": 103.0,
+        "p": 11.8000001907349,
+        "pabs": 8.39999961853027,
+        "ca": 8.30000019073486,
+        "caabs": 4.59999990463257,
+        "mg": 5.80000019073486,
+        "eb": 5130.0,
+        "em": 3240.0,
+        "dt6_n": 69.0,
+        "dr_n": 79.0,
+        "dt6_ami": 80.0,
+        "s": 8.3,
+        "na": 0.64,
+        "k": 12.7,
+        "cl": 0.8
+      }
+    },
+    "CX0230": {
+      "label": "Tourteau de soja, huile < 5 %, 46 % protéine + huile",
+      "category": "Tourteaux d'oléagineux",
+      "source": {
+        "kind": "inra_seed_catalogue",
+        "file": "database/seeders/csv/Classeur1.csv",
+        "line": 119,
+        "code_inra": "CX0230",
+        "sha256": "0342d08fc2a58d1b4df7fa4d5ba3cd80ea4b0116968d2ca8b0dfb6d9412d72e6"
+      },
+      "attributes": {
+        "ms": 87.6999969482422,
+        "ufl": 1.25999999046326,
+        "pdia": 163.0,
+        "pdi": 218.0,
+        "bpr": 224.0,
+        "lys_di": 6.85335888703772,
+        "met_di": 1.5599792704894,
+        "b_vec": 0.252999991178513,
+        "mo": 926.0,
+        "d_mo": 89.0,
+        "mat": 496.0,
+        "cb": 71.0,
+        "ndf": 148.0,
+        "adf": 88.0,
+        "amidon": 68.0,
+        "ag": 14.0,
+        "p": 7.09999990463257,
+        "pabs": 5.0,
+        "ca": 3.90000009536743,
+        "caabs": 2.20000004768372,
+        "mg": 3.29999995231628,
+        "eb": 4660.0,
+        "em": 3310.0,
+        "dt6_n": 63.0,
+        "dr_n": 95.0,
+        "dt6_ami": 80.0,
+        "na": 0.09,
+        "k": 24.6,
+        "cl": 0.5
+      }
+    },
+    "FE0980": {
+      "label": "Prairies Permanentes, Demi-Montagne (Auvergne) Mi-fané > 50% MS, enrubanné 1er cycle 1-10 juillet, floraison",
+      "category": "ENSILAGES",
+      "source": {
+        "kind": "inra_seed_catalogue",
+        "file": "database/seeders/csv/Classeur2.csv",
+        "line": 344,
+        "code_inra": "FE0980",
+        "sha256": "5017739c3eefa5187f05801319bfd721b5d4c8d3bd88f557e15e137aebddbb7c"
+      },
+      "attributes": {
+        "ms": 55.0,
+        "ufl": 0.66,
+        "pdia": 18.0,
+        "pdi": 64.0,
+        "bpr": -17.0,
+        "lys_di": 7.18,
+        "met_di": 2.13,
+        "niref": 1.7,
+        "uel": 1.18,
+        "ueb": 1.32,
+        "mo": 917.0,
+        "d_mo": 57.0,
+        "mat": 96.0,
+        "cb": 340.0,
+        "ndf": 595.0,
+        "adf": 358.0,
+        "ag": 12.0,
+        "p": 1.5,
+        "pabs": 0.9,
+        "ca": 3.6,
+        "caabs": 1.3,
+        "mg": 1.9,
+        "eb": 4304.0,
+        "em": 1923.0,
+        "dt6_n": 70.0,
+        "dr_n": 68.0,
+        "s": 2.5,
+        "na": 3.1,
+        "k": 27.0,
+        "cl": 6.6
+      }
+    },
+    "FE2710": {
+      "label": "Graminées Fourragères, Ray-Grass Anglais Mi-fané > 50% MS, enrubanné 1er cycle, variétés précoces Début floraison",
+      "category": "ENSILAGES",
+      "source": {
+        "kind": "inra_seed_catalogue",
+        "file": "database/seeders/csv/Classeur2.csv",
+        "line": 429,
+        "code_inra": "FE2710",
+        "sha256": "5017739c3eefa5187f05801319bfd721b5d4c8d3bd88f557e15e137aebddbb7c"
+      },
+      "attributes": {
+        "ms": 55.0,
+        "ufl": 0.74,
+        "pdia": 18.0,
+        "pdi": 67.0,
+        "bpr": -11.0,
+        "lys_di": 6.7,
+        "met_di": 1.98,
+        "niref": 1.6,
+        "uel": 1.2,
+        "ueb": 1.37,
+        "mo": 913.0,
+        "d_mo": 64.0,
+        "mat": 107.0,
+        "cb": 332.0,
+        "ndf": 617.0,
+        "adf": 358.0,
+        "ag": 17.0,
+        "p": 2.3,
+        "pabs": 1.4,
+        "ca": 5.8,
+        "caabs": 2.3,
+        "mg": 1.4,
+        "eb": 4250.0,
+        "em": 2121.0,
+        "dt6_n": 73.0,
+        "dr_n": 68.0,
+        "s": 1.4,
+        "na": 0.3,
+        "k": 28.0,
+        "cl": 7.6
+      }
+    },
+    "FE4710": {
+      "label": "Céréales Plantes Entières, Maïs Conditions normales de végétation Hachage fin sans conservateur Pâteux, 30% MS",
+      "category": "ENSILAGES",
+      "source": {
+        "kind": "inra_seed_catalogue",
+        "file": "database/seeders/csv/Classeur2.csv",
+        "line": 539,
+        "code_inra": "FE4710",
+        "sha256": "5017739c3eefa5187f05801319bfd721b5d4c8d3bd88f557e15e137aebddbb7c"
+      },
+      "attributes": {
+        "ms": 29.8,
+        "ufl": 0.95,
+        "pdia": 12.0,
+        "pdi": 61.0,
+        "bpr": -32.0,
+        "lys_di": 7.0,
+        "met_di": 2.16,
+        "niref": 1.4,
+        "uel": 1.01,
+        "ueb": 1.11,
+        "mo": 953.0,
+        "d_mo": 72.0,
+        "mat": 78.0,
+        "cb": 207.0,
+        "ndf": 413.0,
+        "adf": 210.0,
+        "ag": 24.0,
+        "p": 1.8,
+        "pabs": 1.3,
+        "ca": 2.0,
+        "caabs": 0.8,
+        "mg": 1.2,
+        "eb": 4484.0,
+        "em": 2626.0,
+        "dt6_n": 72.0,
+        "dr_n": 62.0,
+        "s": 0.7,
+        "na": 0.1,
+        "k": 10.0,
+        "cl": 3.0
+      }
+    },
+    "FF0120": {
+      "label": "Prairies Permanentes, Plaine (Normandie) Fané au sol par beau temps 2e cycle après coupe épiaison Repousses feuillues de 5 semaines",
+      "category": "FOINS",
+      "source": {
+        "kind": "inra_seed_catalogue",
+        "file": "database/seeders/csv/Classeur2.csv",
+        "line": 613,
+        "code_inra": "FF0120",
+        "sha256": "5017739c3eefa5187f05801319bfd721b5d4c8d3bd88f557e15e137aebddbb7c"
+      },
+      "attributes": {
+        "ms": 85.0,
+        "ufl": 0.88,
+        "pdia": 55.0,
+        "pdi": 106.0,
+        "bpr": 49.0,
+        "lys_di": 6.76,
+        "met_di": 1.83,
+        "niref": 2.4,
+        "uel": 0.95,
+        "ueb": 0.92,
+        "mo": 903.0,
+        "d_mo": 69.0,
+        "mat": 206.0,
+        "cb": 290.0,
+        "ndf": 587.0,
+        "adf": 317.0,
+        "ag": 19.0,
+        "p": 3.3,
+        "pabs": 2.2,
+        "ca": 5.6,
+        "caabs": 2.0,
+        "mg": 2.2,
+        "eb": 4523.0,
+        "em": 2454.0,
+        "dt6_n": 68.0,
+        "dr_n": 87.0,
+        "s": 1.4,
+        "na": 0.5,
+        "k": 19.0,
+        "cl": 4.3
+      }
+    },
+    "FF2700": {
+      "label": "Graminées Fourragères, Dactyle Fané au sol par temps de pluie (< 10 jours) 1er cycle Fin floraison",
+      "category": "FOINS",
+      "source": {
+        "kind": "inra_seed_catalogue",
+        "file": "database/seeders/csv/Classeur2.csv",
+        "line": 805,
+        "code_inra": "FF2700",
+        "sha256": "5017739c3eefa5187f05801319bfd721b5d4c8d3bd88f557e15e137aebddbb7c"
+      },
+      "attributes": {
+        "ms": 85.0,
+        "ufl": 0.59,
+        "pdia": 17.0,
+        "pdi": 62.0,
+        "bpr": -26.0,
+        "lys_di": 7.17,
+        "met_di": 2.2,
+        "niref": 1.4,
+        "uel": 1.22,
+        "ueb": 1.42,
+        "mo": 919.0,
+        "d_mo": 53.0,
+        "mat": 85.0,
+        "cb": 386.0,
+        "ndf": 737.0,
+        "adf": 416.0,
+        "ag": 14.0,
+        "p": 1.9,
+        "pabs": 1.2,
+        "ca": 1.9,
+        "caabs": 0.8,
+        "mg": 1.7,
+        "eb": 4301.0,
+        "em": 1756.0,
+        "dt6_n": 66.0,
+        "dr_n": 67.0,
+        "s": 1.3,
+        "na": 0.7,
+        "k": 24.0,
+        "cl": 4.9
+      }
+    },
+    "FF2980": {
+      "label": "Graminées Fourragères, Brome Fané au sol par beau temps 2e cycle après coupe épiaison Repousses à tiges de 8 semaines",
+      "category": "FOINS",
+      "source": {
+        "kind": "inra_seed_catalogue",
+        "file": "database/seeders/csv/Classeur2.csv",
+        "line": 819,
+        "code_inra": "FF2980",
+        "sha256": "5017739c3eefa5187f05801319bfd721b5d4c8d3bd88f557e15e137aebddbb7c"
+      },
+      "attributes": {
+        "ms": 85.0,
+        "ufl": 0.77,
+        "pdia": 22.0,
+        "pdi": 72.0,
+        "bpr": -25.0,
+        "lys_di": 6.95,
+        "met_di": 2.25,
+        "niref": 1.9,
+        "uel": 1.08,
+        "ueb": 1.14,
+        "mo": 906.0,
+        "d_mo": 65.0,
+        "mat": 100.0,
+        "cb": 331.0,
+        "ndf": 651.0,
+        "adf": 342.0,
+        "ag": 15.0,
+        "p": 2.7,
+        "pabs": 1.7,
+        "ca": 3.5,
+        "caabs": 1.4,
+        "mg": 1.4,
+        "eb": 4269.0,
+        "em": 2189.0,
+        "dt6_n": 64.0,
+        "dr_n": 68.0,
+        "s": 1.3,
+        "na": 0.2,
+        "k": 36.0,
+        "cl": 6.6
+      }
+    },
+    "FP0020": {
+      "label": "Paille de Blé, Seule Moyenne",
+      "category": "PAILLES, FOURRAGES LIGNIFIÉS",
+      "source": {
+        "kind": "inra_seed_catalogue",
+        "file": "database/seeders/csv/Classeur2.csv",
+        "line": 882,
+        "code_inra": "FP0020",
+        "sha256": "5017739c3eefa5187f05801319bfd721b5d4c8d3bd88f557e15e137aebddbb7c"
+      },
+      "attributes": {
+        "ms": 88.0,
+        "ufl": 0.43,
+        "pdia": 7.0,
+        "pdi": 48.0,
+        "bpr": -55.0,
+        "lys_di": 7.45,
+        "met_di": 2.2,
+        "niref": 1.1,
+        "uel": 1.6,
+        "ueb": 1.8,
+        "mo": 920.0,
+        "d_mo": 42.0,
+        "mat": 35.0,
+        "cb": 420.0,
+        "ndf": 798.0,
+        "adf": 504.0,
+        "ag": 7.0,
+        "p": 1.0,
+        "pabs": 0.5,
+        "ca": 2.0,
+        "caabs": 0.8,
+        "mg": 1.0,
+        "eb": 4340.0,
+        "em": 1332.0,
+        "dt6_n": 60.0,
+        "dr_n": 59.0,
+        "s": 0.6,
+        "na": 1.5,
+        "k": 9.5,
+        "cl": 2.5
+      }
+    },
+    "postgres-amv-2264": {
+      "label": "AMV 7/20/5",
+      "category": "AMV",
+      "source": {
+        "kind": "postgres_snapshot",
+        "table": "aliments",
+        "source_id": 2264,
+        "code_inra": null,
+        "captured_on": "2026-10-16",
+        "note": "Aliment hérité sans code INRA : complément limité aux valeurs réellement présentes en base."
+      },
+      "attributes": {
+        "ms": 100,
+        "mat": 0,
+        "cb": 0,
+        "ndf": 0,
+        "adf": 0,
+        "amidon": 0,
+        "ca": 200,
+        "p": 70,
+        "mg": 50,
+        "ufl": 0
+      }
+    },
+    "postgres-amv-2206": {
+      "label": "AMV 5/25/10",
+      "category": "AMV",
+      "source": {
+        "kind": "postgres_snapshot",
+        "table": "aliments",
+        "source_id": 2206,
+        "code_inra": null,
+        "captured_on": "2026-10-16",
+        "note": "Aliment hérité sans code INRA : complément limité aux valeurs réellement présentes en base."
+      },
+      "attributes": {
+        "ms": 100,
+        "mat": 0,
+        "cb": 0,
+        "ndf": 0,
+        "adf": 0,
+        "amidon": 0,
+        "ca": 250,
+        "p": 50,
+        "mg": 100,
+        "ufl": 0
+      }
+    },
+    "postgres-amv-2183": {
+      "label": "TURBOPRO AMV3.2/29/5",
+      "category": "AMV",
+      "source": {
+        "kind": "postgres_snapshot",
+        "table": "aliments",
+        "source_id": 2183,
+        "code_inra": null,
+        "captured_on": "2026-10-16",
+        "note": "Aliment hérité sans code INRA : complément limité aux valeurs réellement présentes en base."
+      },
+      "attributes": {
+        "ms": 100,
+        "mat": 0,
+        "cb": 0,
+        "ndf": 0,
+        "adf": 0,
+        "amidon": 0,
+        "ca": 290,
+        "p": 32,
+        "mg": 50,
+        "ufl": 0
+      }
+    }
+  },
+  "matches": {
+    "Foin graminées 2026 - Segond": {
+      "profile": "FF2700",
+      "reason": "Foin de graminée personnalisé. Profil le plus proche parmi les foins de graminées sur MAT, CB, NDF et dMO normalisés en MS ; choix fixé avant comparaison des résultats. Distance quadratique avec échelles 30 g MAT, 50 g CB, 80 g NDF, 10 points dMO. Ce rapprochement reste approximatif."
+    },
+    "ens 2026": {
+      "profile": "FE2710",
+      "reason": "Enrubannage de graminées à plus de 50 % MS. Profil le plus proche sur MAT, CB, NDF et dMO avec les mêmes échelles que le foin ; conservation et famille contraintes avant classement."
+    },
+    "Paille blé, moyenne": {
+      "profile": "FP0020",
+      "reason": "Correspondance espèce, partie récoltée et qualité moyenne : paille de blé."
+    },
+    "Foin prairie perm. plaine beau temps c2 feuillue 5 sem": {
+      "profile": "FF0120",
+      "reason": "Correspondance prairie permanente, plaine, beau temps, deuxième cycle, repousses feuillues de 5 semaines."
+    },
+    "Enrub. demi-montagne c1 florais.": {
+      "profile": "FE0980",
+      "reason": "Correspondance prairie permanente, demi-montagne, enrubannage, premier cycle, floraison."
+    },
+    "Blé tendre": {
+      "profile": "CC0150",
+      "reason": "Blé tendre grain, non extrudé, non floconné."
+    },
+    "Tourteau de soja 46": {
+      "profile": "CX0230",
+      "reason": "Tourteau de soja 46, faible huile, sans traitement de protection."
+    },
+    "Ens. maïs conditions normales végét. pâteux 30% MS": {
+      "profile": "FE4710",
+      "reason": "Correspondance maïs ensilé, conditions normales, stade pâteux, environ 30 % MS."
+    },
+    "Foin brome beau temps c2 tiges 8 sem.": {
+      "profile": "FF2980",
+      "reason": "Correspondance brome, beau temps, deuxième cycle, repousses à tiges de 8 semaines."
+    },
+    "Tourteau de colza expeller": {
+      "profile": "CX0210",
+      "reason": "Extraction mécanique expeller : tourteau de colza avec huile résiduelle 5–20 %, sans extrusion ni tannage."
+    },
+    "Orge": {
+      "profile": "CC0010",
+      "reason": "Orge grain, non floconnée."
+    },
+    "Mais/colza/B/O/T": {
+      "recipe": {
+        "CC0150": 15.7,
+        "CC0020": 19.9,
+        "CC0010": 15.7,
+        "CC0130": 15.7,
+        "CX0210": 33
+      },
+      "reason": "Recette brut/brut imprimée : blé 15,7 %, maïs 19,9 %, orge 15,7 %, triticale 15,7 %, colza expeller 33 %. Compléments agrégés à partir des ingrédients INRA ; les analyses imprimées du mélange restent prioritaires."
+    },
+    "Complément de production": {
+      "recipe": {
+        "CC0150": 61,
+        "CX0230": 39
+      },
+      "reason": "Recette brut/brut imprimée : blé tendre 61 %, soja 46 39 %."
+    }
+  },
+  "automatic_minerals": {
+    "8/22/3": {
+      "profile": "postgres-amv-2264",
+      "reason": "AMV de la base le plus proche en distance quadratique sur %P/%Ca/%Mg parmi les AMV, hors minéraux simples. Les teneurs P/Ca/Mg du rapport remplacent toujours celles de cet analogue."
+    },
+    "2/25/9": {
+      "profile": "postgres-amv-2206",
+      "reason": "AMV de la base le plus proche en distance quadratique sur %P/%Ca/%Mg parmi les AMV, hors minéraux simples. Les teneurs P/Ca/Mg du rapport remplacent toujours celles de cet analogue."
+    },
+    "2/24/10": {
+      "profile": "postgres-amv-2206",
+      "reason": "AMV de la base le plus proche en distance quadratique sur %P/%Ca/%Mg parmi les AMV, hors minéraux simples. Les teneurs P/Ca/Mg du rapport remplacent toujours celles de cet analogue."
+    },
+    "0/27/8": {
+      "profile": "postgres-amv-2183",
+      "reason": "AMV de la base le plus proche en distance quadratique sur %P/%Ca/%Mg parmi les AMV, hors minéraux simples. Les teneurs P/Ca/Mg du rapport remplacent toujours celles de cet analogue."
+    }
+  },
+  "merge_policy": "Uniquement les champs absents ou nulls ; chaque valeur imprimée, même zéro, reste prioritaire. Les valeurs attendues Larelev ne sont jamais recalculées.",
+  "remaining_limits": [
+    "NIref non fourni pour les concentrés : le moteur conserve son repli existant à 2,0 ; aucune valeur analytique INRA n’est inventée.",
+    "PF et sucres absents des CSV et de PostgreSQL : les champs restent absents. Le moteur utilise son repli existant à zéro pour PF ; les résultats qui en dépendent restent des comparaisons avec entrées approchées.",
+    "K et coefficients Ca/P absorbables absents des AMV PostgreSQL : les apports absorbables et Mg absorbable ne sont pas déclarés vérifiés.",
+    "Les précurseurs des mélanges sont agrégés à partir de leur recette ; cette représentation ne restitue pas nécessairement toutes les interactions entre ingrédients."
+  ]
+}

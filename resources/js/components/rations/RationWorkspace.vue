@@ -33,7 +33,9 @@ onMounted(async () => {
 
     document.getElementById('resultats')?.scrollIntoView({
         block: 'start',
-        behavior: 'smooth',
+        behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches
+            ? 'instant'
+            : 'smooth',
     });
 });
 </script>
@@ -61,6 +63,12 @@ onMounted(async () => {
                 </Link>
             </div>
 
+            <p
+                v-if="resultats?.meta?.reference_equations"
+                class="mt-3 text-xs text-muted-foreground"
+            >
+                {{ resultats.meta.reference_equations }}
+            </p>
             <div class="my-5 flex flex-wrap gap-2">
                 <span
                     class="rounded-full border border-border bg-background px-3 py-1 text-sm text-foreground"
@@ -78,7 +86,8 @@ onMounted(async () => {
                     v-if="ration.lait_objectif"
                     class="rounded-full border border-border bg-background px-3 py-1 text-sm text-foreground"
                 >
-                    Objectif {{ ration.lait_objectif }} kg/j
+                    Objectif {{ ration.lait_objectif }}
+                    {{ resultats?.meta?.unite_lait ?? 'kg/j' }}
                 </span>
                 <span
                     v-if="iterations_volonte > 0"

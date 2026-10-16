@@ -624,8 +624,12 @@ watch(
 watch(
     () => form.payload.enophtalmie,
     (val) => {
-        const n = val !== null && val !== '' && val !== undefined ? Number(val) : null;
-        form.payload.dehydration = n !== null ? Math.round(1.7 * n + 0.38) : null;
+        const n =
+            val !== null && val !== '' && val !== undefined
+                ? Number(val)
+                : null;
+        form.payload.dehydration =
+            n !== null ? Math.round(1.7 * n + 0.38) : null;
     },
 );
 </script>
@@ -680,6 +684,12 @@ watch(
                             >Eleveur *</label
                         >
                         <BreederSelectWithCreate
+                            :aria-invalid="Boolean(errors.breeder_id)"
+                            :aria-describedby="
+                                errors.breeder_id
+                                    ? 'breeder_id-error'
+                                    : undefined
+                            "
                             v-model="form.breeder_id"
                             input-id="breeder_id"
                             :breeders="breeders"
@@ -690,7 +700,10 @@ watch(
                             type="hidden"
                             required
                         />
-                        <InputError :message="errors.breeder_id" />
+                        <InputError
+                            id="breeder_id-error"
+                            :message="errors.breeder_id"
+                        />
                     </div>
 
                     <div class="grid gap-1 xl:col-span-2">
@@ -698,12 +711,21 @@ watch(
                             >Animal</label
                         >
                         <input
+                            :aria-invalid="Boolean(errors.animal_nom)"
+                            :aria-describedby="
+                                errors.animal_nom
+                                    ? 'animal_nom-error'
+                                    : undefined
+                            "
                             id="animal_nom"
                             v-model="form.animal_nom"
                             class="h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
                             placeholder="Nom libre"
                         />
-                        <InputError :message="errors.animal_nom" />
+                        <InputError
+                            id="animal_nom-error"
+                            :message="errors.animal_nom"
+                        />
                     </div>
 
                     <div class="grid gap-1 xl:col-span-2">
@@ -711,12 +733,21 @@ watch(
                             >Prelevement</label
                         >
                         <input
+                            :aria-invalid="Boolean(errors.sampled_at)"
+                            :aria-describedby="
+                                errors.sampled_at
+                                    ? 'sampled_at-error'
+                                    : undefined
+                            "
                             id="sampled_at"
                             v-model="form.sampled_at"
                             type="date"
                             class="h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
                         />
-                        <InputError :message="errors.sampled_at" />
+                        <InputError
+                            id="sampled_at-error"
+                            :message="errors.sampled_at"
+                        />
                     </div>
 
                     <div class="grid gap-1 xl:col-span-2">
@@ -724,12 +755,21 @@ watch(
                             >Analyse</label
                         >
                         <input
+                            :aria-invalid="Boolean(errors.analyzed_at)"
+                            :aria-describedby="
+                                errors.analyzed_at
+                                    ? 'analyzed_at-error'
+                                    : undefined
+                            "
                             id="analyzed_at"
                             v-model="form.analyzed_at"
                             type="date"
                             class="h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
                         />
-                        <InputError :message="errors.analyzed_at" />
+                        <InputError
+                            id="analyzed_at-error"
+                            :message="errors.analyzed_at"
+                        />
                     </div>
 
                     <div class="grid gap-1 xl:col-span-2">
@@ -737,11 +777,20 @@ watch(
                             >Intervenant</label
                         >
                         <input
+                            :aria-invalid="Boolean(errors.intervenant)"
+                            :aria-describedby="
+                                errors.intervenant
+                                    ? 'intervenant-error'
+                                    : undefined
+                            "
                             id="intervenant"
                             v-model="form.intervenant"
                             class="h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
                         />
-                        <InputError :message="errors.intervenant" />
+                        <InputError
+                            id="intervenant-error"
+                            :message="errors.intervenant"
+                        />
                     </div>
                 </div>
             </section>
@@ -838,7 +887,9 @@ watch(
                     <table class="w-full min-w-[760px] text-sm">
                         <thead>
                             <tr class="border-b border-border">
-                                <th class="px-2 py-1 text-left font-medium text-xs">
+                                <th
+                                    class="px-2 py-1 text-left text-xs font-medium"
+                                >
                                     Echantillon
                                     <span
                                         v-if="form.payload.options.comptage"
@@ -850,7 +901,7 @@ watch(
                                 <th
                                     v-for="parasite in parasiteRows"
                                     :key="parasite.key"
-                                    class="px-2 py-1 text-left font-medium text-xs"
+                                    class="px-2 py-1 text-left text-xs font-medium"
                                 >
                                     {{ parasite.label }}
                                 </th>
@@ -865,6 +916,7 @@ watch(
                             >
                                 <td class="px-2 py-1">
                                     <input
+                                        :aria-label="`Echantillon ${Number(sampleIndex) + 1}`"
                                         v-model="sample.name"
                                         class="w-full rounded border border-border bg-background px-2 py-1"
                                         :placeholder="`Echantillon ${Number(sampleIndex) + 1}`"
@@ -876,14 +928,30 @@ watch(
                                     class="w-24 px-2 py-1"
                                 >
                                     <input
+                                        :aria-label="
+                                            parasite.label +
+                                            ' — ' +
+                                            (sample.name ||
+                                                'Échantillon ' +
+                                                    (Number(sampleIndex) + 1))
+                                        "
                                         v-if="form.payload.options.comptage"
-                                        v-model.number="sample.results[parasite.key]"
+                                        v-model.number="
+                                            sample.results[parasite.key]
+                                        "
                                         type="number"
                                         min="0"
                                         step="1"
                                         class="w-full rounded border border-border bg-background px-2 py-1"
                                     />
                                     <select
+                                        :aria-label="
+                                            parasite.label +
+                                            ' — ' +
+                                            (sample.name ||
+                                                'Échantillon ' +
+                                                    (Number(sampleIndex) + 1))
+                                        "
                                         v-else
                                         v-model="sample.results[parasite.key]"
                                         class="w-full rounded border border-border bg-background px-2 py-1"
@@ -1034,8 +1102,14 @@ watch(
                                 </select>
                             </div>
                             <div class="grid gap-1">
-                                <label class="text-sm font-medium" for="blood-weight">Poids</label>
-                                <div class="analysis-unit-field analysis-unit-field--with-unit">
+                                <label
+                                    class="text-sm font-medium"
+                                    for="blood-weight"
+                                    >Poids</label
+                                >
+                                <div
+                                    class="analysis-unit-field analysis-unit-field--with-unit"
+                                >
                                     <input
                                         id="blood-weight"
                                         v-model="form.payload.weight"
@@ -1048,8 +1122,14 @@ watch(
                             </div>
 
                             <div class="grid gap-1">
-                                <label class="text-sm font-medium" for="blood-enophtalmie">Enophtalmie</label>
-                                <div class="analysis-unit-field analysis-unit-field--with-unit">
+                                <label
+                                    class="text-sm font-medium"
+                                    for="blood-enophtalmie"
+                                    >Enophtalmie</label
+                                >
+                                <div
+                                    class="analysis-unit-field analysis-unit-field--with-unit"
+                                >
                                     <input
                                         id="blood-enophtalmie"
                                         v-model="form.payload.enophtalmie"
@@ -1062,8 +1142,14 @@ watch(
                             </div>
 
                             <div class="grid gap-1">
-                                <label class="text-sm font-medium" for="blood-dehydration">Deshydratation</label>
-                                <div class="analysis-unit-field analysis-unit-field--with-unit">
+                                <label
+                                    class="text-sm font-medium"
+                                    for="blood-dehydration"
+                                    >Deshydratation</label
+                                >
+                                <div
+                                    class="analysis-unit-field analysis-unit-field--with-unit"
+                                >
                                     <input
                                         id="blood-dehydration"
                                         v-model="form.payload.dehydration"
@@ -1238,39 +1324,184 @@ watch(
                         <div class="analysis-table-wrap">
                             <table class="w-full text-sm">
                                 <thead class="hidden sm:table-header-group">
-                                    <tr class="border-b border-border bg-muted/40">
-                                        <th class="px-2 py-1 text-left font-medium text-xs">Poste</th>
-                                        <th class="px-2 py-1 text-left font-medium text-xs">Bicarbonate</th>
-                                        <th class="px-2 py-1 text-left font-medium text-xs">Glucose</th>
-                                        <th class="px-2 py-1 text-left font-medium text-xs">Volume</th>
+                                    <tr
+                                        class="border-b border-border bg-muted/40"
+                                    >
+                                        <th
+                                            class="px-2 py-1 text-left text-xs font-medium"
+                                        >
+                                            Poste
+                                        </th>
+                                        <th
+                                            class="px-2 py-1 text-left text-xs font-medium"
+                                        >
+                                            Bicarbonate
+                                        </th>
+                                        <th
+                                            class="px-2 py-1 text-left text-xs font-medium"
+                                        >
+                                            Glucose
+                                        </th>
+                                        <th
+                                            class="px-2 py-1 text-left text-xs font-medium"
+                                        >
+                                            Volume
+                                        </th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <tr class="border-b border-border/50">
                                         <td class="px-2 py-1">
-                                            <div class="font-medium">Apports perfusions</div>
-                                            <div class="mt-0.5 flex flex-wrap gap-x-2 gap-y-0.5 text-xs text-muted-foreground sm:hidden">
-                                                <span>Bicarb : {{ formatResult(bloodGasCalculation.apports.bicarbonateG, 'g') }}</span>
-                                                <span>Glucose : {{ formatResult(bloodGasCalculation.apports.glucoseG, 'g') }}</span>
-                                                <span>Vol : {{ formatResult(bloodGasCalculation.apports.volumeL, 'L') }}</span>
+                                            <div class="font-medium">
+                                                Apports perfusions
+                                            </div>
+                                            <div
+                                                class="mt-0.5 flex flex-wrap gap-x-2 gap-y-0.5 text-xs text-muted-foreground sm:hidden"
+                                            >
+                                                <span
+                                                    >Bicarb :
+                                                    {{
+                                                        formatResult(
+                                                            bloodGasCalculation
+                                                                .apports
+                                                                .bicarbonateG,
+                                                            'g',
+                                                        )
+                                                    }}</span
+                                                >
+                                                <span
+                                                    >Glucose :
+                                                    {{
+                                                        formatResult(
+                                                            bloodGasCalculation
+                                                                .apports
+                                                                .glucoseG,
+                                                            'g',
+                                                        )
+                                                    }}</span
+                                                >
+                                                <span
+                                                    >Vol :
+                                                    {{
+                                                        formatResult(
+                                                            bloodGasCalculation
+                                                                .apports
+                                                                .volumeL,
+                                                            'L',
+                                                        )
+                                                    }}</span
+                                                >
                                             </div>
                                         </td>
-                                        <td class="hidden px-2 py-1 sm:table-cell">{{ formatResult(bloodGasCalculation.apports.bicarbonateG, 'g') }}</td>
-                                        <td class="hidden px-2 py-1 sm:table-cell">{{ formatResult(bloodGasCalculation.apports.glucoseG, 'g') }}</td>
-                                        <td class="hidden px-2 py-1 sm:table-cell">{{ formatResult(bloodGasCalculation.apports.volumeL, 'L') }}</td>
+                                        <td
+                                            class="hidden px-2 py-1 sm:table-cell"
+                                        >
+                                            {{
+                                                formatResult(
+                                                    bloodGasCalculation.apports
+                                                        .bicarbonateG,
+                                                    'g',
+                                                )
+                                            }}
+                                        </td>
+                                        <td
+                                            class="hidden px-2 py-1 sm:table-cell"
+                                        >
+                                            {{
+                                                formatResult(
+                                                    bloodGasCalculation.apports
+                                                        .glucoseG,
+                                                    'g',
+                                                )
+                                            }}
+                                        </td>
+                                        <td
+                                            class="hidden px-2 py-1 sm:table-cell"
+                                        >
+                                            {{
+                                                formatResult(
+                                                    bloodGasCalculation.apports
+                                                        .volumeL,
+                                                    'L',
+                                                )
+                                            }}
+                                        </td>
                                     </tr>
                                     <tr>
                                         <td class="px-2 py-1">
-                                            <div class="font-medium">Reste a couvrir</div>
-                                            <div class="mt-0.5 flex flex-wrap gap-x-2 gap-y-0.5 text-xs text-muted-foreground sm:hidden">
-                                                <span>Bicarb : {{ formatResult(bloodGasCalculation.restes.bicarbonateG, 'g') }}</span>
-                                                <span>Glucose : {{ formatResult(bloodGasCalculation.restes.glucoseG, 'g') }}</span>
-                                                <span>Vol : {{ formatResult(bloodGasCalculation.restes.volumeL, 'L') }}</span>
+                                            <div class="font-medium">
+                                                Reste a couvrir
+                                            </div>
+                                            <div
+                                                class="mt-0.5 flex flex-wrap gap-x-2 gap-y-0.5 text-xs text-muted-foreground sm:hidden"
+                                            >
+                                                <span
+                                                    >Bicarb :
+                                                    {{
+                                                        formatResult(
+                                                            bloodGasCalculation
+                                                                .restes
+                                                                .bicarbonateG,
+                                                            'g',
+                                                        )
+                                                    }}</span
+                                                >
+                                                <span
+                                                    >Glucose :
+                                                    {{
+                                                        formatResult(
+                                                            bloodGasCalculation
+                                                                .restes
+                                                                .glucoseG,
+                                                            'g',
+                                                        )
+                                                    }}</span
+                                                >
+                                                <span
+                                                    >Vol :
+                                                    {{
+                                                        formatResult(
+                                                            bloodGasCalculation
+                                                                .restes.volumeL,
+                                                            'L',
+                                                        )
+                                                    }}</span
+                                                >
                                             </div>
                                         </td>
-                                        <td class="hidden px-2 py-1 sm:table-cell">{{ formatResult(bloodGasCalculation.restes.bicarbonateG, 'g') }}</td>
-                                        <td class="hidden px-2 py-1 sm:table-cell">{{ formatResult(bloodGasCalculation.restes.glucoseG, 'g') }}</td>
-                                        <td class="hidden px-2 py-1 sm:table-cell">{{ formatResult(bloodGasCalculation.restes.volumeL, 'L') }}</td>
+                                        <td
+                                            class="hidden px-2 py-1 sm:table-cell"
+                                        >
+                                            {{
+                                                formatResult(
+                                                    bloodGasCalculation.restes
+                                                        .bicarbonateG,
+                                                    'g',
+                                                )
+                                            }}
+                                        </td>
+                                        <td
+                                            class="hidden px-2 py-1 sm:table-cell"
+                                        >
+                                            {{
+                                                formatResult(
+                                                    bloodGasCalculation.restes
+                                                        .glucoseG,
+                                                    'g',
+                                                )
+                                            }}
+                                        </td>
+                                        <td
+                                            class="hidden px-2 py-1 sm:table-cell"
+                                        >
+                                            {{
+                                                formatResult(
+                                                    bloodGasCalculation.restes
+                                                        .volumeL,
+                                                    'L',
+                                                )
+                                            }}
+                                        </td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -1288,30 +1519,95 @@ watch(
                         <div class="analysis-table-wrap">
                             <table class="w-full text-sm">
                                 <thead class="hidden sm:table-header-group">
-                                    <tr class="border-b border-border bg-muted/40">
-                                        <th class="px-2 py-1 text-left font-medium text-xs">Parametre</th>
-                                        <th class="px-2 py-1 text-left font-medium text-xs">Valeur</th>
-                                        <th class="px-2 py-1 text-left font-medium text-xs">Norme</th>
-                                        <th class="px-2 py-1 text-left font-medium text-xs">Statut</th>
+                                    <tr
+                                        class="border-b border-border bg-muted/40"
+                                    >
+                                        <th
+                                            class="px-2 py-1 text-left text-xs font-medium"
+                                        >
+                                            Parametre
+                                        </th>
+                                        <th
+                                            class="px-2 py-1 text-left text-xs font-medium"
+                                        >
+                                            Valeur
+                                        </th>
+                                        <th
+                                            class="px-2 py-1 text-left text-xs font-medium"
+                                        >
+                                            Norme
+                                        </th>
+                                        <th
+                                            class="px-2 py-1 text-left text-xs font-medium"
+                                        >
+                                            Statut
+                                        </th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <tr v-for="row in bloodGasNormRows" :key="row.key" class="border-b border-border/50 last:border-b-0">
+                                    <tr
+                                        v-for="row in bloodGasNormRows"
+                                        :key="row.key"
+                                        class="border-b border-border/50 last:border-b-0"
+                                    >
                                         <td class="px-2 py-1">
-                                            <div class="font-medium">{{ row.label }}</div>
-                                            <div class="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs sm:hidden">
-                                                <span>{{ formatResult(row.value) }}</span>
-                                                <span class="text-muted-foreground"><span v-if="row.range">{{ row.range[0] }} - {{ row.range[1] }}</span><span v-else>-</span></span>
-                                                <span class="inline-flex rounded-full px-1.5 py-0.5 font-medium ring-1" :class="normStatusClass(row.status)">{{ normStatusLabel(row.status) }}</span>
+                                            <div class="font-medium">
+                                                {{ row.label }}
+                                            </div>
+                                            <div
+                                                class="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs sm:hidden"
+                                            >
+                                                <span>{{
+                                                    formatResult(row.value)
+                                                }}</span>
+                                                <span
+                                                    class="text-muted-foreground"
+                                                    ><span v-if="row.range"
+                                                        >{{ row.range[0] }} -
+                                                        {{ row.range[1] }}</span
+                                                    ><span v-else>-</span></span
+                                                >
+                                                <span
+                                                    class="inline-flex rounded-full px-1.5 py-0.5 font-medium ring-1"
+                                                    :class="
+                                                        normStatusClass(
+                                                            row.status,
+                                                        )
+                                                    "
+                                                    >{{
+                                                        normStatusLabel(
+                                                            row.status,
+                                                        )
+                                                    }}</span
+                                                >
                                             </div>
                                         </td>
-                                        <td class="hidden px-2 py-1 sm:table-cell">{{ formatResult(row.value) }}</td>
-                                        <td class="hidden px-2 py-1 text-muted-foreground sm:table-cell">
-                                            <span v-if="row.range">{{ row.range[0] }} - {{ row.range[1] }}</span>
+                                        <td
+                                            class="hidden px-2 py-1 sm:table-cell"
+                                        >
+                                            {{ formatResult(row.value) }}
+                                        </td>
+                                        <td
+                                            class="hidden px-2 py-1 text-muted-foreground sm:table-cell"
+                                        >
+                                            <span v-if="row.range"
+                                                >{{ row.range[0] }} -
+                                                {{ row.range[1] }}</span
+                                            >
                                             <span v-else>-</span>
                                         </td>
-                                        <td class="hidden px-2 py-1 sm:table-cell">
-                                            <span class="inline-flex rounded-full px-2 py-1 text-xs font-medium ring-1" :class="normStatusClass(row.status)">{{ normStatusLabel(row.status) }}</span>
+                                        <td
+                                            class="hidden px-2 py-1 sm:table-cell"
+                                        >
+                                            <span
+                                                class="inline-flex rounded-full px-2 py-1 text-xs font-medium ring-1"
+                                                :class="
+                                                    normStatusClass(row.status)
+                                                "
+                                                >{{
+                                                    normStatusLabel(row.status)
+                                                }}</span
+                                            >
                                         </td>
                                     </tr>
                                 </tbody>
@@ -1398,6 +1694,11 @@ watch(
                             placeholder="Identification"
                         />
                         <input
+                            :aria-label="
+                                'Comptage cellulaire de ' +
+                                (sample.name || 'cet échantillon') +
+                                ', milliers de cellules'
+                            "
                             v-model.number="sample.count"
                             type="number"
                             min="0"
@@ -1469,11 +1770,13 @@ watch(
                         <span
                             v-if="form.payload.germ_count === 0"
                             class="text-xs font-medium text-green-700"
-                        >→ Affichera : Sterile</span>
+                            >→ Affichera : Sterile</span
+                        >
                         <span
                             v-else-if="form.payload.germ_count >= 3"
                             class="text-xs font-medium text-red-700"
-                        >→ Affichera : Contaminé</span>
+                            >→ Affichera : Contaminé</span
+                        >
                     </div>
                 </div>
 
@@ -1518,16 +1821,24 @@ watch(
                         <table class="w-full text-sm">
                             <thead class="hidden sm:table-header-group">
                                 <tr class="border-b border-border">
-                                    <th class="px-2 py-1 text-left font-medium text-xs">
+                                    <th
+                                        class="px-2 py-1 text-left text-xs font-medium"
+                                    >
                                         Antibiotique
                                     </th>
-                                    <th class="px-2 py-1 text-left font-medium text-xs">
+                                    <th
+                                        class="px-2 py-1 text-left text-xs font-medium"
+                                    >
                                         Dose
                                     </th>
-                                    <th class="px-2 py-1 text-left font-medium text-xs">
+                                    <th
+                                        class="px-2 py-1 text-left text-xs font-medium"
+                                    >
                                         Diametre
                                     </th>
-                                    <th class="px-2 py-1 text-left font-medium text-xs">
+                                    <th
+                                        class="px-2 py-1 text-left text-xs font-medium"
+                                    >
                                         Seuils
                                     </th>
                                 </tr>
@@ -1539,17 +1850,40 @@ watch(
                                     class="border-b border-border/50 last:border-b-0"
                                 >
                                     <td class="px-2 py-1">
-                                        <div>{{ antibiotic.code }} - {{ antibiotic.label }}</div>
-                                        <div class="mt-0.5 flex flex-wrap gap-x-2 gap-y-0.5 text-xs text-muted-foreground sm:hidden">
-                                            <span>{{ antibiotic.dose ?? '-' }}</span>
-                                            <span>I &gt;= {{ antibiotic.intermediate_min }} / S &gt;= {{ antibiotic.sensitive_min }}</span>
+                                        <div>
+                                            {{ antibiotic.code }} -
+                                            {{ antibiotic.label }}
+                                        </div>
+                                        <div
+                                            class="mt-0.5 flex flex-wrap gap-x-2 gap-y-0.5 text-xs text-muted-foreground sm:hidden"
+                                        >
+                                            <span>{{
+                                                antibiotic.dose ?? '-'
+                                            }}</span>
+                                            <span
+                                                >I &gt;=
+                                                {{
+                                                    antibiotic.intermediate_min
+                                                }}
+                                                / S &gt;=
+                                                {{
+                                                    antibiotic.sensitive_min
+                                                }}</span
+                                            >
                                         </div>
                                     </td>
-                                    <td class="hidden px-2 py-1 text-muted-foreground sm:table-cell">
+                                    <td
+                                        class="hidden px-2 py-1 text-muted-foreground sm:table-cell"
+                                    >
                                         {{ antibiotic.dose ?? '-' }}
                                     </td>
                                     <td class="px-2 py-1">
                                         <input
+                                            :aria-label="
+                                                antibiotic.label +
+                                                ' — ' +
+                                                germ.name
+                                            "
                                             v-model.number="
                                                 germ.antibiotics[
                                                     antibiotic.code
@@ -1561,7 +1895,9 @@ watch(
                                             class="w-28 rounded border border-border bg-background px-2 py-1"
                                         />
                                     </td>
-                                    <td class="hidden px-2 py-1 text-muted-foreground sm:table-cell">
+                                    <td
+                                        class="hidden px-2 py-1 text-muted-foreground sm:table-cell"
+                                    >
                                         I >= {{ antibiotic.intermediate_min }} /
                                         S >= {{ antibiotic.sensitive_min }}
                                     </td>
@@ -1734,7 +2070,11 @@ watch(
 }
 
 .analysis-form
-    :is(input:not([type='checkbox']):not([type='hidden']), select, textarea):focus {
+    :is(
+        input:not([type='checkbox']):not([type='hidden']),
+        select,
+        textarea
+    ):focus {
     border-color: var(--primary);
     box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 22%, transparent);
     outline: none;
@@ -1746,7 +2086,9 @@ watch(
     accent-color: var(--primary);
 }
 
-.analysis-form table :is(input:not([type='checkbox']):not([type='hidden']), select) {
+.analysis-form
+    table
+    :is(input:not([type='checkbox']):not([type='hidden']), select) {
     height: 1.625rem;
     min-height: 1.625rem;
     padding: 0.125rem 0.375rem;

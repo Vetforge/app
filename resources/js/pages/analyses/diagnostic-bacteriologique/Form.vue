@@ -68,18 +68,25 @@ const form = reactive<FormState>({
     breeder_id: props.analysis?.breeder_id ?? '',
     animal_nom: props.analysis?.animal_nom ?? '',
     sampled_at: props.analysis?.sampled_at?.slice(0, 10) ?? '',
-    analyzed_at: props.analysis?.analyzed_at?.slice(0, 10) ?? new Date().toISOString().slice(0, 10),
+    analyzed_at:
+        props.analysis?.analyzed_at?.slice(0, 10) ??
+        new Date().toISOString().slice(0, 10),
     intervenant: props.analysis?.intervenant ?? '',
     payload: clonePlain(props.analysis?.payload ?? props.payloadTemplate),
 });
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Accueil', href: dashboard() },
-    { title: props.module.short_label, href: analysesIndex({ module: props.module.slug }).url },
+    {
+        title: props.module.short_label,
+        href: analysesIndex({ module: props.module.slug }).url,
+    },
     { title: isEdit.value ? 'Modifier' : 'Nouvelle analyse', href: '#' },
 ];
 
-const germFamilies = computed<string[]>(() => props.settings.germ_families ?? []);
+const germFamilies = computed<string[]>(
+    () => props.settings.germ_families ?? [],
+);
 const antibioticRows = computed(() => {
     const items = props.settings.antibiotics;
     if (!Array.isArray(items)) return [];
@@ -93,7 +100,10 @@ function setGermCount(count: number): void {
     const entryCount = safeCount >= 3 ? 0 : safeCount;
     form.payload.germs = Array.from({ length: entryCount }, (_, index) => {
         const existing = current[index] ?? {};
-        return { family: existing.family ?? germFamilies.value[0] ?? 'Autre', antibiotics: existing.antibiotics ?? {} };
+        return {
+            family: existing.family ?? germFamilies.value[0] ?? 'Autre',
+            antibiotics: existing.antibiotics ?? {},
+        };
     });
 }
 
@@ -102,15 +112,27 @@ function submit(): void {
     errors.value = {};
     const options = {
         preserveScroll: true,
-        onError: (serverErrors: Errors) => { errors.value = serverErrors; },
-        onFinish: () => { processing.value = false; },
+        onError: (serverErrors: Errors) => {
+            errors.value = serverErrors;
+        },
+        onFinish: () => {
+            processing.value = false;
+        },
     };
     const data = clonePlain(form);
     if (props.analysis) {
-        router.put(analysisUpdate({ analysis: props.analysis.id }).url, data, options);
+        router.put(
+            analysisUpdate({ analysis: props.analysis.id }).url,
+            data,
+            options,
+        );
         return;
     }
-    router.post(analysisStore({ module: props.module.slug }).url, data, options);
+    router.post(
+        analysisStore({ module: props.module.slug }).url,
+        data,
+        options,
+    );
 }
 
 watch(
@@ -120,17 +142,35 @@ watch(
 </script>
 
 <template>
-    <Head :title="isEdit ? `Modifier ${module.short_label}` : `Nouvelle ${module.short_label}`" />
+    <Head
+        :title="
+            isEdit
+                ? `Modifier ${module.short_label}`
+                : `Nouvelle ${module.short_label}`
+        "
+    />
 
     <AppLayout :breadcrumbs="breadcrumbs">
-        <form class="analysis-form mx-auto flex max-w-7xl flex-col gap-3 p-3 sm:p-4" @submit.prevent="submit">
-            <div class="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
+        <form
+            class="analysis-form mx-auto flex max-w-7xl flex-col gap-3 p-3 sm:p-4"
+            @submit.prevent="submit"
+        >
+            <div
+                class="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between"
+            >
                 <div>
-                    <h1 class="text-xl font-bold text-foreground">{{ isEdit ? 'Modifier analyse' : 'Nouvelle analyse' }}</h1>
-                    <p class="text-xs text-muted-foreground">{{ module.label }}</p>
+                    <h1 class="text-xl font-bold text-foreground">
+                        {{ isEdit ? 'Modifier analyse' : 'Nouvelle analyse' }}
+                    </h1>
+                    <p class="text-xs text-muted-foreground">
+                        {{ module.label }}
+                    </p>
                 </div>
                 <div class="flex flex-wrap gap-2">
-                    <Link :href="moduleSettingsEdit({ module: module.slug }).url" class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1 text-xs font-medium hover:bg-accent">
+                    <Link
+                        :href="moduleSettingsEdit({ module: module.slug }).url"
+                        class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1 text-xs font-medium hover:bg-accent"
+                    >
                         <Settings class="size-3.5" />
                         Reglages
                     </Link>
@@ -146,30 +186,113 @@ watch(
                 </div>
                 <div class="grid gap-2 md:grid-cols-2 xl:grid-cols-12">
                     <div class="grid gap-1 xl:col-span-4">
-                        <label class="text-sm font-medium" for="breeder_id">Eleveur *</label>
-                        <BreederSelectWithCreate v-model="form.breeder_id" input-id="breeder_id" :breeders="breeders" :create-url="quickBreederStoreUrl" />
-                        <input v-model="form.breeder_id" type="hidden" required />
-                        <InputError :message="errors.breeder_id" />
+                        <label class="text-sm font-medium" for="breeder_id"
+                            >Eleveur *</label
+                        >
+                        <BreederSelectWithCreate
+                            :aria-invalid="Boolean(errors.breeder_id)"
+                            :aria-describedby="
+                                errors.breeder_id
+                                    ? 'breeder_id-error'
+                                    : undefined
+                            "
+                            v-model="form.breeder_id"
+                            input-id="breeder_id"
+                            :breeders="breeders"
+                            :create-url="quickBreederStoreUrl"
+                        />
+                        <input
+                            v-model="form.breeder_id"
+                            type="hidden"
+                            required
+                        />
+                        <InputError
+                            id="breeder_id-error"
+                            :message="errors.breeder_id"
+                        />
                     </div>
                     <div class="grid gap-1 xl:col-span-2">
-                        <label class="text-sm font-medium" for="animal_nom">Animal</label>
-                        <input id="animal_nom" v-model="form.animal_nom" class="h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" placeholder="Nom libre" />
-                        <InputError :message="errors.animal_nom" />
+                        <label class="text-sm font-medium" for="animal_nom"
+                            >Animal</label
+                        >
+                        <input
+                            :aria-invalid="Boolean(errors.animal_nom)"
+                            :aria-describedby="
+                                errors.animal_nom
+                                    ? 'animal_nom-error'
+                                    : undefined
+                            "
+                            id="animal_nom"
+                            v-model="form.animal_nom"
+                            class="h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                            placeholder="Nom libre"
+                        />
+                        <InputError
+                            id="animal_nom-error"
+                            :message="errors.animal_nom"
+                        />
                     </div>
                     <div class="grid gap-1 xl:col-span-2">
-                        <label class="text-sm font-medium" for="sampled_at">Prelevement</label>
-                        <input id="sampled_at" v-model="form.sampled_at" type="date" class="h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" />
-                        <InputError :message="errors.sampled_at" />
+                        <label class="text-sm font-medium" for="sampled_at"
+                            >Prelevement</label
+                        >
+                        <input
+                            :aria-invalid="Boolean(errors.sampled_at)"
+                            :aria-describedby="
+                                errors.sampled_at
+                                    ? 'sampled_at-error'
+                                    : undefined
+                            "
+                            id="sampled_at"
+                            v-model="form.sampled_at"
+                            type="date"
+                            class="h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                        />
+                        <InputError
+                            id="sampled_at-error"
+                            :message="errors.sampled_at"
+                        />
                     </div>
                     <div class="grid gap-1 xl:col-span-2">
-                        <label class="text-sm font-medium" for="analyzed_at">Analyse</label>
-                        <input id="analyzed_at" v-model="form.analyzed_at" type="date" class="h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" />
-                        <InputError :message="errors.analyzed_at" />
+                        <label class="text-sm font-medium" for="analyzed_at"
+                            >Analyse</label
+                        >
+                        <input
+                            :aria-invalid="Boolean(errors.analyzed_at)"
+                            :aria-describedby="
+                                errors.analyzed_at
+                                    ? 'analyzed_at-error'
+                                    : undefined
+                            "
+                            id="analyzed_at"
+                            v-model="form.analyzed_at"
+                            type="date"
+                            class="h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                        />
+                        <InputError
+                            id="analyzed_at-error"
+                            :message="errors.analyzed_at"
+                        />
                     </div>
                     <div class="grid gap-1 xl:col-span-2">
-                        <label class="text-sm font-medium" for="intervenant">Intervenant</label>
-                        <input id="intervenant" v-model="form.intervenant" class="h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" />
-                        <InputError :message="errors.intervenant" />
+                        <label class="text-sm font-medium" for="intervenant"
+                            >Intervenant</label
+                        >
+                        <input
+                            :aria-invalid="Boolean(errors.intervenant)"
+                            :aria-describedby="
+                                errors.intervenant
+                                    ? 'intervenant-error'
+                                    : undefined
+                            "
+                            id="intervenant"
+                            v-model="form.intervenant"
+                            class="h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                        />
+                        <InputError
+                            id="intervenant-error"
+                            :message="errors.intervenant"
+                        />
                     </div>
                 </div>
             </section>
@@ -184,57 +307,172 @@ watch(
 
                 <div class="grid gap-2 md:grid-cols-3">
                     <div class="grid gap-1">
-                        <label class="text-sm font-medium" for="bact_nature">Prelevement</label>
-                        <input id="bact_nature" v-model="form.payload.sample_nature" class="rounded border border-border bg-background px-2 py-1 text-sm" />
+                        <label class="text-sm font-medium" for="bact_nature"
+                            >Prelevement</label
+                        >
+                        <input
+                            id="bact_nature"
+                            v-model="form.payload.sample_nature"
+                            class="rounded border border-border bg-background px-2 py-1 text-sm"
+                        />
                     </div>
                     <div class="grid gap-1">
-                        <label class="text-sm font-medium" for="bact_identification">Identification</label>
-                        <input id="bact_identification" v-model="form.payload.sample_identification" class="rounded border border-border bg-background px-2 py-1 text-sm" />
+                        <label
+                            class="text-sm font-medium"
+                            for="bact_identification"
+                            >Identification</label
+                        >
+                        <input
+                            id="bact_identification"
+                            v-model="form.payload.sample_identification"
+                            class="rounded border border-border bg-background px-2 py-1 text-sm"
+                        />
                     </div>
                     <div class="grid gap-1">
-                        <label class="text-sm font-medium" for="germ_count">Nombre de germes</label>
-                        <input id="germ_count" v-model.number="form.payload.germ_count" type="number" min="0" class="rounded border border-border bg-background px-2 py-1 text-sm" />
-                        <span v-if="form.payload.germ_count === 0" class="text-xs font-medium text-green-700">→ Affichera : Sterile</span>
-                        <span v-else-if="form.payload.germ_count >= 3" class="text-xs font-medium text-red-700">→ Affichera : Contaminé</span>
+                        <label class="text-sm font-medium" for="germ_count"
+                            >Nombre de germes</label
+                        >
+                        <input
+                            id="germ_count"
+                            v-model.number="form.payload.germ_count"
+                            type="number"
+                            min="0"
+                            class="rounded border border-border bg-background px-2 py-1 text-sm"
+                        />
+                        <span
+                            v-if="form.payload.germ_count === 0"
+                            class="text-xs font-medium text-green-700"
+                            >→ Affichera : Sterile</span
+                        >
+                        <span
+                            v-else-if="form.payload.germ_count >= 3"
+                            class="text-xs font-medium text-red-700"
+                            >→ Affichera : Contaminé</span
+                        >
                     </div>
                 </div>
 
                 <div class="grid gap-1">
-                    <label class="text-sm font-medium" for="bact_commemoratives">Commemoratifs</label>
-                    <textarea id="bact_commemoratives" v-model="form.payload.commemoratives" rows="3" class="rounded border border-border bg-background px-2 py-1 text-sm"></textarea>
+                    <label class="text-sm font-medium" for="bact_commemoratives"
+                        >Commemoratifs</label
+                    >
+                    <textarea
+                        id="bact_commemoratives"
+                        v-model="form.payload.commemoratives"
+                        rows="3"
+                        class="rounded border border-border bg-background px-2 py-1 text-sm"
+                    ></textarea>
                 </div>
 
-                <div v-for="(germ, germIndex) in form.payload.germs" :key="germIndex" class="analysis-subsection">
+                <div
+                    v-for="(germ, germIndex) in form.payload.germs"
+                    :key="germIndex"
+                    class="analysis-subsection"
+                >
                     <div class="grid gap-1.5 md:w-80">
-                        <label class="text-sm font-medium" :for="`germ-family-${germIndex}`">Germe {{ Number(germIndex) + 1 }}</label>
-                        <select :id="`germ-family-${germIndex}`" v-model="germ.family" class="rounded border border-border bg-background px-2 py-1 text-sm">
-                            <option v-for="family in germFamilies" :key="family" :value="family">{{ family }}</option>
+                        <label
+                            class="text-sm font-medium"
+                            :for="`germ-family-${germIndex}`"
+                            >Germe {{ Number(germIndex) + 1 }}</label
+                        >
+                        <select
+                            :id="`germ-family-${germIndex}`"
+                            v-model="germ.family"
+                            class="rounded border border-border bg-background px-2 py-1 text-sm"
+                        >
+                            <option
+                                v-for="family in germFamilies"
+                                :key="family"
+                                :value="family"
+                            >
+                                {{ family }}
+                            </option>
                         </select>
                     </div>
                     <div class="analysis-table-wrap">
                         <table class="w-full text-sm">
                             <thead class="hidden sm:table-header-group">
                                 <tr class="border-b border-border">
-                                    <th class="px-2 py-1 text-left font-medium text-xs">Antibiotique</th>
-                                    <th class="px-2 py-1 text-left font-medium text-xs">Dose</th>
-                                    <th class="px-2 py-1 text-left font-medium text-xs">Diametre</th>
-                                    <th class="px-2 py-1 text-left font-medium text-xs">Seuils</th>
+                                    <th
+                                        class="px-2 py-1 text-left text-xs font-medium"
+                                    >
+                                        Antibiotique
+                                    </th>
+                                    <th
+                                        class="px-2 py-1 text-left text-xs font-medium"
+                                    >
+                                        Dose
+                                    </th>
+                                    <th
+                                        class="px-2 py-1 text-left text-xs font-medium"
+                                    >
+                                        Diametre
+                                    </th>
+                                    <th
+                                        class="px-2 py-1 text-left text-xs font-medium"
+                                    >
+                                        Seuils
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr v-for="antibiotic in antibioticRows" :key="antibiotic.code" class="border-b border-border/50">
+                                <tr
+                                    v-for="antibiotic in antibioticRows"
+                                    :key="antibiotic.code"
+                                    class="border-b border-border/50"
+                                >
                                     <td class="px-2 py-1">
-                                        <div>{{ antibiotic.code }} - {{ antibiotic.label }}</div>
-                                        <div class="mt-0.5 flex flex-wrap gap-x-2 gap-y-0.5 text-xs text-muted-foreground sm:hidden">
-                                            <span v-if="antibiotic.dose">{{ antibiotic.dose }}</span>
-                                            <span>I >= {{ antibiotic.intermediate_min }} / S >= {{ antibiotic.sensitive_min }}</span>
+                                        <div>
+                                            {{ antibiotic.code }} -
+                                            {{ antibiotic.label }}
+                                        </div>
+                                        <div
+                                            class="mt-0.5 flex flex-wrap gap-x-2 gap-y-0.5 text-xs text-muted-foreground sm:hidden"
+                                        >
+                                            <span v-if="antibiotic.dose">{{
+                                                antibiotic.dose
+                                            }}</span>
+                                            <span
+                                                >I >=
+                                                {{
+                                                    antibiotic.intermediate_min
+                                                }}
+                                                / S >=
+                                                {{
+                                                    antibiotic.sensitive_min
+                                                }}</span
+                                            >
                                         </div>
                                     </td>
-                                    <td class="hidden px-2 py-1 text-muted-foreground sm:table-cell">{{ antibiotic.dose ?? '-' }}</td>
-                                    <td class="px-2 py-1">
-                                        <input v-model.number="germ.antibiotics[antibiotic.code]" type="number" min="0" step="1" class="w-28 rounded border border-border bg-background px-2 py-1" />
+                                    <td
+                                        class="hidden px-2 py-1 text-muted-foreground sm:table-cell"
+                                    >
+                                        {{ antibiotic.dose ?? '-' }}
                                     </td>
-                                    <td class="hidden px-2 py-1 text-muted-foreground sm:table-cell">I >= {{ antibiotic.intermediate_min }} / S >= {{ antibiotic.sensitive_min }}</td>
+                                    <td class="px-2 py-1">
+                                        <input
+                                            :aria-label="
+                                                antibiotic.label +
+                                                ' — ' +
+                                                germ.name
+                                            "
+                                            v-model.number="
+                                                germ.antibiotics[
+                                                    antibiotic.code
+                                                ]
+                                            "
+                                            type="number"
+                                            min="0"
+                                            step="1"
+                                            class="w-28 rounded border border-border bg-background px-2 py-1"
+                                        />
+                                    </td>
+                                    <td
+                                        class="hidden px-2 py-1 text-muted-foreground sm:table-cell"
+                                    >
+                                        I >= {{ antibiotic.intermediate_min }} /
+                                        S >= {{ antibiotic.sensitive_min }}
+                                    </td>
                                 </tr>
                             </tbody>
                         </table>
@@ -250,22 +488,43 @@ watch(
                     </div>
                 </div>
                 <div class="grid gap-1">
-                    <label class="text-sm font-medium" for="bact_advice">Conseils</label>
-                    <textarea id="bact_advice" v-model="form.payload.advice" rows="4" class="rounded border border-border bg-background px-2 py-1 text-sm"></textarea>
+                    <label class="text-sm font-medium" for="bact_advice"
+                        >Conseils</label
+                    >
+                    <textarea
+                        id="bact_advice"
+                        v-model="form.payload.advice"
+                        rows="4"
+                        class="rounded border border-border bg-background px-2 py-1 text-sm"
+                    ></textarea>
                 </div>
             </section>
 
-            <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div
+                class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"
+            >
                 <Link
-                    :href="analysis ? analysisShow({ analysis: analysis.id }).url : analysesIndex({ module: module.slug }).url"
+                    :href="
+                        analysis
+                            ? analysisShow({ analysis: analysis.id }).url
+                            : analysesIndex({ module: module.slug }).url
+                    "
                     class="inline-flex items-center justify-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-accent"
                 >
                     <Minus class="size-3.5" />
                     Annuler
                 </Link>
-                <button type="submit" :disabled="processing" class="inline-flex items-center justify-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground shadow hover:bg-primary/90 disabled:opacity-50">
+                <button
+                    type="submit"
+                    :disabled="processing"
+                    class="inline-flex items-center justify-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground shadow hover:bg-primary/90 disabled:opacity-50"
+                >
                     <Save class="size-4" />
-                    {{ processing ? 'Enregistrement...' : "Enregistrer l'analyse" }}
+                    {{
+                        processing
+                            ? 'Enregistrement...'
+                            : "Enregistrer l'analyse"
+                    }}
                 </button>
             </div>
         </form>
@@ -340,12 +599,19 @@ watch(
     font-size: 0.8125rem;
     line-height: 1.25rem;
 }
-.analysis-form :is(input:not([type='checkbox']):not([type='hidden']), select, textarea):focus {
+.analysis-form
+    :is(
+        input:not([type='checkbox']):not([type='hidden']),
+        select,
+        textarea
+    ):focus {
     border-color: var(--primary);
     box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 22%, transparent);
     outline: none;
 }
-.analysis-form table :is(input:not([type='checkbox']):not([type='hidden']), select) {
+.analysis-form
+    table
+    :is(input:not([type='checkbox']):not([type='hidden']), select) {
     height: 1.625rem;
     min-height: 1.625rem;
     padding: 0.125rem 0.375rem;

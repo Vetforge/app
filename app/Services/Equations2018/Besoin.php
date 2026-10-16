@@ -159,7 +159,8 @@ class Besoin
         $primipare = self::partPrimipare($ration) * 100.0;
 
         return match ($cat) {
-            CategorieAnimal::VacheLaitiere, CategorieAnimal::VacheAllaitante => 0.6 * ($primipare / 100),
+            CategorieAnimal::VacheLaitiere => self::croissanceLaitiere($ration, 3.14, 0.077),
+            CategorieAnimal::VacheAllaitante => 0.6 * ($primipare / 100),
             default => 0.0,
         };
     }
@@ -169,6 +170,13 @@ class Besoin
         // Les termes de variation des réserves corporelles (DRC, Éq. 18.5/18.6) ne s'appliquent
         // qu'aux vaches reproductrices ; les autres espèces/catégories gèrent leurs réserves dans
         // leur propre moteur et ne doivent pas hériter du modèle bovin (cf. OV-02, CAP-09).
+        $species = RationHelper::categorie($ration->categorie_animal ?? '')->espece();
+        if ($species === Espece::Ovin) {
+            return OvinBesoin::besoinUFReserves($ration);
+        }
+        if ($species === Espece::Caprin) {
+            return CaprinBesoin::besoinUFReserves($ration);
+        }
         if (! self::estVacheReproductrice($ration)) {
             return 0.0;
         }
@@ -182,6 +190,21 @@ class Besoin
     public static function calculerCoutUFVariationReserve(Ration $ration): float
     {
         return 2.4 - 0.6 * self::partPrimipare($ration);
+    }
+
+    /** Éq. 17.10/17.18/17.21/17.22 : âge individuel, ou âge des primipares du lot. */
+    private static function croissanceLaitiere(Ration $ration, float $intercept, float $slope): float
+    {
+        $age = (float) ($ration->age_mois ?? 36);
+        $part = $ration->age_mois !== null && self::estIndividuelle($ration)
+            ? 1.0 : self::partPrimipare($ration);
+
+        return $age <= 40 ? max(0.0, $intercept - $slope * $age) * $part : 0.0;
+    }
+
+    public static function depotProteiqueCroissanceLaitiere(Ration $ration): float
+    {
+        return self::croissanceLaitiere($ration, 270.0, 6.66);
     }
 
     public static function calculerBesoinTotalUF(Ration $ration): float
@@ -221,18 +244,23 @@ class Besoin
         $moisGest = (float) ($ration->mois_gestation ?? 0);
         $semGest = RationHelper::calculerSemainesGestation($ration);
         $semLact = RationHelper::calculerSemainesLactation($ration);
+        if ($cat === CategorieAnimal::VacheLaitiere && $semLact <= 0) {
+            $lait = 0.0;
+        }
         $PDI = Apport::calculerApportTotalPDI($ration);
         $UFL = Apport::calculerApportTotalUF($ration);
 
         if ($cat === CategorieAnimal::VacheLaitiere) {
             $a = 0.7 - 0.1 * $primipare / 100;
-            $Ind_CILact = $a + (1 - $a) * (1 - exp(-0.25 * $semLact));
+            $Ind_CILact = $semLact > 0 ? $a + (1 - $a) * (1 - exp(-0.25 * $semLact)) : 1.0;
             $Ind_CIGest = 0.8 + 0.2 * (1 - exp(-0.25 * (40 - $semGest)));
-            $ageMoyenMois = 60 - 24 * $primipare / 100;
+            $ageMoyenMois = $ration->age_mois !== null && self::estIndividuelle($ration)
+                ? (float) $ration->age_mois
+                : 60 * (1 - $primipare / 100) + (float) ($ration->age_mois ?? 36) * $primipare / 100;
             $Ind_CIMat = -0.1 + 1.1 * (1 - exp(-0.08 * $ageMoyenMois));
             $Ind_CIPDI = $UFL > 0
                 ? 0.91 + (0.115 / (1 + exp(0.13 * (90 - $PDI / $UFL))))
-                : 0.0;
+                : 1.0; // Une ration vide n'est pas une carence protéique mesurée.
 
             return (14.25 + 0.11 * $lait + 0.015 * ($poidsVif - 600) + (2.5 - $NEC))
                 * $Ind_CIGest * $Ind_CILact * $Ind_CIMat * $Ind_CIPDI;
@@ -321,7 +349,8 @@ class Besoin
         $EffPDI = Apport::calculerEffPDI($ration);
 
         return match ($cat) {
-            CategorieAnimal::VacheLaitiere, CategorieAnimal::VacheAllaitante => $EffPDI > 0
+            CategorieAnimal::VacheLaitiere => self::depotProteiqueCroissanceLaitiere($ration) / max(0.2, $EffPDI),
+            CategorieAnimal::VacheAllaitante => $EffPDI > 0
                 ? (56 * ($primipare / 100)) / $EffPDI
                 : 0.0,
             default => 0.0,
@@ -376,6 +405,18 @@ class Besoin
 
     public static function calculerBesoinPDI_DRC(Ration $ration): float
     {
+        $species = RationHelper::categorie($ration->categorie_animal ?? '')->espece();
+        if ($species === Espece::Ovin) {
+            return max(0.0, OvinBesoin::besoinUFReserves($ration)) * 33.0;
+        }
+        if ($species === Espece::Caprin) {
+            if (RationHelper::categorie($ration->categorie_animal ?? '')->estEnCroissance()) {
+                return 0.0;
+            }
+
+            // Éq. 21.10 : PDI_VBR = 33 × UFL_VBR, crédit ou coût alimentaire.
+            return 33.0 * CaprinBesoin::besoinUFReserves($ration);
+        }
         if (! self::estVacheReproductrice($ration)) {
             return 0.0;
         }
@@ -405,10 +446,18 @@ class Besoin
         );
     }
 
-    /** Part de primipares : parité individuelle prioritaire, pourcentage de lot en repli. */
-    private static function partPrimipare(Ration $ration): float
+    private static function estIndividuelle(Ration $ration): bool
     {
-        if ($ration->parite !== null) {
+        // Un pourcentage saisi représente un lot même si son effectif est inconnu.
+        return $ration->effectif !== null
+            ? (int) $ration->effectif === 1
+            : (float) ($ration->pourcentage_primipare ?? 0) <= 0;
+    }
+
+    /** Part de primipares : parité individuelle prioritaire, pourcentage de lot en repli. */
+    public static function partPrimipare(Ration $ration): float
+    {
+        if ($ration->parite !== null && self::estIndividuelle($ration)) {
             return (int) $ration->parite === 1 ? 1.0 : 0.0;
         }
 
@@ -452,7 +501,7 @@ class Besoin
         return match ($cat) {
             CategorieAnimal::VacheLaitiere => (0.663 * $apportTotalMS) + (0.008 * $poidsVif)
                 + ($semGest >= 27 ? 23.5 / (1 + exp(18.8 - 5.03 * log($semGest))) : 0.0)
-                + 1.21 * $lait, // Éq. 17.21.
+                + 1.21 * $lait + self::croissanceLaitiere($ration, 8.03, 0.189), // Éq. 17.21.
             CategorieAnimal::VacheAllaitante => $moisLact > 0
                 ? 2.9 * $besoinTotalUF - 3.35
                 : 2.3 * $besoinTotalUF - 1.5,
@@ -486,7 +535,7 @@ class Besoin
         return match ($cat) {
             CategorieAnimal::VacheLaitiere => (0.83 * $apportTotalMS) + (0.002 * $poidsVif)
                 + ($semGest >= 27 ? 7.38 / (1 + exp(19.1 - 5.46 * log($semGest))) : 0.0)
-                + 0.87 * $lait, // Éq. 17.22.
+                + 0.87 * $lait + self::croissanceLaitiere($ration, 4.76, 0.112), // Éq. 17.22.
             CategorieAnimal::VacheAllaitante => $moisLact > 0
                 ? 2.22 * $besoinTotalUF - 1.71
                 : 0.82 * $besoinTotalUF + 7.03,
@@ -494,67 +543,69 @@ class Besoin
         };
     }
 
+    /** Table 8.1 (édition anglaise) : g/j ; lait en litres, GMQ en kg/j. */
+    private static function contexteMineral(Ration $ration): array
+    {
+        $cat = RationHelper::categorie($ration->categorie_animal ?? '');
+        $species = $cat->espece();
+        $milk = $species === Espece::Ovin
+            ? OvinBesoin::my($ration)
+            : max(0.0, (float) ($ration->lait_objectif ?? 0)) / 1.032;
+        $gestating = match ($species) {
+            Espece::Ovin => (int) ($ration->jours_gestation ?? 0) >= 98,
+            Espece::Caprin => (int) ($ration->jours_gestation ?? 0) >= 100,
+            default => RationHelper::calculerSemainesGestation($ration) >= 27,
+        };
+        $gain = $cat === CategorieAnimal::ChevreLaitiere
+            ? CaprinBesoin::gainReproductriceKgJour($ration)
+            : max(0.0, (float) ($ration->gmq ?? 0)) / 1000;
+
+        return [$species, $milk, $gestating, $gain, (int) ($ration->nombre_jeunes ?? 1) >= 2];
+    }
+
     public static function calculerBesoinMgabs(Ration $ration): float
     {
-        $poidsVif = RationHelper::poidsVif($ration);
-        $lait = (float) ($ration->lait_objectif ?? 0);
-        $semGest = RationHelper::calculerSemainesGestation($ration);
-        $espece = RationHelper::categorie($ration->categorie_animal ?? '')->espece();
+        [$species, $milk, $gestating, $gain, $twins] = self::contexteMineral($ration);
+        [$maintenance, $lactation] = $species === Espece::Ovin ? [0.014, 0.18] : [0.011, 0.15];
+        $fetal = $species === Espece::Bovin ? 0.30 : ($twins ? 0.05 : 0.03);
 
-        // Entretien et lait Mg diffèrent chez la brebis (Tableau 8.1) : 0,014×PV + 0,18×lait.
-        [$coefPV, $coefLait] = $espece === Espece::Ovin ? [0.014, 0.18] : [0.011, 0.15];
-
-        return $coefPV * $poidsVif
-            + ($semGest >= 27 ? 0.3 : 0.0)
-            + $coefLait * $lait;
+        return $maintenance * RationHelper::poidsVif($ration) + $lactation * $milk
+            + 0.4 * $gain + ($gestating ? $fetal : 0.0);
     }
 
     public static function calculerBesoinNa(Ration $ration): float
     {
-        $poidsVif = RationHelper::poidsVif($ration);
-        $lait = (float) ($ration->lait_objectif ?? 0);
-        $semGest = RationHelper::calculerSemainesGestation($ration);
-        $entretien = $lait > 0 ? 0.023 * $poidsVif : 0.015 * $poidsVif;
+        [$species, $milk, $gestating, $gain] = self::contexteMineral($ration);
+        $growth = match ($species) {
+            Espece::Bovin => 1.4, Espece::Ovin => 0.9, Espece::Caprin => 1.2,
+        };
 
-        return $entretien
-            + ($semGest >= 27 ? 1.3 : 0.0)
-            + 0.45 * $lait;
+        return ($milk > 0 ? 0.023 : 0.015) * RationHelper::poidsVif($ration)
+            + 0.45 * $milk + $growth * $gain
+            + ($gestating ? ($species === Espece::Bovin ? 1.3 : 0.3) : 0.0);
     }
 
     public static function calculerBesoinK(Ration $ration): float
     {
-        $poidsVif = RationHelper::poidsVif($ration);
-        $lait = (float) ($ration->lait_objectif ?? 0);
-        $semGest = RationHelper::calculerSemainesGestation($ration);
-        $espece = RationHelper::categorie($ration->categorie_animal ?? '')->espece();
-        $entretien = $lait > 0 ? 0.150 * $poidsVif : 0.105 * $poidsVif;
-
-        // K du lait (Tableau 8.1) : ≈ 1,5 bovin, 1,4 ovin, 1,8 caprin.
-        $coefLait = match ($espece) {
-            Espece::Ovin => 1.4,
-            Espece::Caprin => 1.8,
-            default => 1.5,
+        [$species, $milk, $gestating, $gain, $twins] = self::contexteMineral($ration);
+        $lactation = match ($species) {
+            Espece::Bovin => 1.5, Espece::Ovin => 1.4, Espece::Caprin => 1.8,
         };
+        $fetal = $species === Espece::Bovin ? 1.0 : ($twins ? 0.3 : 0.2);
 
-        return $entretien
-            + ($semGest >= 27 ? 1.0 : 0.0)
-            + $coefLait * $lait;
+        return ($milk > 0 ? 0.150 : 0.105) * RationHelper::poidsVif($ration)
+            + $lactation * $milk + ($species === Espece::Bovin ? 1.6 : 1.8) * $gain
+            + ($gestating ? $fetal : 0.0);
     }
 
     public static function calculerBesoinCl(Ration $ration): float
     {
-        $poidsVif = RationHelper::poidsVif($ration);
-        $lait = (float) ($ration->lait_objectif ?? 0);
-        $semGest = RationHelper::calculerSemainesGestation($ration);
-        $espece = RationHelper::categorie($ration->categorie_animal ?? '')->espece();
-        $entretien = $lait > 0 ? 0.035 * $poidsVif : 0.023 * $poidsVif;
+        [$species, $milk, $gestating, $gain] = self::contexteMineral($ration);
 
-        // Cl du lait (Tableau 8.1) : ≈ 1,15 bovin/ovin, 1,30 caprin.
-        $coefLait = $espece === Espece::Caprin ? 1.30 : 1.15;
-
-        return $entretien
-            + ($semGest >= 27 ? 1.0 : 0.0)
-            + $coefLait * $lait;
+        return ($milk > 0 ? 0.035 : 0.023) * RationHelper::poidsVif($ration)
+            + ($species === Espece::Caprin ? 1.30 : 1.15) * $milk
+            + ($species === Espece::Ovin ? 0.7 : 1.0) * $gain
+            + ($gestating ? ($species === Espece::Bovin ? 1.0 : 0.4) : 0.0);
     }
 
     public static function calculerBesoinS(Ration $ration): float

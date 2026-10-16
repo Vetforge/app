@@ -374,6 +374,8 @@ class RationCalculator
                 'unite_encombrement' => $categorie->uniteEncombrementLabel(),
                 'est_laitiere' => $categorie->estLaitiere(),
                 'mineraux_valides' => true,
+                'reference_equations' => 'INRA Feeding System for Ruminants, 2e édition anglaise (2019), chapitres 8, 17–21',
+                'unite_lait' => $categorie->espece()->value === 'ovin' ? 'l/j' : 'kg/j',
                 'vitamines_semantique' => 'supplementation',
             ],
             'apports' => [

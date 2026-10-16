@@ -20,7 +20,9 @@ use App\Services\Equations2018\Apport as Apport2018;
 use App\Services\Equations2018\Besoin as Besoin2018;
 use App\Services\RationCalculator;
 use App\Services\RationDuplicator;
+use App\Services\Reference\BovinCroissanceReference;
 use App\Support\PdfClinicHeader;
+use App\Support\PetitRuminantParameters;
 use App\Support\RationNormes;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
@@ -86,9 +88,13 @@ class RationController extends Controller
             ->with('success', 'Description mise à jour.');
     }
 
-    public function composition(PlanRationnement $plan, Ration $ration): Response
+    public function composition(PlanRationnement $plan, Ration $ration): Response|RedirectResponse
     {
         $this->authorize('view', $plan);
+
+        if ($redirect = $this->redirectInvalidParameters($plan, $ration)) {
+            return $redirect;
+        }
 
         return Inertia::render('rations/Composition', $this->workspacePayload($plan, $ration));
     }
@@ -202,16 +208,24 @@ class RationController extends Controller
         return back()->with('success', 'Aliment retiré.');
     }
 
-    public function resultats(PlanRationnement $plan, Ration $ration): Response
+    public function resultats(PlanRationnement $plan, Ration $ration): Response|RedirectResponse
     {
         $this->authorize('view', $plan);
+
+        if ($redirect = $this->redirectInvalidParameters($plan, $ration)) {
+            return $redirect;
+        }
 
         return Inertia::render('rations/Resultats', $this->workspacePayload($plan, $ration));
     }
 
-    public function pdf(PlanRationnement $plan, Ration $ration): \Illuminate\Http\Response
+    public function pdf(PlanRationnement $plan, Ration $ration): \Illuminate\Http\Response|RedirectResponse
     {
         $this->authorize('view', $plan);
+
+        if ($redirect = $this->redirectInvalidParameters($plan, $ration)) {
+            return $redirect;
+        }
 
         $ration->load([
             'rationAliments.aliment',
@@ -275,6 +289,22 @@ class RationController extends Controller
         ];
     }
 
+    private function redirectInvalidParameters(PlanRationnement $plan, Ration $ration): ?RedirectResponse
+    {
+        $errors = BovinCroissanceReference::parameterErrors(
+            $ration->categorie(),
+            $ration->reference_bovine,
+            $ration->poids_vif === null ? null : (float) $ration->poids_vif,
+            $ration->gmq,
+        ) + PetitRuminantParameters::errors($ration->categorie(), $ration->toArray());
+
+        if ($errors === []) {
+            return null;
+        }
+
+        return redirect()->route('plans.rations.description', [$plan, $ration])->withErrors($errors);
+    }
+
     private function alimentsDisponibles(PlanRationnement $plan): Collection
     {
         return Aliment::query()
@@ -282,7 +312,7 @@ class RationController extends Controller
             ->where(fn ($query) => $query->whereNull('user_id')->orWhere('user_id', request()->user()->id))
             ->where(fn ($query) => $query->whereNull('usage_aliment')->orWhere('usage_aliment', '!=', 2))
             ->orderBy('libelle0')
-            ->get(['id', 'libelle0', 'libelle1', 'type', 'ufl', 'ufv', 'ms']);
+            ->get(['id', 'code_inra', 'libelle0', 'libelle1', 'type', 'ufl', 'ufv', 'ms']);
     }
 
     /**

@@ -34,6 +34,10 @@ defineProps<{
                 <div class="grid gap-2">
                     <Label for="email">Adresse e-mail</Label>
                     <Input
+                        :aria-invalid="Boolean(errors.email)"
+                        :aria-describedby="
+                            errors.email ? 'email-error' : undefined
+                        "
                         id="email"
                         type="email"
                         name="email"
@@ -41,7 +45,7 @@ defineProps<{
                         autofocus
                         placeholder="email@example.com"
                     />
-                    <InputError :message="errors.email" />
+                    <InputError id="email-error" :message="errors.email" />
                 </div>
 
                 <div class="my-6 flex items-center justify-start">

@@ -73,9 +73,8 @@ test('lacaune dairy ewe intake capacity follows equations 20.48 and 20.52', func
     ]);
 
     $smy = 3.0 * (0.0071 * 70 + 0.0043 * 55 + 0.2224);
-    $correctionTemperature = 1.345 - 0.0183 * 15;
     expect(Besoin2018::calculerCapaciteIngestion($ration))
-        ->toEqualWithDelta((0.900 * $smy + 0.0240 * 75) * $correctionTemperature, 0.001);
+        ->toEqualWithDelta(0.900 * $smy + 0.0240 * 75, 0.001);
 });
 
 test('growing lamb energy matches table 20.3 (equation 20.53)', function () {

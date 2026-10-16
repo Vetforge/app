@@ -287,17 +287,24 @@ class Apport
         $PI = $UFL > 0 ? 0.4 + 0.4 / (1 + exp(0.15 * (($PDI / $UFL) - 100.0))) : 0.0;
         $d = ($PI - $S0) != 0 ? ($S - $S0) / ($PI - $S0) - 1.0 : 0.0;
 
-        $log = log(($d * exp(9.5 * ($RPCO - $PCO)) + 1) / max(PHP_FLOAT_EPSILON, $d * exp(9.5 * $RPCO) + 1));
-        if ($log < 0) {
-            $log = 0.0;
+        if ($UEf <= 0 || $UFLf <= 0) {
+            return 0.0;
+        }
+        // Éq. 17.37 : le logarithme est normalement négatif. Le tronquer change
+        // l'intégrale de substitution ; aucune borne 0,3–0,8 n'est publiée ici.
+        if (abs($PI - $S0) < 1e-10) {
+            return $S0;
+        }
+        $denom = 1 + $d * exp(9.5 * $RPCO);
+        $numerator = 1 + $d * exp(9.5 * ($RPCO - $PCO));
+        if ($denom <= 0 || $numerator <= 0) {
+            return $S0;
+        }
+        if (abs($PCO) <= 1e-8) {
+            return $S0 + ($S - $S0) / $denom;
         }
 
-        $denom = $d * exp(9.5 * $RPCO) + 1;
-        $TSg = ($PCO > 0 && $denom > 0)
-            ? ($S - $S0) * (1 + (1 / (9.5 * $PCO)) * $log) + $S0
-            : 0.0;
-
-        return min(0.8, max(0.3, $TSg));
+        return $S0 + ($S - $S0) * (1 + log($numerator / $denom) / (9.5 * $PCO));
     }
 
     public static function calculerRPCO(Ration $ration): float
@@ -318,21 +325,46 @@ class Apport
         $UFL = $totalMS > 0 ? self::calculerApportTotalUF($ration) / $totalMS : 0.0;
         $bVEc = self::calculerbVEc($ration);
 
-        $RPCO1 = 1.0;
-        $RPCO2 = 0.0;
-        $compteur = 0;
+        if ($UEf <= 0 || $UFLf <= 0 || $concentresMS <= 0) {
+            return 0.0;
+        }
+        $milkPotential = RationHelper::calculerSemainesLactation($ration) > 0
+            ? RationHelper::calculerProductionLaitPotentielle($ration) : 0.0;
+        $milkCost = 0.42 + 0.0053 * (Besoin::calculerTB($ration) - 40) + 0.0032 * (Besoin::calculerTP($ration) - 31);
+        $requirements = $besUFL - Besoin::calculerBesoinUF_PL($ration) + $milkPotential * $milkCost - $UFL_VPRpot;
+        $numerator = $CI * $UFLf / $UEf - $requirements;
+        // Éq. 17.38 : résoudre sans diviser par un dénominateur éventuellement nul.
+        // RPCO est théorique et peut être négatif avec de bons fourrages.
+        $residual = static function (float $pivot) use ($UEf, $bVEc, $UFLf, $UFLc, $PDI, $UFL, $CI, $requirements, $numerator): float {
+            $substitution = self::calculerTSg($UEf, $bVEc, $UFLf, $UFLc, $PDI, $UFL, $pivot, $pivot);
 
-        while ($RPCO1 > $RPCO2 && $compteur < 100) {
-            $TSgRPCO = self::calculerTSg($UEf, $bVEc, $UFLf, $UFLc, $PDI, $UFL, $RPCO1, $RPCO1);
-            $denomRPCO = ($besUFL - $UFL_VPRpot) * ($TSgRPCO - 1) - ($UEf > 0 ? ($CI / $UEf) * ($UFLc - $UFLf) : 0.0);
-            $RPCO2 = ($UEf > 0 && $denomRPCO != 0)
-                ? ($CI * ($UFLf / $UEf) - ($besUFL - $UFL_VPRpot)) / $denomRPCO
-                : 0.0;
-            $RPCO1 -= 0.01;
-            $compteur++;
+            return $pivot * ($requirements * ($substitution - 1) - $CI / $UEf * ($UFLc - $UFLf)) - $numerator;
+        };
+        $lower = -4.0;
+        $upper = 4.0;
+        for ($expansion = 0; $expansion < 3 && $residual($lower) * $residual($upper) > 0; $expansion++) {
+            $lower *= 2;
+            $upper *= 2;
+        }
+        $lowerResidual = $residual($lower);
+        if ($lowerResidual * $residual($upper) > 0) {
+            return self::calculerPCO($ration);
+        }
+        for ($iteration = 0; $iteration < 40; $iteration++) {
+            $middle = ($lower + $upper) / 2;
+            $middleResidual = $residual($middle);
+            if (abs($middleResidual) < 1e-8) {
+                return $middle;
+            }
+            if ($lowerResidual * $middleResidual <= 0) {
+                $upper = $middle;
+            } else {
+                $lower = $middle;
+                $lowerResidual = $middleResidual;
+            }
         }
 
-        return $RPCO1;
+        return ($lower + $upper) / 2;
     }
 
     public static function calculerSg(Ration $ration): float
@@ -414,7 +446,10 @@ class Apport
             $sr46 = -1.6 * $fvf + 2.9;
             if ($week <= 3.0) {
                 $dmiCo = self::calculerApportConcentresMS($ration);
-                $cor = ($fourragesMS - 2.573) * (0.3572 * $dmiCo - 0.986) + 0.202;
+                if ($dmiCo <= 0) {
+                    return 0.0;
+                }
+                $cor = ($fourragesMS - 2.573) * (0.3572 * pow($dmiCo, -0.986)) + 0.202;
 
                 return 0.8 * $sr46 + $cor;
             }
@@ -624,7 +659,6 @@ class Apport
         $besPDI_PUendo = 0.312 * $poidsVif;
         $semGestation = RationHelper::calculerSemainesGestation($ration);
         $poidsDuVeau = (float) ($ration->poids_veau_naissance ?? 50);
-        $pourcentagePrimipare = (float) ($ration->pourcentage_primipare ?? 0);
         $apportPDI = self::calculerApportTotalPDI($ration);
         $UFL_VPR = self::calculerApportUFL_VPR($ration, false);
 
@@ -632,7 +666,7 @@ class Apport
         $PDI_VPR = $PDI_ut + 33 * $UFL_VPR;
 
         $Prot_gest = ($semGestation > 0) ? 0.0448 * $poidsDuVeau * exp(0.111 * $semGestation) : 0.0;
-        $Prot_gain = 56 * ($pourcentagePrimipare / 100);
+        $Prot_gain = Besoin::depotProteiqueCroissanceLaitiere($ration);
 
         $lysDI = self::calculerApportLysDI($ration);
         $metDI = self::calculerApportMetDI($ration);
@@ -655,7 +689,14 @@ class Apport
                 : 0.0;
         }
 
-        return min(1.0, $EffPDI);
+        // Hors du domaine du bilan protéique (apport inférieur aux pertes
+        // urinaires obligatoires), conserver l'efficience de concentration.
+        $denominator = $apportPDI - $besPDI_PUendo - min(0.0, $PDI_VPR);
+        if ($denominator <= 0 || ! is_finite($EffPDI) || $EffPDI <= 0) {
+            return self::calculerEffPDI_PDIMS($ration);
+        }
+
+        return max(0.2, min(1.0, $EffPDI));
     }
 
     public static function calculerEffPDI(Ration $ration): float
@@ -783,30 +824,9 @@ class Apport
     public static function calculerMAmic_duo(Ration $ration): float
     {
         $total = 0.0;
-        foreach ($ration->rationAliments as $ra) {
-            if (($ra->quantite ?? 0) <= 0 || ($ra->aliment->type ?? '') !== TypeAliment::Fourrage->value) {
-                continue;
-            }
-
-            $qtyMS = $ra->is_mb
-                ? (float) $ra->quantite * (float) ($ra->aliment->ms ?? 0) / 100
-                : (float) $ra->quantite;
-
-            $cv = new CalculValeur($ration, $ra->aliment);
-            $total += $qtyMS * $cv->calculerMAmic_duoAliment();
-        }
-
-        foreach ($ration->melanges as $melange) {
-            if (($melange->quantite ?? 0) <= 0) {
-                continue;
-            }
-
-            $moyenneMS = RationHelper::calculerMoyennePondereeMelange($ration, $melange, 'MS');
-            $quantiteMelange = $melange->is_mb
-                ? (float) $melange->quantite * $moyenneMS / 100
-                : (float) $melange->quantite;
-            $moyenneMAmicDuo = RationHelper::calculerMoyennePondereeMelange($ration, $melange, 'MAmic_duo');
-            $total += $quantiteMelange * $moyenneMAmicDuo;
+        foreach (self::getIngredients($ration) as $item) {
+            $cv = new CalculValeur($ration, $item['aliment']);
+            $total += $item['qty_ms'] * $cv->calculerMAmic_duoAliment();
         }
 
         $totalMS = self::calculerApportTotalMS($ration);
@@ -939,7 +959,7 @@ class Apport
 
     public static function calculerDTAmi(Ration $ration): float
     {
-        $totalAmidon = self::calculerApportAmidon($ration);
+        $totalAmidon = self::calculerApportAmidonParKgMS($ration);
         $totalAmiD_ru = self::calculerApportAmiD_ru($ration);
 
         return $totalAmidon > 0 ? $totalAmiD_ru * 100 / $totalAmidon : 0.0;

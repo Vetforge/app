@@ -1,12 +1,17 @@
-import { createInertiaApp } from '@inertiajs/vue3';
+import { createInertiaApp, router } from '@inertiajs/vue3';
 import ui from '@nuxt/ui/vue-plugin';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import type { DefineComponent } from 'vue';
-import { createApp, h } from 'vue';
+import { createApp, h, nextTick } from 'vue';
 import '../css/app.css';
 import { initializeTheme } from '@/composables/useAppearance';
+import { focusFirstInvalidField } from '@/lib/formValidation';
 
 const appName = import.meta.env.VITE_APP_NAME || 'Nexa';
+
+router.on('error', () => {
+    void nextTick(() => requestAnimationFrame(focusFirstInvalidField));
+});
 
 createInertiaApp({
     title: (title) => (title ? `${title} - ${appName}` : appName),

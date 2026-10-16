@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3';
-import { Minus, Plus, Save, Trash2 } from 'lucide-vue-next';
+import { Minus, Save } from 'lucide-vue-next';
 import { computed, reactive, ref, watch } from 'vue';
 import {
     index as analysesIndex,
@@ -41,7 +41,16 @@ interface Analysis {
 
 type Errors = Record<string, string>;
 
-const SPECIES_OPTIONS = ['Bovin', 'Ovin', 'Caprin', 'Porcin', 'Equin', 'Volaille', 'Chien', 'Chat'];
+const SPECIES_OPTIONS = [
+    'Bovin',
+    'Ovin',
+    'Caprin',
+    'Porcin',
+    'Equin',
+    'Volaille',
+    'Chien',
+    'Chat',
+];
 
 const props = defineProps<{
     analysis?: Analysis;
@@ -60,7 +69,9 @@ const form = reactive({
     breeder_id: props.analysis?.breeder_id ?? '',
     animal_nom: props.analysis?.animal_nom ?? '',
     sampled_at: props.analysis?.sampled_at?.slice(0, 10) ?? '',
-    analyzed_at: props.analysis?.analyzed_at?.slice(0, 10) ?? new Date().toISOString().slice(0, 10),
+    analyzed_at:
+        props.analysis?.analyzed_at?.slice(0, 10) ??
+        new Date().toISOString().slice(0, 10),
     intervenant: props.analysis?.intervenant ?? '',
     payload: clonePlain(props.analysis?.payload ?? props.payloadTemplate) as {
         species: string;
@@ -87,7 +98,10 @@ watch(
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Accueil', href: dashboard() },
-    { title: props.module.short_label, href: analysesIndex({ module: props.module.slug }).url },
+    {
+        title: props.module.short_label,
+        href: analysesIndex({ module: props.module.slug }).url,
+    },
     { title: isEdit.value ? 'Modifier' : 'Nouvelle analyse', href: '#' },
 ];
 
@@ -105,22 +119,45 @@ function submit(): void {
     };
     const data = clonePlain(form);
     if (props.analysis) {
-        router.put(analysisUpdate({ analysis: props.analysis.id }).url, data, options);
+        router.put(
+            analysisUpdate({ analysis: props.analysis.id }).url,
+            data,
+            options,
+        );
         return;
     }
-    router.post(analysisStore({ module: props.module.slug }).url, data, options);
+    router.post(
+        analysisStore({ module: props.module.slug }).url,
+        data,
+        options,
+    );
 }
 </script>
 
 <template>
-    <Head :title="isEdit ? `Modifier ${module.short_label}` : `Nouvelle ${module.short_label}`" />
+    <Head
+        :title="
+            isEdit
+                ? `Modifier ${module.short_label}`
+                : `Nouvelle ${module.short_label}`
+        "
+    />
 
     <AppLayout :breadcrumbs="breadcrumbs">
-        <form class="analysis-form mx-auto flex max-w-7xl flex-col gap-3 p-3 sm:p-4" @submit.prevent="submit">
-            <div class="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
+        <form
+            class="analysis-form mx-auto flex max-w-7xl flex-col gap-3 p-3 sm:p-4"
+            @submit.prevent="submit"
+        >
+            <div
+                class="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between"
+            >
                 <div>
-                    <h1 class="text-xl font-bold text-foreground">{{ isEdit ? 'Modifier analyse' : 'Nouvelle analyse' }}</h1>
-                    <p class="text-xs text-muted-foreground">{{ module.label }}</p>
+                    <h1 class="text-xl font-bold text-foreground">
+                        {{ isEdit ? 'Modifier analyse' : 'Nouvelle analyse' }}
+                    </h1>
+                    <p class="text-xs text-muted-foreground">
+                        {{ module.label }}
+                    </p>
                 </div>
             </div>
 
@@ -133,26 +170,73 @@ function submit(): void {
                 </div>
                 <div class="grid gap-2 md:grid-cols-2 xl:grid-cols-12">
                     <div class="grid gap-1 xl:col-span-4">
-                        <label class="text-sm font-medium" for="breeder_id">Eleveur *</label>
-                        <BreederSelectWithCreate v-model="form.breeder_id" input-id="breeder_id" :breeders="breeders" :create-url="quickBreederStoreUrl" />
-                        <input v-model="form.breeder_id" type="hidden" required />
-                        <InputError :message="errors.breeder_id" />
+                        <label class="text-sm font-medium" for="breeder_id"
+                            >Eleveur *</label
+                        >
+                        <BreederSelectWithCreate
+                            :aria-invalid="Boolean(errors.breeder_id)"
+                            :aria-describedby="
+                                errors.breeder_id
+                                    ? 'breeder_id-error'
+                                    : undefined
+                            "
+                            v-model="form.breeder_id"
+                            input-id="breeder_id"
+                            :breeders="breeders"
+                            :create-url="quickBreederStoreUrl"
+                        />
+                        <input
+                            v-model="form.breeder_id"
+                            type="hidden"
+                            required
+                        />
+                        <InputError
+                            id="breeder_id-error"
+                            :message="errors.breeder_id"
+                        />
                     </div>
                     <div class="grid gap-1 xl:col-span-2">
-                        <label class="text-sm font-medium" for="animal_nom">Animal</label>
-                        <input id="animal_nom" v-model="form.animal_nom" class="h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" placeholder="Nom libre" />
+                        <label class="text-sm font-medium" for="animal_nom"
+                            >Animal</label
+                        >
+                        <input
+                            id="animal_nom"
+                            v-model="form.animal_nom"
+                            class="h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                            placeholder="Nom libre"
+                        />
                     </div>
                     <div class="grid gap-1 xl:col-span-2">
-                        <label class="text-sm font-medium" for="sampled_at">Prelevement</label>
-                        <input id="sampled_at" v-model="form.sampled_at" type="date" class="h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" />
+                        <label class="text-sm font-medium" for="sampled_at"
+                            >Prelevement</label
+                        >
+                        <input
+                            id="sampled_at"
+                            v-model="form.sampled_at"
+                            type="date"
+                            class="h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                        />
                     </div>
                     <div class="grid gap-1 xl:col-span-2">
-                        <label class="text-sm font-medium" for="analyzed_at">Analyse</label>
-                        <input id="analyzed_at" v-model="form.analyzed_at" type="date" class="h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" />
+                        <label class="text-sm font-medium" for="analyzed_at"
+                            >Analyse</label
+                        >
+                        <input
+                            id="analyzed_at"
+                            v-model="form.analyzed_at"
+                            type="date"
+                            class="h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                        />
                     </div>
                     <div class="grid gap-1 xl:col-span-2">
-                        <label class="text-sm font-medium" for="intervenant">Intervenant</label>
-                        <input id="intervenant" v-model="form.intervenant" class="h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" />
+                        <label class="text-sm font-medium" for="intervenant"
+                            >Intervenant</label
+                        >
+                        <input
+                            id="intervenant"
+                            v-model="form.intervenant"
+                            class="h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                        />
                     </div>
                 </div>
             </section>
@@ -166,19 +250,47 @@ function submit(): void {
                 </div>
                 <div class="grid gap-2 md:grid-cols-3">
                     <div class="grid gap-1">
-                        <label class="text-sm font-medium" for="species">Espece</label>
-                        <select id="species" v-model="form.payload.species" class="rounded border border-border bg-background px-2 py-1 text-sm">
-                            <option v-for="s in SPECIES_OPTIONS" :key="s" :value="s">{{ s }}</option>
+                        <label class="text-sm font-medium" for="species"
+                            >Espece</label
+                        >
+                        <select
+                            id="species"
+                            v-model="form.payload.species"
+                            class="rounded border border-border bg-background px-2 py-1 text-sm"
+                        >
+                            <option
+                                v-for="s in SPECIES_OPTIONS"
+                                :key="s"
+                                :value="s"
+                            >
+                                {{ s }}
+                            </option>
                         </select>
                     </div>
                     <div class="grid gap-1">
-                        <label class="text-sm font-medium" for="sample_count">Nombre d'analyses (1-6)</label>
-                        <input id="sample_count" v-model.number="form.payload.sample_count" type="number" min="1" max="6" class="rounded border border-border bg-background px-2 py-1 text-sm" />
+                        <label class="text-sm font-medium" for="sample_count"
+                            >Nombre d'analyses (1-6)</label
+                        >
+                        <input
+                            id="sample_count"
+                            v-model.number="form.payload.sample_count"
+                            type="number"
+                            min="1"
+                            max="6"
+                            class="rounded border border-border bg-background px-2 py-1 text-sm"
+                        />
                     </div>
                 </div>
                 <div class="grid gap-1">
-                    <label class="text-sm font-medium" for="commemoratifs">Commemoratifs</label>
-                    <textarea id="commemoratifs" v-model="form.payload.commemoratifs" rows="3" class="rounded border border-border bg-background px-2 py-1 text-sm"></textarea>
+                    <label class="text-sm font-medium" for="commemoratifs"
+                        >Commemoratifs</label
+                    >
+                    <textarea
+                        id="commemoratifs"
+                        v-model="form.payload.commemoratifs"
+                        rows="3"
+                        class="rounded border border-border bg-background px-2 py-1 text-sm"
+                    ></textarea>
                 </div>
             </section>
 
@@ -189,15 +301,41 @@ function submit(): void {
                         <p>Type et resultats pour chaque analyse.</p>
                     </div>
                 </div>
-                <div v-for="(analyse, index) in form.payload.analyses" :key="index" class="grid gap-2 rounded-md border border-border bg-muted/20 p-3">
-                    <p class="text-xs font-semibold text-muted-foreground uppercase">Analyse n°{{ index + 1 }}</p>
+                <div
+                    v-for="(analyse, index) in form.payload.analyses"
+                    :key="index"
+                    class="grid gap-2 rounded-md border border-border bg-muted/20 p-3"
+                >
+                    <p
+                        class="text-xs font-semibold text-muted-foreground uppercase"
+                    >
+                        Analyse n°{{ index + 1 }}
+                    </p>
                     <div class="grid gap-1">
-                        <label class="text-sm font-medium" :for="`type-${index}`">Type d'analyse</label>
-                        <input :id="`type-${index}`" v-model="analyse.type" class="rounded border border-border bg-background px-2 py-1 text-sm" maxlength="100" />
+                        <label
+                            class="text-sm font-medium"
+                            :for="`type-${index}`"
+                            >Type d'analyse</label
+                        >
+                        <input
+                            :id="`type-${index}`"
+                            v-model="analyse.type"
+                            class="rounded border border-border bg-background px-2 py-1 text-sm"
+                            maxlength="100"
+                        />
                     </div>
                     <div class="grid gap-1">
-                        <label class="text-sm font-medium" :for="`results-${index}`">Resultats</label>
-                        <textarea :id="`results-${index}`" v-model="analyse.results" rows="4" class="rounded border border-border bg-background px-2 py-1 text-sm"></textarea>
+                        <label
+                            class="text-sm font-medium"
+                            :for="`results-${index}`"
+                            >Resultats</label
+                        >
+                        <textarea
+                            :id="`results-${index}`"
+                            v-model="analyse.results"
+                            rows="4"
+                            class="rounded border border-border bg-background px-2 py-1 text-sm"
+                        ></textarea>
                     </div>
                 </div>
             </section>
@@ -209,21 +347,41 @@ function submit(): void {
                     </div>
                 </div>
                 <div class="grid gap-1">
-                    <textarea id="commentaires" v-model="form.payload.commentaires" rows="4" class="rounded border border-border bg-background px-2 py-1 text-sm"></textarea>
+                    <textarea
+                        aria-label="Commentaires"
+                        id="commentaires"
+                        v-model="form.payload.commentaires"
+                        rows="4"
+                        class="rounded border border-border bg-background px-2 py-1 text-sm"
+                    ></textarea>
                 </div>
             </section>
 
-            <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div
+                class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"
+            >
                 <Link
-                    :href="analysis ? analysisShow({ analysis: analysis.id }).url : analysesIndex({ module: module.slug }).url"
+                    :href="
+                        analysis
+                            ? analysisShow({ analysis: analysis.id }).url
+                            : analysesIndex({ module: module.slug }).url
+                    "
                     class="inline-flex items-center justify-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-accent"
                 >
                     <Minus class="size-3.5" />
                     Annuler
                 </Link>
-                <button type="submit" :disabled="processing" class="inline-flex items-center justify-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground shadow hover:bg-primary/90 disabled:opacity-50">
+                <button
+                    type="submit"
+                    :disabled="processing"
+                    class="inline-flex items-center justify-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground shadow hover:bg-primary/90 disabled:opacity-50"
+                >
                     <Save class="size-4" />
-                    {{ processing ? 'Enregistrement...' : "Enregistrer l'analyse" }}
+                    {{
+                        processing
+                            ? 'Enregistrement...'
+                            : "Enregistrer l'analyse"
+                    }}
                 </button>
             </div>
         </form>
@@ -282,7 +440,12 @@ function submit(): void {
     font-size: 0.8125rem;
     line-height: 1.25rem;
 }
-.analysis-form :is(input:not([type='checkbox']):not([type='hidden']), select, textarea):focus {
+.analysis-form
+    :is(
+        input:not([type='checkbox']):not([type='hidden']),
+        select,
+        textarea
+    ):focus {
     border-color: var(--primary);
     box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 22%, transparent);
     outline: none;

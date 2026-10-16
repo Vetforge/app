@@ -78,6 +78,10 @@ const breadcrumbs: BreadcrumbItem[] = [
                         Eleveur <span class="text-destructive">*</span>
                     </label>
                     <BreederSelectWithCreate
+                        :aria-invalid="Boolean(errors.breeder_id)"
+                        :aria-describedby="
+                            errors.breeder_id ? 'breeder_id-error' : undefined
+                        "
                         v-model="selectedBreederId"
                         input-id="breeder_id"
                         name="breeder_id"
@@ -85,7 +89,10 @@ const breadcrumbs: BreadcrumbItem[] = [
                         :create-url="quickBreederStoreUrl"
                         required
                     />
-                    <InputError :message="errors.breeder_id" />
+                    <InputError
+                        id="breeder_id-error"
+                        :message="errors.breeder_id"
+                    />
                 </div>
 
                 <div class="flex flex-col gap-1.5">
@@ -96,6 +103,8 @@ const breadcrumbs: BreadcrumbItem[] = [
                         Nom du plan <span class="text-destructive">*</span>
                     </label>
                     <input
+                        :aria-invalid="Boolean(errors.nom)"
+                        :aria-describedby="errors.nom ? 'nom-error' : undefined"
                         id="nom"
                         name="nom"
                         type="text"
@@ -104,7 +113,7 @@ const breadcrumbs: BreadcrumbItem[] = [
                         placeholder="Ex : Troupeau vaches laitières printemps 2024"
                         required
                     />
-                    <InputError :message="errors.nom" />
+                    <InputError id="nom-error" :message="errors.nom" />
                 </div>
 
                 <div class="flex flex-col gap-1.5">
@@ -114,6 +123,10 @@ const breadcrumbs: BreadcrumbItem[] = [
                         >Date <span class="text-destructive">*</span></label
                     >
                     <input
+                        :aria-invalid="Boolean(errors.date)"
+                        :aria-describedby="
+                            errors.date ? 'date-error' : undefined
+                        "
                         id="date"
                         name="date"
                         type="date"
@@ -121,7 +134,7 @@ const breadcrumbs: BreadcrumbItem[] = [
                         class="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-primary focus:outline-none"
                         required
                     />
-                    <InputError :message="errors.date" />
+                    <InputError id="date-error" :message="errors.date" />
                 </div>
 
                 <div v-if="!isEdit" class="flex flex-col gap-2">
@@ -137,6 +150,11 @@ const breadcrumbs: BreadcrumbItem[] = [
                             class="flex cursor-pointer items-start gap-3 rounded-xl border border-border p-4 hover:border-primary/50 has-[:checked]:border-primary has-[:checked]:bg-primary/5"
                         >
                             <input
+                                :aria-invalid="Boolean(errors.inra)"
+                                :aria-describedby="
+                                    errors.inra ? 'inra-error' : undefined
+                                "
+                                id="inra"
                                 type="radio"
                                 name="inra"
                                 value="2018"
@@ -156,6 +174,10 @@ const breadcrumbs: BreadcrumbItem[] = [
                             class="flex cursor-pointer items-start gap-3 rounded-xl border border-border p-4 hover:border-primary/50 has-[:checked]:border-primary has-[:checked]:bg-primary/5"
                         >
                             <input
+                                :aria-invalid="Boolean(errors.inra)"
+                                :aria-describedby="
+                                    errors.inra ? 'inra-error' : undefined
+                                "
                                 type="radio"
                                 name="inra"
                                 value="2007"
@@ -171,7 +193,7 @@ const breadcrumbs: BreadcrumbItem[] = [
                             </div>
                         </label>
                     </div>
-                    <InputError :message="errors.inra" />
+                    <InputError id="inra-error" :message="errors.inra" />
                 </div>
 
                 <div class="flex flex-col gap-3 pt-2 sm:flex-row">

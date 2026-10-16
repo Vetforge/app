@@ -41,7 +41,16 @@ interface Analysis {
 
 type Errors = Record<string, string>;
 
-const SPECIES_OPTIONS = ['Bovin', 'Ovin', 'Caprin', 'Porcin', 'Equin', 'Volaille', 'Chien', 'Chat'];
+const SPECIES_OPTIONS = [
+    'Bovin',
+    'Ovin',
+    'Caprin',
+    'Porcin',
+    'Equin',
+    'Volaille',
+    'Chien',
+    'Chat',
+];
 
 const LESION_TEMPLATES: Record<string, string> = {
     Bovin: `* Peau, poils :
@@ -161,8 +170,13 @@ const LESION_TEMPLATES: Record<string, string> = {
 };
 
 function getLesionTemplate(species: string): string {
-    if (['Bovin', 'Ovin', 'Caprin'].includes(species)) return LESION_TEMPLATES.Bovin;
-    if (['Chien', 'Chat', 'Porcin'].includes(species)) return LESION_TEMPLATES.Equin.replace('Caecum', 'Caecum').replace('Equin', 'Porcin');
+    if (['Bovin', 'Ovin', 'Caprin'].includes(species))
+        return LESION_TEMPLATES.Bovin;
+    if (['Chien', 'Chat', 'Porcin'].includes(species))
+        return LESION_TEMPLATES.Equin.replace('Caecum', 'Caecum').replace(
+            'Equin',
+            'Porcin',
+        );
     if (species === 'Equin') return LESION_TEMPLATES.Equin;
     if (species === 'Volaille') return LESION_TEMPLATES.Volaille;
     return LESION_TEMPLATES.Bovin;
@@ -185,7 +199,9 @@ const form = reactive({
     breeder_id: props.analysis?.breeder_id ?? '',
     animal_nom: props.analysis?.animal_nom ?? '',
     sampled_at: props.analysis?.sampled_at?.slice(0, 10) ?? '',
-    analyzed_at: props.analysis?.analyzed_at?.slice(0, 10) ?? new Date().toISOString().slice(0, 10),
+    analyzed_at:
+        props.analysis?.analyzed_at?.slice(0, 10) ??
+        new Date().toISOString().slice(0, 10),
     intervenant: props.analysis?.intervenant ?? '',
     payload: clonePlain(props.analysis?.payload ?? props.payloadTemplate) as {
         identification: string;
@@ -207,7 +223,10 @@ function applyLesionTemplate(): void {
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Accueil', href: dashboard() },
-    { title: props.module.short_label, href: analysesIndex({ module: props.module.slug }).url },
+    {
+        title: props.module.short_label,
+        href: analysesIndex({ module: props.module.slug }).url,
+    },
     { title: isEdit.value ? 'Modifier' : 'Nouveau rapport', href: '#' },
 ];
 
@@ -225,22 +244,45 @@ function submit(): void {
     };
     const data = clonePlain(form);
     if (props.analysis) {
-        router.put(analysisUpdate({ analysis: props.analysis.id }).url, data, options);
+        router.put(
+            analysisUpdate({ analysis: props.analysis.id }).url,
+            data,
+            options,
+        );
         return;
     }
-    router.post(analysisStore({ module: props.module.slug }).url, data, options);
+    router.post(
+        analysisStore({ module: props.module.slug }).url,
+        data,
+        options,
+    );
 }
 </script>
 
 <template>
-    <Head :title="isEdit ? `Modifier ${module.short_label}` : `Nouveau ${module.short_label}`" />
+    <Head
+        :title="
+            isEdit
+                ? `Modifier ${module.short_label}`
+                : `Nouveau ${module.short_label}`
+        "
+    />
 
     <AppLayout :breadcrumbs="breadcrumbs">
-        <form class="analysis-form mx-auto flex max-w-7xl flex-col gap-3 p-3 sm:p-4" @submit.prevent="submit">
-            <div class="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
+        <form
+            class="analysis-form mx-auto flex max-w-7xl flex-col gap-3 p-3 sm:p-4"
+            @submit.prevent="submit"
+        >
+            <div
+                class="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between"
+            >
                 <div>
-                    <h1 class="text-xl font-bold text-foreground">{{ isEdit ? 'Modifier rapport' : 'Nouveau rapport' }}</h1>
-                    <p class="text-xs text-muted-foreground">{{ module.label }}</p>
+                    <h1 class="text-xl font-bold text-foreground">
+                        {{ isEdit ? 'Modifier rapport' : 'Nouveau rapport' }}
+                    </h1>
+                    <p class="text-xs text-muted-foreground">
+                        {{ module.label }}
+                    </p>
                 </div>
             </div>
 
@@ -253,26 +295,73 @@ function submit(): void {
                 </div>
                 <div class="grid gap-2 md:grid-cols-2 xl:grid-cols-12">
                     <div class="grid gap-1 xl:col-span-4">
-                        <label class="text-sm font-medium" for="breeder_id">Eleveur *</label>
-                        <BreederSelectWithCreate v-model="form.breeder_id" input-id="breeder_id" :breeders="breeders" :create-url="quickBreederStoreUrl" />
-                        <input v-model="form.breeder_id" type="hidden" required />
-                        <InputError :message="errors.breeder_id" />
+                        <label class="text-sm font-medium" for="breeder_id"
+                            >Eleveur *</label
+                        >
+                        <BreederSelectWithCreate
+                            :aria-invalid="Boolean(errors.breeder_id)"
+                            :aria-describedby="
+                                errors.breeder_id
+                                    ? 'breeder_id-error'
+                                    : undefined
+                            "
+                            v-model="form.breeder_id"
+                            input-id="breeder_id"
+                            :breeders="breeders"
+                            :create-url="quickBreederStoreUrl"
+                        />
+                        <input
+                            v-model="form.breeder_id"
+                            type="hidden"
+                            required
+                        />
+                        <InputError
+                            id="breeder_id-error"
+                            :message="errors.breeder_id"
+                        />
                     </div>
                     <div class="grid gap-1 xl:col-span-2">
-                        <label class="text-sm font-medium" for="animal_nom">Animal</label>
-                        <input id="animal_nom" v-model="form.animal_nom" class="h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" placeholder="Nom libre" />
+                        <label class="text-sm font-medium" for="animal_nom"
+                            >Animal</label
+                        >
+                        <input
+                            id="animal_nom"
+                            v-model="form.animal_nom"
+                            class="h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                            placeholder="Nom libre"
+                        />
                     </div>
                     <div class="grid gap-1 xl:col-span-2">
-                        <label class="text-sm font-medium" for="sampled_at">Date de mort</label>
-                        <input id="sampled_at" v-model="form.sampled_at" type="date" class="h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" />
+                        <label class="text-sm font-medium" for="sampled_at"
+                            >Date de mort</label
+                        >
+                        <input
+                            id="sampled_at"
+                            v-model="form.sampled_at"
+                            type="date"
+                            class="h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                        />
                     </div>
                     <div class="grid gap-1 xl:col-span-2">
-                        <label class="text-sm font-medium" for="analyzed_at">Date d'autopsie</label>
-                        <input id="analyzed_at" v-model="form.analyzed_at" type="date" class="h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" />
+                        <label class="text-sm font-medium" for="analyzed_at"
+                            >Date d'autopsie</label
+                        >
+                        <input
+                            id="analyzed_at"
+                            v-model="form.analyzed_at"
+                            type="date"
+                            class="h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                        />
                     </div>
                     <div class="grid gap-1 xl:col-span-2">
-                        <label class="text-sm font-medium" for="intervenant">Intervenant</label>
-                        <input id="intervenant" v-model="form.intervenant" class="h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" />
+                        <label class="text-sm font-medium" for="intervenant"
+                            >Intervenant</label
+                        >
+                        <input
+                            id="intervenant"
+                            v-model="form.intervenant"
+                            class="h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                        />
                     </div>
                 </div>
             </section>
@@ -284,34 +373,76 @@ function submit(): void {
                         <p>Caracteristiques de l'animal autopsie.</p>
                     </div>
                 </div>
-                <div class="grid gap-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
+                <div
+                    class="grid gap-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6"
+                >
                     <div class="grid gap-1 xl:col-span-2">
-                        <label class="text-sm font-medium" for="identification">Identification</label>
-                        <input id="identification" v-model="form.payload.identification" class="rounded border border-border bg-background px-2 py-1 text-sm" maxlength="50" />
+                        <label class="text-sm font-medium" for="identification"
+                            >Identification</label
+                        >
+                        <input
+                            id="identification"
+                            v-model="form.payload.identification"
+                            class="rounded border border-border bg-background px-2 py-1 text-sm"
+                            maxlength="50"
+                        />
                     </div>
                     <div class="grid gap-1">
-                        <label class="text-sm font-medium" for="species">Espece</label>
-                        <select id="species" v-model="form.payload.species" class="rounded border border-border bg-background px-2 py-1 text-sm">
-                            <option v-for="s in SPECIES_OPTIONS" :key="s" :value="s">{{ s }}</option>
+                        <label class="text-sm font-medium" for="species"
+                            >Espece</label
+                        >
+                        <select
+                            id="species"
+                            v-model="form.payload.species"
+                            class="rounded border border-border bg-background px-2 py-1 text-sm"
+                        >
+                            <option
+                                v-for="s in SPECIES_OPTIONS"
+                                :key="s"
+                                :value="s"
+                            >
+                                {{ s }}
+                            </option>
                         </select>
                     </div>
                     <div class="grid gap-1">
-                        <label class="text-sm font-medium" for="sexe">Sexe</label>
-                        <select id="sexe" v-model="form.payload.sexe" class="rounded border border-border bg-background px-2 py-1 text-sm">
+                        <label class="text-sm font-medium" for="sexe"
+                            >Sexe</label
+                        >
+                        <select
+                            id="sexe"
+                            v-model="form.payload.sexe"
+                            class="rounded border border-border bg-background px-2 py-1 text-sm"
+                        >
                             <option value=""></option>
                             <option value="male">Male</option>
                             <option value="femelle">Femelle</option>
                         </select>
                     </div>
                     <div class="grid gap-1">
-                        <label class="text-sm font-medium" for="poids">Poids (kg)</label>
-                        <input id="poids" v-model.number="form.payload.poids" type="number" min="0" step="0.1" class="rounded border border-border bg-background px-2 py-1 text-sm" />
+                        <label class="text-sm font-medium" for="poids"
+                            >Poids (kg)</label
+                        >
+                        <input
+                            id="poids"
+                            v-model.number="form.payload.poids"
+                            type="number"
+                            min="0"
+                            step="0.1"
+                            class="rounded border border-border bg-background px-2 py-1 text-sm"
+                        />
                     </div>
                 </div>
                 <div class="grid gap-2 sm:grid-cols-3">
                     <div class="grid gap-1">
-                        <label class="text-sm font-medium" for="engraissement">Etat d'engraissement</label>
-                        <select id="engraissement" v-model="form.payload.engraissement" class="rounded border border-border bg-background px-2 py-1 text-sm">
+                        <label class="text-sm font-medium" for="engraissement"
+                            >Etat d'engraissement</label
+                        >
+                        <select
+                            id="engraissement"
+                            v-model="form.payload.engraissement"
+                            class="rounded border border-border bg-background px-2 py-1 text-sm"
+                        >
                             <option value=""></option>
                             <option value="-">-</option>
                             <option value="+/-">+/-</option>
@@ -320,8 +451,14 @@ function submit(): void {
                         </select>
                     </div>
                     <div class="grid gap-1">
-                        <label class="text-sm font-medium" for="conformation">Conformation</label>
-                        <select id="conformation" v-model="form.payload.conformation" class="rounded border border-border bg-background px-2 py-1 text-sm">
+                        <label class="text-sm font-medium" for="conformation"
+                            >Conformation</label
+                        >
+                        <select
+                            id="conformation"
+                            v-model="form.payload.conformation"
+                            class="rounded border border-border bg-background px-2 py-1 text-sm"
+                        >
                             <option value=""></option>
                             <option value="concave">Concave</option>
                             <option value="rectiligne">Rectiligne</option>
@@ -329,8 +466,14 @@ function submit(): void {
                         </select>
                     </div>
                     <div class="grid gap-1">
-                        <label class="text-sm font-medium" for="conservation">Etat de conservation</label>
-                        <select id="conservation" v-model="form.payload.conservation" class="rounded border border-border bg-background px-2 py-1 text-sm">
+                        <label class="text-sm font-medium" for="conservation"
+                            >Etat de conservation</label
+                        >
+                        <select
+                            id="conservation"
+                            v-model="form.payload.conservation"
+                            class="rounded border border-border bg-background px-2 py-1 text-sm"
+                        >
                             <option value=""></option>
                             <option value="mauvaise">Mauvaise</option>
                             <option value="moyenne">Moyenne</option>
@@ -339,8 +482,15 @@ function submit(): void {
                     </div>
                 </div>
                 <div class="grid gap-1">
-                    <label class="text-sm font-medium" for="commemoratifs">Commemoratifs</label>
-                    <textarea id="commemoratifs" v-model="form.payload.commemoratifs" rows="3" class="rounded border border-border bg-background px-2 py-1 text-sm"></textarea>
+                    <label class="text-sm font-medium" for="commemoratifs"
+                        >Commemoratifs</label
+                    >
+                    <textarea
+                        id="commemoratifs"
+                        v-model="form.payload.commemoratifs"
+                        rows="3"
+                        class="rounded border border-border bg-background px-2 py-1 text-sm"
+                    ></textarea>
                 </div>
             </section>
 
@@ -348,7 +498,10 @@ function submit(): void {
                 <div class="analysis-section-heading">
                     <div>
                         <h2>Lesions</h2>
-                        <p>Description des lesions observees lors de l'autopsie.</p>
+                        <p>
+                            Description des lesions observees lors de
+                            l'autopsie.
+                        </p>
                     </div>
                     <button
                         type="button"
@@ -359,7 +512,13 @@ function submit(): void {
                     </button>
                 </div>
                 <div class="grid gap-1">
-                    <textarea id="lesions" v-model="form.payload.lesions" rows="20" class="rounded border border-border bg-background px-2 py-1 font-mono text-sm"></textarea>
+                    <textarea
+                        aria-label="Lésions observées"
+                        id="lesions"
+                        v-model="form.payload.lesions"
+                        rows="20"
+                        class="rounded border border-border bg-background px-2 py-1 font-mono text-sm"
+                    ></textarea>
                 </div>
             </section>
 
@@ -370,21 +529,41 @@ function submit(): void {
                     </div>
                 </div>
                 <div class="grid gap-1">
-                    <textarea id="conclusion" v-model="form.payload.conclusion" rows="5" class="rounded border border-border bg-background px-2 py-1 text-sm"></textarea>
+                    <textarea
+                        aria-label="Conclusion de l’autopsie"
+                        id="conclusion"
+                        v-model="form.payload.conclusion"
+                        rows="5"
+                        class="rounded border border-border bg-background px-2 py-1 text-sm"
+                    ></textarea>
                 </div>
             </section>
 
-            <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div
+                class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"
+            >
                 <Link
-                    :href="analysis ? analysisShow({ analysis: analysis.id }).url : analysesIndex({ module: module.slug }).url"
+                    :href="
+                        analysis
+                            ? analysisShow({ analysis: analysis.id }).url
+                            : analysesIndex({ module: module.slug }).url
+                    "
                     class="inline-flex items-center justify-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-accent"
                 >
                     <Minus class="size-3.5" />
                     Annuler
                 </Link>
-                <button type="submit" :disabled="processing" class="inline-flex items-center justify-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground shadow hover:bg-primary/90 disabled:opacity-50">
+                <button
+                    type="submit"
+                    :disabled="processing"
+                    class="inline-flex items-center justify-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground shadow hover:bg-primary/90 disabled:opacity-50"
+                >
                     <Save class="size-4" />
-                    {{ processing ? 'Enregistrement...' : 'Enregistrer le rapport' }}
+                    {{
+                        processing
+                            ? 'Enregistrement...'
+                            : 'Enregistrer le rapport'
+                    }}
                 </button>
             </div>
         </form>
@@ -443,7 +622,12 @@ function submit(): void {
     font-size: 0.8125rem;
     line-height: 1.25rem;
 }
-.analysis-form :is(input:not([type='checkbox']):not([type='hidden']), select, textarea):focus {
+.analysis-form
+    :is(
+        input:not([type='checkbox']):not([type='hidden']),
+        select,
+        textarea
+    ):focus {
     border-color: var(--primary);
     box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 22%, transparent);
     outline: none;

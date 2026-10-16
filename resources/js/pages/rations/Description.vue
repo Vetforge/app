@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Head, useForm } from '@inertiajs/vue3';
+import { Head, useForm, usePage } from '@inertiajs/vue3';
 import { computed, watch } from 'vue';
 import {
     index as plansIndex,
@@ -59,6 +59,9 @@ interface Ration {
     ivv: number | null;
     poids_veau_naissance: number | null;
     age_velage: number | null;
+    age_mois: number | null;
+    variation_nec: number | null;
+    duree_variation_nec_jours: number | null;
     age_jours: number | null;
     sexe: string | null;
     parite: number | null;
@@ -132,6 +135,9 @@ const form = useForm({
     poids_vif:
         props.ration.poids_vif ?? poidsDefautPourCategorie(initialCategorie),
     age_jours: props.ration.age_jours,
+    age_mois: props.ration.age_mois,
+    variation_nec: props.ration.variation_nec,
+    duree_variation_nec_jours: props.ration.duree_variation_nec_jours,
     sexe: props.ration.sexe ?? '',
     parite: props.ration.parite,
     poids_adulte: props.ration.poids_adulte,
@@ -160,6 +166,8 @@ const form = useForm({
     nec_velage: props.ration.nec_velage,
 });
 
+form.setError(usePage().props.errors);
+
 // Sur une ration non encore enregistrée, proposer le poids de référence de l'espèce
 // dès que la catégorie change (sans écraser un poids déjà saisi et sauvegardé).
 watch(
@@ -176,6 +184,9 @@ watch(
         if (!races.some((o) => o.value === form.race)) {
             form.race = '';
         }
+        form.age_mois = null;
+        form.variation_nec = null;
+        form.duree_variation_nec_jours = null;
         form.lait_objectif = null;
         form.lait_potentiel = null;
         form.gmq = null;
@@ -184,6 +195,14 @@ watch(
         form.nombre_jeunes = null;
         form.poids_portee = null;
         form.gmq_portee = null;
+        if (
+            !['bovin_croissance', 'bovin_engraissement'].includes(value) ||
+            (value === 'bovin_engraissement' &&
+                Number(form.reference_bovine) >= 10) ||
+            (value === 'bovin_croissance' && Number(form.reference_bovine) < 10)
+        ) {
+            form.reference_bovine = null;
+        }
     },
 );
 
@@ -226,7 +245,10 @@ const productionOvine = computed(() =>
     form.categorie_animal === 'brebis_laitiere' ? 'Lait' : 'Viande',
 );
 const stadePhysiologique = computed(() => {
-    if (form.categorie_animal === 'bovin_engraissement' || form.categorie_animal === 'agneau_croissance') {
+    if (
+        form.categorie_animal === 'bovin_engraissement' ||
+        form.categorie_animal === 'agneau_croissance'
+    ) {
         return 'Engraissement';
     }
     if (estCroissance.value) {
@@ -264,6 +286,24 @@ const activityOptions =
               ...baseActivityOptions,
           ]
         : baseActivityOptions;
+
+// Catégories des animaux de référence INRA 2018, tableau 19.2.
+const referencesBovines: Record<number, string> = {
+    1: 'Bovins en finition - Taurillons 8-20 mois - Grand format tardifs (ex. : Charolais)',
+    2: 'Bovins en finition - Taurillons 8-20 mois - Tardifs (ex. : Limousins)',
+    3: 'Bovins en finition - Taurillons 8-20 mois - Précocité moyenne (ex. : Salers, Aubrac)',
+    4: 'Bovins en finition - Taurillons 8-20 mois - Précoces, races laitières',
+    5: 'Bovins en finition - Bœufs tardifs 20-33 mois',
+    6: 'Bovins en finition - Bœufs précoces 24-28 mois',
+    7: 'Bovins en finition - Génisses tardives 15-30 mois',
+    8: 'Bovins en finition - Bœufs croisés race anglaise viande × laitière 20-24 mois',
+    9: 'Bovins en finition - Génisses croisées race anglaise viande × laitière 20-24 mois',
+    10: "Bovins d'élevage en croissance - Mâles tardifs 8-24 mois",
+    11: "Bovins d'élevage en croissance - Mâles précoces 6-24 mois",
+    12: "Bovins d'élevage en croissance - Génisses tardives 8-28 mois",
+    13: "Bovins d'élevage en croissance - Génisses laitières 6-24 mois",
+    14: "Bovins d'élevage en croissance - Génisses croisées race anglaise viande × laitière 6-12 mois",
+};
 
 // Races proposées par espèce : uniquement celles paramétrées dans les équations
 // INRA (CI vache allaitante, références bovines Table 19.2/19.3, Lacaune vs autres
@@ -306,7 +346,11 @@ const raceOptions = computed<{ label: string; value: string }[]>(() => {
 });
 
 function submit(): void {
-    form.put(
+    form.transform((data) => ({
+        ...data,
+        mois_lactation: estCroissance.value ? null : data.mois_lactation,
+        mois_gestation: estCroissance.value ? null : data.mois_gestation,
+    })).put(
         updateDescription({ plan: props.plan.id, ration: props.ration.id }).url,
     );
 }
@@ -342,13 +386,20 @@ function submit(): void {
                                 >Nom de la ration *</label
                             >
                             <input
+                                :aria-invalid="Boolean(form.errors.nom)"
+                                :aria-describedby="
+                                    form.errors.nom ? 'nom-error' : undefined
+                                "
                                 id="nom"
                                 v-model="form.nom"
                                 type="text"
                                 class="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-primary focus:outline-none"
                                 required
                             />
-                            <InputError :message="form.errors.nom" />
+                            <InputError
+                                id="nom-error"
+                                :message="form.errors.nom"
+                            />
                         </div>
                         <div class="flex flex-col gap-1.5">
                             <label
@@ -357,6 +408,14 @@ function submit(): void {
                                 >Catégorie</label
                             >
                             <select
+                                :aria-invalid="
+                                    Boolean(form.errors.categorie_animal)
+                                "
+                                :aria-describedby="
+                                    form.errors.categorie_animal
+                                        ? 'categorie_animal-error'
+                                        : undefined
+                                "
                                 id="categorie_animal"
                                 v-model="form.categorie_animal"
                                 class="h-10 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-primary focus:outline-none"
@@ -400,11 +459,15 @@ function submit(): void {
                                     Matrice {{ selected.validation.version }} ·
                                     {{ selected.validation.modele }}
                                 </p>
-                                <p v-for="limit in selected.validation.limites" :key="limit">
+                                <p
+                                    v-for="limit in selected.validation.limites"
+                                    :key="limit"
+                                >
                                     {{ limit }}
                                 </p>
                             </div>
                             <InputError
+                                id="categorie_animal-error"
                                 :message="form.errors.categorie_animal"
                             />
                         </div>
@@ -416,6 +479,10 @@ function submit(): void {
                                 <span class="text-destructive">*</span></label
                             >
                             <select
+                                :aria-invalid="Boolean(form.errors.race)"
+                                :aria-describedby="
+                                    form.errors.race ? 'race-error' : undefined
+                                "
                                 id="race"
                                 v-model="form.race"
                                 class="h-10 rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-primary focus:outline-none"
@@ -432,7 +499,10 @@ function submit(): void {
                                     {{ option.label }}
                                 </option>
                             </select>
-                            <InputError :message="form.errors.race" />
+                            <InputError
+                                id="race-error"
+                                :message="form.errors.race"
+                            />
                         </div>
                         <div class="flex flex-col gap-1.5">
                             <label
@@ -455,12 +525,22 @@ function submit(): void {
                                 >Poids vif (kg)</label
                             >
                             <input
+                                :aria-invalid="Boolean(form.errors.poids_vif)"
+                                :aria-describedby="
+                                    form.errors.poids_vif
+                                        ? 'poids_vif-error'
+                                        : undefined
+                                "
                                 id="poids_vif"
                                 v-model="form.poids_vif"
                                 type="number"
                                 min="0"
-                                step="1"
+                                step="0.1"
                                 class="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-primary focus:outline-none"
+                            />
+                            <InputError
+                                id="poids_vif-error"
+                                :message="form.errors.poids_vif"
                             />
                         </div>
                         <div v-if="estCroissance" class="flex flex-col gap-1.5">
@@ -470,17 +550,24 @@ function submit(): void {
                                 >GMQ (g/j)</label
                             >
                             <input
+                                :aria-invalid="Boolean(form.errors.gmq)"
+                                :aria-describedby="
+                                    form.errors.gmq ? 'gmq-error' : undefined
+                                "
                                 id="gmq"
                                 v-model="form.gmq"
                                 type="number"
                                 min="0"
-                                step="10"
+                                step="1"
                                 class="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-primary focus:outline-none"
                             />
                             <p class="text-xs text-muted-foreground">
                                 Gain moyen quotidien visé.
                             </p>
-                            <InputError :message="form.errors.gmq" />
+                            <InputError
+                                id="gmq-error"
+                                :message="form.errors.gmq"
+                            />
                         </div>
                         <div v-if="estCroissance" class="flex flex-col gap-1.5">
                             <label
@@ -489,14 +576,24 @@ function submit(): void {
                                 >Âge réel (jours)</label
                             >
                             <input
+                                :aria-invalid="Boolean(form.errors.age_jours)"
+                                :aria-describedby="
+                                    form.errors.age_jours
+                                        ? 'age_jours-error'
+                                        : undefined
+                                "
                                 id="age_jours"
                                 v-model="form.age_jours"
                                 type="number"
                                 min="1"
+                                :max="isCaprin ? 730 : 5000"
                                 step="1"
                                 class="rounded-lg border border-border bg-background px-3 py-2 text-sm"
                             />
-                            <InputError :message="form.errors.age_jours" />
+                            <InputError
+                                id="age_jours-error"
+                                :message="form.errors.age_jours"
+                            />
                         </div>
                         <div v-if="estCroissance" class="flex flex-col gap-1.5">
                             <label
@@ -505,16 +602,27 @@ function submit(): void {
                                 >Sexe</label
                             >
                             <select
+                                :aria-invalid="Boolean(form.errors.sexe)"
+                                :aria-describedby="
+                                    form.errors.sexe ? 'sexe-error' : undefined
+                                "
                                 id="sexe"
                                 v-model="form.sexe"
                                 class="h-10 rounded-lg border border-border bg-background px-3 py-2 text-sm"
                             >
                                 <option value="">Sélectionner</option>
                                 <option value="femelle">Femelle</option>
-                                <option value="male">Mâle entier</option>
-                                <option value="male_castre">Mâle castré</option>
+                                <option v-if="!isCaprin" value="male">
+                                    Mâle entier
+                                </option>
+                                <option v-if="!isCaprin" value="male_castre">
+                                    Mâle castré
+                                </option>
                             </select>
-                            <InputError :message="form.errors.sexe" />
+                            <InputError
+                                id="sexe-error"
+                                :message="form.errors.sexe"
+                            />
                         </div>
                         <div v-if="estCroissance" class="flex flex-col gap-1.5">
                             <label
@@ -523,6 +631,14 @@ function submit(): void {
                                 >Poids adulte cible (kg)</label
                             >
                             <input
+                                :aria-invalid="
+                                    Boolean(form.errors.poids_adulte)
+                                "
+                                :aria-describedby="
+                                    form.errors.poids_adulte
+                                        ? 'poids_adulte-error'
+                                        : undefined
+                                "
                                 id="poids_adulte"
                                 v-model="form.poids_adulte"
                                 type="number"
@@ -530,7 +646,10 @@ function submit(): void {
                                 step="0.1"
                                 class="rounded-lg border border-border bg-background px-3 py-2 text-sm"
                             />
-                            <InputError :message="form.errors.poids_adulte" />
+                            <InputError
+                                id="poids_adulte-error"
+                                :message="form.errors.poids_adulte"
+                            />
                         </div>
                         <div
                             v-if="estCroissance && isBovin"
@@ -542,6 +661,14 @@ function submit(): void {
                                 >Référence animale INRA (Table 19.2)</label
                             >
                             <select
+                                :aria-invalid="
+                                    Boolean(form.errors.reference_bovine)
+                                "
+                                :aria-describedby="
+                                    form.errors.reference_bovine
+                                        ? 'reference_bovine-error'
+                                        : undefined
+                                "
                                 id="reference_bovine"
                                 v-model="form.reference_bovine"
                                 class="h-10 rounded-lg border border-border bg-background px-3 py-2 text-sm"
@@ -554,7 +681,7 @@ function submit(): void {
                                     "
                                 >
                                     <option v-for="n in 9" :key="n" :value="n">
-                                        Référence {{ n }} — finition UFV
+                                        {{ referencesBovines[n] }}
                                     </option>
                                 </template>
                                 <template v-else>
@@ -563,11 +690,12 @@ function submit(): void {
                                         :key="n"
                                         :value="n"
                                     >
-                                        Référence {{ n }} — croissance UFL
+                                        {{ referencesBovines[n] }}
                                     </option>
                                 </template>
                             </select>
                             <InputError
+                                id="reference_bovine-error"
                                 :message="form.errors.reference_bovine"
                             />
                         </div>
@@ -608,9 +736,21 @@ function submit(): void {
                             <label
                                 class="text-sm font-medium text-foreground"
                                 for="lait_potentiel"
-                                >Lait potentiel standard (kg/j)</label
+                                >{{
+                                    isOvin
+                                        ? 'Lait potentiel standard (l/j)'
+                                        : 'Lait potentiel standard (kg/j)'
+                                }}</label
                             >
                             <input
+                                :aria-invalid="
+                                    Boolean(form.errors.lait_potentiel)
+                                "
+                                :aria-describedby="
+                                    form.errors.lait_potentiel
+                                        ? 'lait_potentiel-error'
+                                        : undefined
+                                "
                                 id="lait_potentiel"
                                 v-model="form.lait_potentiel"
                                 type="number"
@@ -618,21 +758,43 @@ function submit(): void {
                                 step="0.1"
                                 class="rounded-lg border border-border bg-background px-3 py-2 text-sm"
                             />
-                            <InputError :message="form.errors.lait_potentiel" />
+                            <InputError
+                                id="lait_potentiel-error"
+                                :message="form.errors.lait_potentiel"
+                            />
                         </div>
                         <div class="flex flex-col gap-1.5">
                             <label
                                 class="text-sm font-medium text-foreground"
                                 for="lait_objectif"
-                                >Objectif de production (kg/j)</label
+                                >{{
+                                    form.categorie_animal ===
+                                    'brebis_allaitante'
+                                        ? 'Lait tété (l/j, estimé si laissé vide)'
+                                        : isOvin
+                                          ? 'Objectif de production (l/j)'
+                                          : 'Objectif de production (kg/j)'
+                                }}</label
                             >
                             <input
+                                :aria-invalid="
+                                    Boolean(form.errors.lait_objectif)
+                                "
+                                :aria-describedby="
+                                    form.errors.lait_objectif
+                                        ? 'lait_objectif-error'
+                                        : undefined
+                                "
                                 id="lait_objectif"
                                 v-model="form.lait_objectif"
                                 type="number"
                                 min="0"
                                 step="0.1"
                                 class="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-primary focus:outline-none"
+                            />
+                            <InputError
+                                id="lait_objectif-error"
+                                :message="form.errors.lait_objectif"
                             />
                         </div>
                         <template v-if="estLaitiere && isBovin">
@@ -672,7 +834,11 @@ function submit(): void {
                                 <label
                                     class="text-sm font-medium text-foreground"
                                     for="mfc"
-                                    >TB du lait (g/kg)</label
+                                    >{{
+                                        isOvin
+                                            ? 'TB du lait (g/l)'
+                                            : 'TB du lait (g/kg)'
+                                    }}</label
                                 >
                                 <input
                                     id="mfc"
@@ -687,7 +853,11 @@ function submit(): void {
                                 <label
                                     class="text-sm font-medium text-foreground"
                                     for="mpc"
-                                    >TP du lait (g/kg)</label
+                                    >{{
+                                        isOvin
+                                            ? 'TP du lait (g/l)'
+                                            : 'TP du lait (g/kg)'
+                                    }}</label
                                 >
                                 <input
                                     id="mpc"
@@ -716,6 +886,14 @@ function submit(): void {
                                 >Nombre de jeunes</label
                             >
                             <input
+                                :aria-invalid="
+                                    Boolean(form.errors.nombre_jeunes)
+                                "
+                                :aria-describedby="
+                                    form.errors.nombre_jeunes
+                                        ? 'nombre_jeunes-error'
+                                        : undefined
+                                "
                                 id="nombre_jeunes"
                                 v-model="form.nombre_jeunes"
                                 type="number"
@@ -723,14 +901,27 @@ function submit(): void {
                                 max="6"
                                 class="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-primary focus:outline-none"
                             />
+                            <InputError
+                                id="nombre_jeunes-error"
+                                :message="form.errors.nombre_jeunes"
+                            />
                         </div>
                         <div class="flex flex-col gap-1.5">
                             <label
                                 class="text-sm font-medium text-foreground"
                                 for="poids_portee"
-                                >Poids de portée (kg)</label
+                                >Poids attendu de la portée à la naissance
+                                (kg)</label
                             >
                             <input
+                                :aria-invalid="
+                                    Boolean(form.errors.poids_portee)
+                                "
+                                :aria-describedby="
+                                    form.errors.poids_portee
+                                        ? 'poids_portee-error'
+                                        : undefined
+                                "
                                 id="poids_portee"
                                 v-model="form.poids_portee"
                                 type="number"
@@ -738,27 +929,196 @@ function submit(): void {
                                 step="0.1"
                                 class="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-primary focus:outline-none"
                             />
+                            <InputError
+                                id="poids_portee-error"
+                                :message="form.errors.poids_portee"
+                            />
                         </div>
                         <div class="flex flex-col gap-1.5">
                             <label
                                 class="text-sm font-medium text-foreground"
                                 for="gmq_portee"
-                                >GMQ portée (g/j)</label
+                                >GMQ portée entre 10 et 30 jours après agnelage
+                                (g/j)</label
                             >
                             <input
+                                :aria-invalid="Boolean(form.errors.gmq_portee)"
+                                :aria-describedby="
+                                    form.errors.gmq_portee
+                                        ? 'gmq_portee-error'
+                                        : undefined
+                                "
                                 id="gmq_portee"
                                 v-model="form.gmq_portee"
                                 type="number"
                                 min="0"
-                                step="10"
+                                step="1"
                                 class="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-primary focus:outline-none"
+                            />
+                            <InputError
+                                id="gmq_portee-error"
+                                :message="form.errors.gmq_portee"
                             />
                         </div>
                     </div>
                 </section>
 
+                <section
+                    v-if="
+                        is2018 &&
+                        form.categorie_animal === 'chevrette_croissance'
+                    "
+                    class="rounded-xl border border-border bg-card p-5 shadow-sm"
+                >
+                    <h2 class="mb-4 font-semibold text-foreground">
+                        Gestation de la chevrette (si gestante)
+                    </h2>
+                    <div class="grid gap-4 md:grid-cols-3">
+                        <div class="flex flex-col gap-1.5">
+                            <label for="jours_gestation"
+                                >Jours de gestation</label
+                            >
+                            <input
+                                id="jours_gestation"
+                                v-model="form.jours_gestation"
+                                type="number"
+                                min="0"
+                                max="150"
+                                step="1"
+                                class="rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                            />
+                            <InputError
+                                :message="form.errors.jours_gestation"
+                            />
+                        </div>
+                        <div class="flex flex-col gap-1.5">
+                            <label for="nombre_jeunes"
+                                >Nombre de chevreaux attendus</label
+                            >
+                            <input
+                                id="nombre_jeunes"
+                                v-model="form.nombre_jeunes"
+                                type="number"
+                                min="1"
+                                max="2"
+                                step="1"
+                                class="rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                            />
+                            <InputError :message="form.errors.nombre_jeunes" />
+                        </div>
+                        <div class="flex flex-col gap-1.5">
+                            <label for="poids_portee"
+                                >Poids total de la portée à la naissance
+                                (kg)</label
+                            >
+                            <input
+                                id="poids_portee"
+                                v-model="form.poids_portee"
+                                type="number"
+                                min="0.1"
+                                step="0.1"
+                                class="rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                            />
+                            <InputError :message="form.errors.poids_portee" />
+                        </div>
+                    </div>
+                    <p class="mt-3 text-xs text-muted-foreground">
+                        Laisser le stade vide ou à zéro si non gestante. Les
+                        besoins de gestation s’ajoutent à la croissance ;
+                        l’ingestion reste une estimation pour les chevrettes.
+                    </p>
+                </section>
+                <section
+                    v-if="is2018 && isOvin && !estCroissance"
+                    class="rounded-xl border border-border bg-card p-5 shadow-sm"
+                >
+                    <h2 class="mb-4 font-semibold text-foreground">
+                        Croissance et réserves de la brebis
+                    </h2>
+                    <div class="grid gap-4 md:grid-cols-2">
+                        <div class="flex flex-col gap-1.5">
+                            <label for="gmq"
+                                >GMQ de la jeune reproductrice (g/j)</label
+                            >
+                            <input
+                                id="gmq"
+                                v-model="form.gmq"
+                                type="number"
+                                min="0"
+                                max="3000"
+                                step="1"
+                                class="rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                            />
+                            <InputError :message="form.errors.gmq" />
+                            <p class="text-xs text-muted-foreground">
+                                Uniquement pendant les 100 premiers jours de
+                                gestation. Zéro pour une brebis adulte sans
+                                croissance.
+                            </p>
+                        </div>
+                        <div class="flex flex-col gap-1.5">
+                            <label for="poids_adulte"
+                                >Poids adulte cible (kg, si croissance)</label
+                            >
+                            <input
+                                id="poids_adulte"
+                                v-model="form.poids_adulte"
+                                type="number"
+                                min="1"
+                                step="0.1"
+                                class="rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                            />
+                            <InputError :message="form.errors.poids_adulte" />
+                        </div>
+                        <div class="flex flex-col gap-1.5">
+                            <label for="variation_nec"
+                                >Variation prévue de NEC (points)</label
+                            >
+                            <input
+                                id="variation_nec"
+                                v-model="form.variation_nec"
+                                type="number"
+                                min="-2"
+                                max="2"
+                                step="0.1"
+                                class="rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                            />
+                            <InputError :message="form.errors.variation_nec" />
+                            <p class="text-xs text-muted-foreground">
+                                Positive : reconstitution. Négative :
+                                mobilisation, pendant les six premières semaines
+                                de lactation.
+                            </p>
+                        </div>
+                        <div class="flex flex-col gap-1.5">
+                            <label for="duree_variation_nec_jours"
+                                >Durée de variation de NEC (jours)</label
+                            >
+                            <input
+                                id="duree_variation_nec_jours"
+                                v-model="form.duree_variation_nec_jours"
+                                type="number"
+                                min="1"
+                                max="730"
+                                step="1"
+                                class="rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                            />
+                            <InputError
+                                :message="form.errors.duree_variation_nec_jours"
+                            />
+                        </div>
+                    </div>
+                </section>
+
+                <p v-if="is2018" class="text-xs text-muted-foreground">
+                    Référence des équations : INRA Feeding System for Ruminants,
+                    2e édition anglaise (2019), système INRA 2018. Lait ovin :
+                    l/j et TB/TP en g/l ; lait bovin et caprin : kg/j et TB/TP
+                    en g/kg.
+                </p>
                 <!-- Lactation et gestation -->
                 <section
+                    v-if="!estCroissance"
                     class="rounded-xl border border-border bg-card p-5 shadow-sm"
                 >
                     <h2 class="mb-4 font-semibold text-foreground">
@@ -811,13 +1171,25 @@ function submit(): void {
                                     >Jours de lactation (DIM)</label
                                 >
                                 <input
+                                    :aria-invalid="
+                                        Boolean(form.errors.jours_lactation)
+                                    "
+                                    :aria-describedby="
+                                        form.errors.jours_lactation
+                                            ? 'jours_lactation-error'
+                                            : undefined
+                                    "
                                     id="jours_lactation"
                                     v-model="form.jours_lactation"
                                     type="number"
                                     min="0"
-                                    max="400"
+                                    :max="isOvin ? 140 : 365"
                                     step="1"
                                     class="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-primary focus:outline-none"
+                                />
+                                <InputError
+                                    id="jours_lactation-error"
+                                    :message="form.errors.jours_lactation"
                                 />
                             </div>
                             <div class="flex flex-col gap-1.5">
@@ -827,22 +1199,41 @@ function submit(): void {
                                     >Jours de gestation</label
                                 >
                                 <input
+                                    :aria-invalid="
+                                        Boolean(form.errors.jours_gestation)
+                                    "
+                                    :aria-describedby="
+                                        form.errors.jours_gestation
+                                            ? 'jours_gestation-error'
+                                            : undefined
+                                    "
                                     id="jours_gestation"
                                     v-model="form.jours_gestation"
                                     type="number"
                                     min="0"
-                                    max="290"
+                                    :max="isOvin ? 147 : 150"
                                     step="1"
                                     class="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-primary focus:outline-none"
+                                />
+                                <InputError
+                                    id="jours_gestation-error"
+                                    :message="form.errors.jours_gestation"
                                 />
                             </div>
                         </template>
                         <div class="flex flex-col gap-1.5">
-                            <span class="text-sm font-medium text-foreground">État physiologique</span>
-                            <div class="h-10 rounded-lg border border-border bg-muted px-3 py-2 text-sm text-foreground">
+                            <span class="text-sm font-medium text-foreground"
+                                >État physiologique</span
+                            >
+                            <div
+                                class="h-10 rounded-lg border border-border bg-muted px-3 py-2 text-sm text-foreground"
+                            >
                                 {{ stadePhysiologique }}
                             </div>
-                            <p class="text-xs text-muted-foreground">Déduit automatiquement de la catégorie et des stades saisis.</p>
+                            <p class="text-xs text-muted-foreground">
+                                Déduit automatiquement de la catégorie et des
+                                stades saisis.
+                            </p>
                         </div>
                         <div v-if="isBovin" class="flex flex-col gap-1.5">
                             <label
@@ -881,7 +1272,7 @@ function submit(): void {
                                 type="number"
                                 min="0"
                                 max="5"
-                                step="0.5"
+                                step="any"
                                 class="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-primary focus:outline-none"
                             />
                         </div>
@@ -903,6 +1294,35 @@ function submit(): void {
                                 class="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-primary focus:outline-none"
                             />
                         </div>
+                        <div
+                            v-if="
+                                is2018 && estLaitiere && (isBovin || isCaprin)
+                            "
+                            class="flex flex-col gap-1.5"
+                        >
+                            <label for="age_mois">{{
+                                isCaprin
+                                    ? 'Âge de la chèvre (mois)'
+                                    : 'Âge de la vache ou des primipares du lot (mois)'
+                            }}</label>
+                            <input
+                                id="age_mois"
+                                v-model="form.age_mois"
+                                type="number"
+                                :min="isCaprin ? 1 : 24"
+                                max="240"
+                                step="0.1"
+                                class="rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                            />
+                            <InputError :message="form.errors.age_mois" />
+                            <p class="text-xs text-muted-foreground">
+                                {{
+                                    isCaprin
+                                        ? 'Âge réel pour les courbes de croissance. Si laissé vide, âges moyens des deux premiers cycles reproductifs (Table 21.6).'
+                                        : 'Pour un animal : âge réel. Pour un lot : âge des primipares, besoins pondérés par leur pourcentage. Si laissé vide, estimation à 36 mois.'
+                                }}
+                            </p>
+                        </div>
                         <div v-if="afficheParite" class="flex flex-col gap-1.5">
                             <label
                                 class="text-sm font-medium text-foreground"
@@ -910,6 +1330,12 @@ function submit(): void {
                                 >Parité</label
                             >
                             <input
+                                :aria-invalid="Boolean(form.errors.parite)"
+                                :aria-describedby="
+                                    form.errors.parite
+                                        ? 'parite-error'
+                                        : undefined
+                                "
                                 id="parite"
                                 v-model="form.parite"
                                 type="number"
@@ -918,7 +1344,10 @@ function submit(): void {
                                 step="1"
                                 class="rounded-lg border border-border bg-background px-3 py-2 text-sm"
                             />
-                            <InputError :message="form.errors.parite" />
+                            <InputError
+                                id="parite-error"
+                                :message="form.errors.parite"
+                            />
                         </div>
                         <div
                             v-if="estLaitiere && isBovin"
@@ -940,13 +1369,20 @@ function submit(): void {
                             />
                         </div>
                         <div
-                            v-if="estLaitiere || estAllaitante"
+                            v-if="
+                                (isBovin && (estLaitiere || estAllaitante)) ||
+                                (isCaprin && !estCroissance)
+                            "
                             class="flex flex-col gap-1.5"
                         >
                             <label
                                 class="text-sm font-medium text-foreground"
                                 for="ecart_variation_reserve"
-                                >Variation corrigée des réserves (kg/j)</label
+                                >{{
+                                    isCaprin
+                                        ? 'Variation du poids corporel vide (kg/j)'
+                                        : 'Variation corrigée des réserves (kg/j)'
+                                }}</label
                             >
                             <input
                                 id="ecart_variation_reserve"
@@ -957,11 +1393,18 @@ function submit(): void {
                             />
                         </div>
                         <div v-if="isOvin" class="flex flex-col gap-1.5">
-                            <span class="text-sm font-medium text-foreground">Filière ovine</span>
-                            <div class="h-10 rounded-lg border border-border bg-muted px-3 py-2 text-sm text-foreground">
+                            <span class="text-sm font-medium text-foreground"
+                                >Filière ovine</span
+                            >
+                            <div
+                                class="h-10 rounded-lg border border-border bg-muted px-3 py-2 text-sm text-foreground"
+                            >
                                 {{ productionOvine }}
                             </div>
-                            <p class="text-xs text-muted-foreground">Imposée par la catégorie : aucun modèle incompatible ne peut être sélectionné.</p>
+                            <p class="text-xs text-muted-foreground">
+                                Imposée par la catégorie : aucun modèle
+                                incompatible ne peut être sélectionné.
+                            </p>
                         </div>
                         <div class="flex flex-col gap-1.5">
                             <label
@@ -993,7 +1436,7 @@ function submit(): void {
                                 id="temperature_ambiante"
                                 v-model="form.temperature_ambiante"
                                 type="number"
-                                step="1"
+                                step="0.1"
                                 class="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-primary focus:outline-none"
                             />
                         </div>

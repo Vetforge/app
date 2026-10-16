@@ -8,7 +8,7 @@ use App\Enums\CategorieAnimal;
 
 final class RationScientificMatrix
 {
-    public const VERSION = 'inra-2018-ration-v1.1';
+    public const VERSION = 'inra-2018-ration-v1.2';
 
     /**
      * @return array{version: string, modele: string, niveau: string, champs_requis: list<string>, champs_interdits: list<string>, domaines: array<string, string>, limites: list<string>}
@@ -25,7 +25,7 @@ final class RationScientificMatrix
         [$modele, $required, $forbidden, $limites] = match ($categorie) {
             CategorieAnimal::VacheLaitiere => [
                 'bovin_lait', ['lait_objectif', 'mois_lactation'], $adultForbidden,
-                ['BOV-L03 : croissance du lot maintenue selon le pourcentage de primipares.'],
+                ['Croissance : équations 17.10/17.18/17.21/17.22, âge en mois. Sans âge saisi : primipares de 36 mois ; un lot est pondéré par leur pourcentage.'],
             ],
             CategorieAnimal::VacheAllaitante => [
                 'bovin_allaitant', ['parite'], $adultForbidden,
@@ -40,24 +40,24 @@ final class RationScientificMatrix
                 ['Références INRA 1 à 9 ; GMQ supérieur à 1 000 g/j.'],
             ],
             CategorieAnimal::BrebisLaitiere => [
-                'ovin_lait', ['parite', 'jours_lactation', 'lait_objectif'], $adultForbidden,
-                ['Lactation limitée aux 20 premières semaines.'],
+                'ovin_lait', ['parite', 'jours_lactation'], array_values(array_diff($adultForbidden, ['gmq', 'poids_adulte'])),
+                ['Lactation limitée aux 20 premières semaines ; lait en litres/j et TB/TP en g/l. Croissance des jeunes reproductrices : 100 premiers jours de gestation, coefficients Lacaune (approximation pour les autres races).'],
             ],
             CategorieAnimal::BrebisAllaitante => [
-                'ovin_allaitant', ['parite', 'jours_lactation', 'nombre_jeunes', 'gmq_portee'], $adultForbidden,
-                ['Production calculée à partir du GMQ de portée.'],
+                'ovin_allaitant', ['parite', 'jours_lactation'], array_values(array_diff($adultForbidden, ['gmq', 'poids_adulte'])),
+                ['Production calculée à partir du GMQ de portée. Croissance des jeunes reproductrices : 100 premiers jours de gestation, coefficients Lacaune (approximation pour les autres races).'],
             ],
             CategorieAnimal::AgneauCroissance => [
                 'ovin_agneau_engraissement', ['gmq', 'age_jours', 'sexe', 'poids_adulte'], $growthForbidden,
                 ['Modèle réservé à l’agneau à l’engraissement ; pas à l’agnelle de renouvellement.'],
             ],
             CategorieAnimal::ChevreLaitiere => [
-                'caprin_lait', ['race', 'parite', 'jours_lactation', 'lait_objectif'], $adultForbidden,
+                'caprin_lait', ['race', 'parite', 'jours_lactation'], $adultForbidden,
                 ['Races Alpine et Saanen ; « Autre » est calculée comme Alpine (race de référence).'],
             ],
             CategorieAnimal::ChevretteCroissance => [
-                'caprin_chevrette_croissance', ['gmq', 'age_jours', 'sexe', 'poids_adulte', 'race'], $growthForbidden,
-                ['Femelles uniquement ; races Alpine et Saanen, « Autre » calculée comme Alpine.'],
+                'caprin_chevrette_croissance', ['gmq', 'age_jours', 'sexe', 'poids_adulte', 'race'], array_values(array_diff($growthForbidden, ['jours_gestation', 'nombre_jeunes', 'poids_portee'])),
+                ['Femelles uniquement ; races Alpine et Saanen, « Autre » calculée comme Alpine. Gestation simple ou double ajoutée au compartiment croissance ; ingestion approchée par 21.50.'],
             ],
         };
 
@@ -74,6 +74,8 @@ final class RationScientificMatrix
                 'vitamines' => 'supplementation_distincte',
             ],
             'limites' => $limites,
+            'reference' => 'INRA Feeding System for Ruminants, 2e édition anglaise (2019), système INRA 2018, chapitres 8 et 17–21.',
+            'unites' => ['lait' => $categorie->espece()->value === 'ovin' ? 'l/j' : 'kg/j', 'gmq' => 'g/j', 'mineraux' => 'g/j'],
         ];
     }
 

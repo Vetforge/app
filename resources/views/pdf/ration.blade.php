@@ -796,6 +796,7 @@
         $indicateurs = $resultats['indicateurs'] ?? [];
         $meta = $resultats['meta'] ?? [];
         // Unités affichées propres à la catégorie (UFV pour engraissement/agneaux ; UEL/UEM/UEB).
+        $uniteLait = $meta['unite_lait'] ?? 'kg/j';
         $uniteEnergie = $meta['unite_fourragere'] ?? 'UFL';
         $uniteEncombrement = $meta['unite_encombrement'] ?? 'UE';
         $estLaitiere = (bool) ($meta['est_laitiere'] ?? (($ration->categorie_animal ?? '') === 'vache_laitiere'))
@@ -1280,18 +1281,18 @@
 
         $laitPermisRows = ! $estLaitiere ? [] : ($is2018
             ? [
-                ['label' => 'Par UFL', 'value' => $impacts['lait_par_ufl'] ?? null, 'decimals' => 2, 'unit' => 'kg/j'],
-                ['label' => 'Par PDI', 'value' => $impacts['lait_par_pdi'] ?? null, 'decimals' => 2, 'unit' => 'kg/j'],
-                ['label' => 'Lait limitant', 'value' => $impacts['lait_limitant'] ?? null, 'decimals' => 2, 'unit' => 'kg/j'],
+                ['label' => 'Par UFL', 'value' => $impacts['lait_par_ufl'] ?? null, 'decimals' => 2, 'unit' => $uniteLait],
+                ['label' => 'Par PDI', 'value' => $impacts['lait_par_pdi'] ?? null, 'decimals' => 2, 'unit' => $uniteLait],
+                ['label' => 'Lait limitant', 'value' => $impacts['lait_limitant'] ?? null, 'decimals' => 2, 'unit' => $uniteLait],
             ]
             : [
-                ['label' => 'Par UFL', 'value' => $impacts['lait_par_ufl'] ?? null, 'decimals' => 2, 'unit' => 'kg/j'],
-                ['label' => 'Par PDIE', 'value' => $impacts['lait_par_pdie'] ?? null, 'decimals' => 2, 'unit' => 'kg/j'],
-                ['label' => 'Par PDIN', 'value' => $impacts['lait_par_pdin'] ?? null, 'decimals' => 2, 'unit' => 'kg/j'],
+                ['label' => 'Par UFL', 'value' => $impacts['lait_par_ufl'] ?? null, 'decimals' => 2, 'unit' => $uniteLait],
+                ['label' => 'Par PDIE', 'value' => $impacts['lait_par_pdie'] ?? null, 'decimals' => 2, 'unit' => $uniteLait],
+                ['label' => 'Par PDIN', 'value' => $impacts['lait_par_pdin'] ?? null, 'decimals' => 2, 'unit' => $uniteLait],
             ]);
 
         if ($estLaitiere && $is2018 && array_key_exists('production_lait_attendue', $impacts)) {
-            $laitPermisRows[] = ['label' => 'Production attendue', 'value' => $impacts['production_lait_attendue'], 'decimals' => 2, 'unit' => 'kg/j'];
+            $laitPermisRows[] = ['label' => 'Production attendue', 'value' => $impacts['production_lait_attendue'], 'decimals' => 2, 'unit' => $uniteLait];
         }
 
         $laitLimitant = $impacts['lait_limitant'] ?? null;
@@ -1326,8 +1327,8 @@
             ['label' => 'PDI', 'value' => $indicateurs['pdi_par_kg_ms'] ?? null, 'unit' => 'g/kg MS', 'decimals' => 2],
             ['metricKey' => 'eff_pdi', 'label' => $metricLabel('eff_pdi'), 'value' => isset($indicateurs['eff_pdi']) ? $indicateurs['eff_pdi'] * 100 : null, 'unit' => '%', 'decimals' => 0, ...$metricNorme('eff_pdi')],
             ['metricKey' => 'bpr', 'label' => $metricLabel('bpr'), 'value' => $indicateurs['bpr'] ?? null, 'unit' => 'g/kg MS', 'decimals' => 2, ...$metricNorme('bpr')],
-            ['label' => 'Lait permis par les PDI', 'value' => $impacts['lait_par_pdi'] ?? null, 'unit' => 'kg/j', 'decimals' => 2],
-            ['label' => 'Production laitière attendue', 'value' => $impacts['production_lait_attendue'] ?? null, 'unit' => 'kg/j', 'decimals' => 2],
+            ['label' => 'Lait permis par les PDI', 'value' => $impacts['lait_par_pdi'] ?? null, 'unit' => $uniteLait, 'decimals' => 2],
+            ['label' => 'Production laitière attendue', 'value' => $impacts['production_lait_attendue'] ?? null, 'unit' => $uniteLait, 'decimals' => 2],
             ['label' => 'Azote urinaire', 'value' => $indicateurs['azote_urinaire'] ?? null, 'unit' => 'g/j', 'decimals' => 0],
             ['label' => 'Azote fecale', 'value' => $indicateurs['azote_fecale'] ?? null, 'unit' => 'g/j', 'decimals' => 0],
         ] : [];
@@ -1356,8 +1357,8 @@
             ['label' => 'Besoin '.$uniteEnergie, 'value' => $besoins['uf_total'] ?? null, 'unit' => $uniteEnergie.'/j', 'decimals' => 2],
             ['label' => 'Apport '.$uniteEnergie.'/kg MS', 'value' => $indicateurs['ufl_par_kg_ms'] ?? null, 'unit' => $uniteEnergie.'/kg MS', 'decimals' => 2],
             ['metricKey' => 'bil_ufl', 'label' => $metricLabel('bil_ufl'), 'value' => $impacts['bil_ufl'] ?? null, 'unit' => $uniteEnergie.'/j', 'decimals' => 2, ...$metricNorme('bil_ufl')],
-            ['label' => 'Lait permis par les '.$uniteEnergie, 'value' => $impacts['lait_par_ufl'] ?? null, 'unit' => 'kg/j', 'decimals' => 2],
-            ['label' => 'PLPot', 'value' => $indicateurs['pl_pot'] ?? null, 'unit' => 'kg/j', 'decimals' => 2],
+            ['label' => 'Lait permis par les '.$uniteEnergie, 'value' => $impacts['lait_par_ufl'] ?? null, 'unit' => $uniteLait, 'decimals' => 2],
+            ['label' => 'PLPot', 'value' => $indicateurs['pl_pot'] ?? null, 'unit' => $uniteLait, 'decimals' => 2],
             ['label' => 'Variation de poids estimée (énergie)', 'value' => $impacts['variation_poids_energie'] ?? null, 'unit' => 'kg/j', 'decimals' => 2],
             ['label' => 'Production CH4', 'value' => $impacts['ch4'] ?? null, 'unit' => 'g/j', 'decimals' => 0],
         ] : [];
@@ -1557,7 +1558,7 @@
         $topMetrics = $estLaitiere ? [
             [
                 'label' => $productionLaitAttendue !== null ? 'Lait attendu' : 'Lait permis',
-                'valueLabel' => $format($laitComparable, 1).' kg/j',
+                'valueLabel' => $format($laitComparable, 1).' '.$uniteLait,
                 'note' => $productionLaitAttendue !== null
                     ? 'PLPot '.$format($indicateurs['pl_pot'] ?? null, 1).' · plafond '.$format($laitLimitant, 1)
                     : $limitingMilkSource,
@@ -1565,8 +1566,8 @@
             ],
             [
                 'label' => 'Objectif',
-                'valueLabel' => $laitObjectif > 0 ? $format($laitObjectif, 0).' kg/j' : 'Sans cible',
-                'note' => $laitDelta === null ? 'Aucun objectif saisi' : 'Écart '.$bilanSign($laitDelta, 1).' kg/j',
+                'valueLabel' => $laitObjectif > 0 ? $format($laitObjectif, 0).' '.$uniteLait : 'Sans cible',
+                'note' => $laitDelta === null ? 'Aucun objectif saisi' : 'Écart '.$bilanSign($laitDelta, 1).' '.$uniteLait,
                 'status' => $laitStatus,
             ],
         ] : [];
@@ -1601,10 +1602,10 @@
         $insightCandidates = $estLaitiere ? [
             [
                 'label' => 'Objectif laitier',
-                'valueLabel' => $laitDelta === null ? 'Sans cible' : $bilanSign($laitDelta, 1).' kg/j',
+                'valueLabel' => $laitDelta === null ? 'Sans cible' : $bilanSign($laitDelta, 1).' '.$uniteLait,
                 'note' => $productionLaitAttendue !== null
-                    ? 'Lait attendu '.$format($productionLaitAttendue, 1).' kg/j'
-                    : 'Lait permis '.$format($laitLimitant, 1).' kg/j',
+                    ? 'Lait attendu '.$format($productionLaitAttendue, 1).' '.$uniteLait
+                    : 'Lait permis '.$format($laitLimitant, 1).' '.$uniteLait,
                 'status' => $laitStatus,
                 'percent' => $laitObjectif > 0 ? $ratioPercent($safeRatio($laitComparable, $laitObjectif)) : 0,
             ],
@@ -1711,7 +1712,7 @@
         $milkGraphRows = ! $estLaitiere ? [] : array_values(array_filter(
             array_merge(
                 $laitPermisRows,
-                $laitObjectif > 0 ? [['label' => 'Objectif', 'value' => $laitObjectif, 'decimals' => 2, 'unit' => 'kg/j']] : []
+                $laitObjectif > 0 ? [['label' => 'Objectif', 'value' => $laitObjectif, 'decimals' => 2, 'unit' => $uniteLait]] : []
             ),
             static fn (array $row): bool => ($row['value'] ?? null) !== null
         ));
@@ -1803,7 +1804,7 @@
         $proteinPrimaryLabel = $is2018 ? 'PDI' : 'PDIE';
         $proteinSecondaryLabel = $is2018 ? 'BPR' : 'PDIN';
         $generatedAt = now()->format('d/m/Y');
-        $objectifLabel = $laitObjectif > 0 ? $format($laitObjectif, 0).' kg/j' : 'Sans objectif';
+        $objectifLabel = $laitObjectif > 0 ? $format($laitObjectif, 0).' '.$uniteLait : 'Sans objectif';
         $coutTotal = ($ration->effectif ?? null) && isset($impacts['cout_animal']) ? (float) $ration->effectif * (float) $impacts['cout_animal'] : null;
         $impactSummaryRows = [
             ['label' => 'Coût / animal / jour', 'value' => $impacts['cout_animal'] ?? null, 'unit' => '€', 'decimals' => 2],
@@ -1835,6 +1836,9 @@
                 <div class="hero-copy">
                     <p class="eyebrow">Rapport ration</p>
                     <h1 class="hero-title">{{ $ration->nom }}</h1>
+                    @if(!empty($meta['reference_equations']))
+                        <p class="table-note">{{ $meta['reference_equations'] }}</p>
+                    @endif
 
                     <div class="meta-row">
                         <span class="badge">Plan {{ $plan->nom }}</span>
@@ -2592,15 +2596,15 @@
                                     @if($estLaitiere)
                                     <tr>
                                         <td>Lait permis par UFL</td>
-                                        <td class="table-number">{{ $format($impacts['lait_par_ufl'] ?? null, 2) }} <span class="table-note">kg/j</span></td>
+                                        <td class="table-number">{{ $format($impacts['lait_par_ufl'] ?? null, 2) }} <span class="table-note">{{ $uniteLait }}</span></td>
                                     </tr>
                                     <tr>
                                         <td>Lait permis par PDIE</td>
-                                        <td class="table-number">{{ $format($impacts['lait_par_pdie'] ?? null, 2) }} <span class="table-note">kg/j</span></td>
+                                        <td class="table-number">{{ $format($impacts['lait_par_pdie'] ?? null, 2) }} <span class="table-note">{{ $uniteLait }}</span></td>
                                     </tr>
                                     <tr>
                                         <td>Lait permis par PDIN</td>
-                                        <td class="table-number">{{ $format($impacts['lait_par_pdin'] ?? null, 2) }} <span class="table-note">kg/j</span></td>
+                                        <td class="table-number">{{ $format($impacts['lait_par_pdin'] ?? null, 2) }} <span class="table-note">{{ $uniteLait }}</span></td>
                                     </tr>
                                     @endif
                                     <tr>

@@ -52,15 +52,32 @@ const props = defineProps<{
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Accueil', href: dashboard() },
-    { title: props.module.short_label, href: analysesIndex({ module: props.module.slug }).url },
+    {
+        title: props.module.short_label,
+        href: analysesIndex({ module: props.module.slug }).url,
+    },
     { title: `Analyse #${props.analysis.id}`, href: '#' },
 ];
 
-const results = computed<Record<string, any>>(() => (props.analysis.results ?? {}) as Record<string, any>);
-const payload = computed<Record<string, any>>(() => props.analysis.payload as Record<string, any>);
-const comparisonResults = computed<Record<string, any>>(() => (props.comparisonAnalysis?.results ?? {}) as Record<string, any>);
-const comparisonPayload = computed<Record<string, any>>(() => (props.comparisonAnalysis?.payload ?? {}) as Record<string, any>);
-const commentaires = computed<Record<string, { s: string; ns: string }>>(() => (results.value.commentaires ?? {}) as Record<string, { s: string; ns: string }>);
+const results = computed<Record<string, any>>(
+    () => (props.analysis.results ?? {}) as Record<string, any>,
+);
+const payload = computed<Record<string, any>>(
+    () => props.analysis.payload as Record<string, any>,
+);
+const comparisonResults = computed<Record<string, any>>(
+    () => (props.comparisonAnalysis?.results ?? {}) as Record<string, any>,
+);
+const comparisonPayload = computed<Record<string, any>>(
+    () => (props.comparisonAnalysis?.payload ?? {}) as Record<string, any>,
+);
+const commentaires = computed<Record<string, { s: string; ns: string }>>(
+    () =>
+        (results.value.commentaires ?? {}) as Record<
+            string,
+            { s: string; ns: string }
+        >,
+);
 
 function formatDate(value: string | null): string {
     if (!value) return '-';
@@ -113,7 +130,11 @@ const comparisonRows = computed((): ComparisonRow[] => {
         {
             label: 'Mortalité totale',
             current: fmt(results.value.tx_mortalite_total_veaux, 1, '%'),
-            previous: fmt(comparisonResults.value.tx_mortalite_total_veaux, 1, '%'),
+            previous: fmt(
+                comparisonResults.value.tx_mortalite_total_veaux,
+                1,
+                '%',
+            ),
         },
         {
             label: 'Veaux 90j / vache',
@@ -128,7 +149,11 @@ const comparisonRows = computed((): ComparisonRow[] => {
         {
             label: 'Diarrhées',
             current: fmt(results.value.tx_malades_diar_total, 1, '%'),
-            previous: fmt(comparisonResults.value.tx_malades_diar_total, 1, '%'),
+            previous: fmt(
+                comparisonResults.value.tx_malades_diar_total,
+                1,
+                '%',
+            ),
         },
         {
             label: 'Respiratoire',
@@ -168,8 +193,10 @@ function commentForKey(key: string): string {
 const mortalityZoneLabel = computed(() => {
     const v = num(results.value.tx_mortalite_total_veaux);
     if (v === null) return '';
-    if (v <= 5) return 'Parmi les 25% d\'exploitations avec la mortalité la plus faible';
-    if (v <= 8) return 'Mortalité inférieure ou égale à la moitié des exploitations';
+    if (v <= 5)
+        return "Parmi les 25% d'exploitations avec la mortalité la plus faible";
+    if (v <= 8)
+        return 'Mortalité inférieure ou égale à la moitié des exploitations';
     if (v <= 12) return 'Mortalité supérieure à 50% des exploitations';
     if (v <= 22) return 'Mortalité supérieure à 75% des exploitations';
     return 'Mortalité supérieure à toutes les exploitations analysées';
@@ -197,7 +224,10 @@ const mortalityBadgeColor = computed(() => {
 
 // Disease/mortality cause breakdown from raw counts in payload
 const totalMalades = computed(() => {
-    const d = (num(payload.value.nb_malades_diar1) ?? 0) + (num(payload.value.nb_malades_diar2et3) ?? 0) + (num(payload.value.nb_malades_diar4) ?? 0);
+    const d =
+        (num(payload.value.nb_malades_diar1) ?? 0) +
+        (num(payload.value.nb_malades_diar2et3) ?? 0) +
+        (num(payload.value.nb_malades_diar4) ?? 0);
     const r = num(payload.value.nb_malades_respi) ?? 0;
     const o = num(payload.value.nb_malades_omphalite) ?? 0;
     const a = num(payload.value.nb_malades_autres) ?? 0;
@@ -214,20 +244,46 @@ interface CauseBar {
 const causeMaladies = computed((): CauseBar[] => {
     const total = totalMalades.value;
     if (!total) return [];
-    const d = (num(payload.value.nb_malades_diar1) ?? 0) + (num(payload.value.nb_malades_diar2et3) ?? 0) + (num(payload.value.nb_malades_diar4) ?? 0);
+    const d =
+        (num(payload.value.nb_malades_diar1) ?? 0) +
+        (num(payload.value.nb_malades_diar2et3) ?? 0) +
+        (num(payload.value.nb_malades_diar4) ?? 0);
     const r = num(payload.value.nb_malades_respi) ?? 0;
     const o = num(payload.value.nb_malades_omphalite) ?? 0;
     const a = num(payload.value.nb_malades_autres) ?? 0;
     return [
-        { label: 'Diarrhée', count: d, pct: (d / total) * 100, color: 'bg-amber-400' },
-        { label: 'Respiratoire', count: r, pct: (r / total) * 100, color: 'bg-blue-400' },
-        { label: 'Omphalite', count: o, pct: (o / total) * 100, color: 'bg-purple-400' },
-        { label: 'Autres', count: a, pct: (a / total) * 100, color: 'bg-gray-400' },
+        {
+            label: 'Diarrhée',
+            count: d,
+            pct: (d / total) * 100,
+            color: 'bg-amber-400',
+        },
+        {
+            label: 'Respiratoire',
+            count: r,
+            pct: (r / total) * 100,
+            color: 'bg-blue-400',
+        },
+        {
+            label: 'Omphalite',
+            count: o,
+            pct: (o / total) * 100,
+            color: 'bg-purple-400',
+        },
+        {
+            label: 'Autres',
+            count: a,
+            pct: (a / total) * 100,
+            color: 'bg-gray-400',
+        },
     ].filter((c) => c.count > 0);
 });
 
 const totalMorts = computed(() => {
-    const d = (num(payload.value.nb_morts_diar1) ?? 0) + (num(payload.value.nb_morts_diar2et3) ?? 0) + (num(payload.value.nb_morts_diar4) ?? 0);
+    const d =
+        (num(payload.value.nb_morts_diar1) ?? 0) +
+        (num(payload.value.nb_morts_diar2et3) ?? 0) +
+        (num(payload.value.nb_morts_diar4) ?? 0);
     const r = num(payload.value.nb_morts_respi) ?? 0;
     const o = num(payload.value.nb_morts_omphalite) ?? 0;
     const a = num(payload.value.nb_morts_autres) ?? 0;
@@ -238,17 +294,45 @@ const totalMorts = computed(() => {
 const causeMortalite = computed((): CauseBar[] => {
     const total = totalMorts.value;
     if (!total) return [];
-    const d = (num(payload.value.nb_morts_diar1) ?? 0) + (num(payload.value.nb_morts_diar2et3) ?? 0) + (num(payload.value.nb_morts_diar4) ?? 0);
+    const d =
+        (num(payload.value.nb_morts_diar1) ?? 0) +
+        (num(payload.value.nb_morts_diar2et3) ?? 0) +
+        (num(payload.value.nb_morts_diar4) ?? 0);
     const r = num(payload.value.nb_morts_respi) ?? 0;
     const o = num(payload.value.nb_morts_omphalite) ?? 0;
     const a = num(payload.value.nb_morts_autres) ?? 0;
     const s = num(payload.value.nb_morts_subites) ?? 0;
     return [
-        { label: 'Diarrhée', count: d, pct: (d / total) * 100, color: 'bg-amber-400' },
-        { label: 'Respiratoire', count: r, pct: (r / total) * 100, color: 'bg-blue-400' },
-        { label: 'Omphalite', count: o, pct: (o / total) * 100, color: 'bg-purple-400' },
-        { label: 'Mort subite', count: s, pct: (s / total) * 100, color: 'bg-gray-500' },
-        { label: 'Autres', count: a, pct: (a / total) * 100, color: 'bg-gray-400' },
+        {
+            label: 'Diarrhée',
+            count: d,
+            pct: (d / total) * 100,
+            color: 'bg-amber-400',
+        },
+        {
+            label: 'Respiratoire',
+            count: r,
+            pct: (r / total) * 100,
+            color: 'bg-blue-400',
+        },
+        {
+            label: 'Omphalite',
+            count: o,
+            pct: (o / total) * 100,
+            color: 'bg-purple-400',
+        },
+        {
+            label: 'Mort subite',
+            count: s,
+            pct: (s / total) * 100,
+            color: 'bg-gray-500',
+        },
+        {
+            label: 'Autres',
+            count: a,
+            pct: (a / total) * 100,
+            color: 'bg-gray-400',
+        },
     ].filter((c) => c.count > 0);
 });
 
@@ -259,7 +343,10 @@ interface LetaliteRow {
 }
 const letaliteRows = computed((): LetaliteRow[] => [
     { label: 'Diarrhée 0-4j', pct: num(results.value.letalite_malades_diar1) },
-    { label: 'Diarrhée 5-21j', pct: num(results.value.letalite_malades_diar2et3) },
+    {
+        label: 'Diarrhée 5-21j',
+        pct: num(results.value.letalite_malades_diar2et3),
+    },
     { label: 'Diarrhée >21j', pct: num(results.value.letalite_malades_diar4) },
     { label: 'Respiratoire', pct: num(results.value.letalite_malades_respi) },
     { label: 'Omphalite', pct: num(results.value.letalite_malades_omphalite) },
@@ -285,7 +372,11 @@ const costCards = computed((): CostCard[] => [
         rateLabel: 'Mortalité',
         rateValue: fmt(results.value.tx_mortalite_total_veaux, 1, '%'),
         comparisonValue: compResult('cout_mortalite'),
-        comparisonRateValue: fmt(comparisonResults.value.tx_mortalite_total_veaux, 1, '%'),
+        comparisonRateValue: fmt(
+            comparisonResults.value.tx_mortalite_total_veaux,
+            1,
+            '%',
+        ),
         commentKey: 'tx_mortalite_total_veaux',
         description:
             "L'audit maladies néonatales bovines permet de réduire le coût de traitement, les pertes de croissance et la mortalité. Une approche globale : conduite d'élevage, alimentation des mères et des veaux, vermifugation et vaccinations.",
@@ -296,7 +387,11 @@ const costCards = computed((): CostCard[] => [
         rateLabel: 'Tx diarrhées',
         rateValue: fmt(results.value.tx_malades_diar_total, 1, '%'),
         comparisonValue: compResult('cout_diarrhee'),
-        comparisonRateValue: fmt(comparisonResults.value.tx_malades_diar_total, 1, '%'),
+        comparisonRateValue: fmt(
+            comparisonResults.value.tx_malades_diar_total,
+            1,
+            '%',
+        ),
         commentKey: 'tx_diarrhee_veaux_total',
         description:
             'Le plan diarrhées néonatales étudie les facteurs de risque et met en place les solutions adaptées : alimentation des mères, gestion sanitaire, vaccination, qualité des colostrums.',
@@ -307,10 +402,14 @@ const costCards = computed((): CostCard[] => [
         rateLabel: 'Tx respiratoire',
         rateValue: fmt(results.value.tx_malades_respi, 1, '%'),
         comparisonValue: compResult('cout_respi'),
-        comparisonRateValue: fmt(comparisonResults.value.tx_malades_respi, 1, '%'),
+        comparisonRateValue: fmt(
+            comparisonResults.value.tx_malades_respi,
+            1,
+            '%',
+        ),
         commentKey: 'tx_respi_veaux',
         description:
-            'Mise en place ou redéfinition d\'un protocole de vaccination efficace contre la grippe adapté à votre situation. L\'alimentation des veaux et le bâtiment demandent également une gestion particulière.',
+            "Mise en place ou redéfinition d'un protocole de vaccination efficace contre la grippe adapté à votre situation. L'alimentation des veaux et le bâtiment demandent également une gestion particulière.",
     },
     {
         label: 'Omphalites',
@@ -318,9 +417,14 @@ const costCards = computed((): CostCard[] => [
         rateLabel: 'Tx omphalites',
         rateValue: fmt(results.value.tx_malades_omphalite, 1, '%'),
         comparisonValue: compResult('cout_omphalite'),
-        comparisonRateValue: fmt(comparisonResults.value.tx_malades_omphalite, 1, '%'),
+        comparisonRateValue: fmt(
+            comparisonResults.value.tx_malades_omphalite,
+            1,
+            '%',
+        ),
         commentKey: 'tx_omphalite_veaux',
-        description: 'Solutions préventives efficaces : hygiène, désinfection, oligoéléments.',
+        description:
+            'Solutions préventives efficaces : hygiène, désinfection, oligoéléments.',
     },
     {
         label: 'Intervalle vêlage-vêlage',
@@ -339,7 +443,11 @@ const costCards = computed((): CostCard[] => [
         rateLabel: 'Coût / vache',
         rateValue: fmt(results.value.cout_alimentaire_vache, 0, '€'),
         comparisonValue: compResult('cout_alimentaire'),
-        comparisonRateValue: fmt(comparisonResults.value.cout_alimentaire_vache, 0, '€'),
+        comparisonRateValue: fmt(
+            comparisonResults.value.cout_alimentaire_vache,
+            0,
+            '€',
+        ),
         commentKey: 'cout_alimentaire_vache',
         description:
             "L'alimentation est le poste de dépenses le plus élevé et à l'origine de très nombreux problèmes. Diagnostic nutritionnel précis, analyse des fourrages, plan de rationnement et suivi régulier.",
@@ -351,12 +459,20 @@ const costCards = computed((): CostCard[] => [
     <Head :title="`${module.label} #${analysis.id}`" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
-        <div class="analysis-show mx-auto flex w-full min-w-0 max-w-5xl flex-col gap-4 px-3 py-4 sm:gap-6 sm:p-6">
+        <div
+            class="analysis-show mx-auto flex w-full max-w-5xl min-w-0 flex-col gap-4 px-3 py-4 sm:gap-6 sm:p-6"
+        >
             <!-- Header -->
-            <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div
+                class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"
+            >
                 <div>
-                    <h1 class="text-2xl font-bold text-foreground">{{ module.label }}</h1>
-                    <p class="text-muted-foreground">{{ analysis.breeder.name }}</p>
+                    <h1 class="text-2xl font-bold text-foreground">
+                        {{ module.label }}
+                    </h1>
+                    <p class="text-muted-foreground">
+                        {{ analysis.breeder.name }}
+                    </p>
                 </div>
                 <div class="flex flex-wrap gap-2">
                     <Link
@@ -380,58 +496,135 @@ const costCards = computed((): CostCard[] => [
 
             <!-- Infos générales -->
             <section class="rounded-xl border border-border bg-card p-3 sm:p-5">
-                <h2 class="mb-4 text-sm font-semibold uppercase tracking-wide text-blue-700 dark:text-blue-400">Coordonnées et description générale</h2>
+                <h2
+                    class="mb-4 text-sm font-semibold tracking-wide text-comparison uppercase"
+                >
+                    Coordonnées et description générale
+                </h2>
                 <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                     <div>
-                        <p class="text-xs uppercase text-muted-foreground">Eleveur</p>
+                        <p class="text-xs text-muted-foreground uppercase">
+                            Eleveur
+                        </p>
                         <p class="font-medium">{{ analysis.breeder.name }}</p>
-                        <p class="text-sm text-muted-foreground">{{ analysis.breeder.postal_code }} {{ analysis.breeder.city }}</p>
-                        <p v-if="analysis.breeder.herd_number" class="text-xs text-muted-foreground">n° {{ analysis.breeder.herd_number }}</p>
+                        <p class="text-sm text-muted-foreground">
+                            {{ analysis.breeder.postal_code }}
+                            {{ analysis.breeder.city }}
+                        </p>
+                        <p
+                            v-if="analysis.breeder.herd_number"
+                            class="text-xs text-muted-foreground"
+                        >
+                            n° {{ analysis.breeder.herd_number }}
+                        </p>
                     </div>
                     <div>
-                        <p class="text-xs uppercase text-muted-foreground">Race / Année</p>
+                        <p class="text-xs text-muted-foreground uppercase">
+                            Race / Année
+                        </p>
                         <p class="font-medium">{{ payload.race ?? '-' }}</p>
-                        <p class="text-sm text-muted-foreground">{{ payload.annee_reference ?? '-' }}</p>
+                        <p class="text-sm text-muted-foreground">
+                            {{ payload.annee_reference ?? '-' }}
+                        </p>
                     </div>
                     <div>
-                        <p class="text-xs uppercase text-muted-foreground">Date du bilan</p>
-                        <p class="text-sm">{{ formatDate(analysis.analyzed_at) }}</p>
-                        <p class="mt-1 text-xs uppercase text-muted-foreground">Intervenant</p>
+                        <p class="text-xs text-muted-foreground uppercase">
+                            Date du bilan
+                        </p>
+                        <p class="text-sm">
+                            {{ formatDate(analysis.analyzed_at) }}
+                        </p>
+                        <p class="mt-1 text-xs text-muted-foreground uppercase">
+                            Intervenant
+                        </p>
                         <p class="text-sm">{{ analysis.intervenant ?? '-' }}</p>
                     </div>
                     <div class="space-y-1">
-                        <p class="text-xs uppercase text-muted-foreground">Cheptel</p>
+                        <p class="text-xs text-muted-foreground uppercase">
+                            Cheptel
+                        </p>
                         <div class="grid grid-cols-2 gap-x-4 gap-y-0.5 text-sm">
-                            <span class="text-muted-foreground">SAU</span><span class="font-medium">{{ fmtInt(payload.ha_sau, 'ha') }}</span>
-                            <span class="text-muted-foreground">UGB</span><span class="font-medium">{{ fmtInt(payload.nb_ugb) }}</span>
-                            <span class="text-muted-foreground">Vaches</span><span class="font-medium">{{ fmtInt(payload.nb_vaches) }}</span>
-                            <span class="text-muted-foreground">Veaux nés</span><span class="font-medium">{{ fmtInt(payload.nb_veaux_nes_vivants) }}</span>
-                            <span class="text-muted-foreground">Sevrés</span><span class="font-medium">{{ fmtInt(payload.nb_sevres) }}</span>
-                            <span class="text-muted-foreground">Réformes</span><span class="font-medium">{{ fmtInt(payload.nb_reformes) }}</span>
+                            <span class="text-muted-foreground">SAU</span
+                            ><span class="font-medium">{{
+                                fmtInt(payload.ha_sau, 'ha')
+                            }}</span>
+                            <span class="text-muted-foreground">UGB</span
+                            ><span class="font-medium">{{
+                                fmtInt(payload.nb_ugb)
+                            }}</span>
+                            <span class="text-muted-foreground">Vaches</span
+                            ><span class="font-medium">{{
+                                fmtInt(payload.nb_vaches)
+                            }}</span>
+                            <span class="text-muted-foreground">Veaux nés</span
+                            ><span class="font-medium">{{
+                                fmtInt(payload.nb_veaux_nes_vivants)
+                            }}</span>
+                            <span class="text-muted-foreground">Sevrés</span
+                            ><span class="font-medium">{{
+                                fmtInt(payload.nb_sevres)
+                            }}</span>
+                            <span class="text-muted-foreground">Réformes</span
+                            ><span class="font-medium">{{
+                                fmtInt(payload.nb_reformes)
+                            }}</span>
                         </div>
                     </div>
                 </div>
             </section>
 
-            <section v-if="comparisonAnalysis" class="rounded-xl border border-blue-200 bg-blue-50/60 p-3 sm:p-5 dark:border-blue-900 dark:bg-blue-950/20">
-                <div class="mb-3 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+            <section
+                v-if="comparisonAnalysis"
+                class="rounded-xl border border-blue-200 bg-blue-50/60 p-3 sm:p-5 dark:border-blue-900 dark:bg-blue-950/20"
+            >
+                <div
+                    class="mb-3 flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between"
+                >
                     <div>
-                        <h2 class="text-sm font-semibold uppercase tracking-wide text-blue-700 dark:text-blue-300">Comparaison ancien bilan</h2>
-                        <p class="text-xs text-blue-700/80 dark:text-blue-200/80">{{ comparisonLabel }}</p>
+                        <h2
+                            class="text-sm font-semibold tracking-wide text-comparison uppercase dark:text-blue-300"
+                        >
+                            Comparaison ancien bilan
+                        </h2>
+                        <p
+                            class="text-xs text-comparison/80 dark:text-blue-200/80"
+                        >
+                            {{ comparisonLabel }}
+                        </p>
                     </div>
-                    <p class="text-xs text-blue-700/80 dark:text-blue-200/80">{{ comparisonAnalysis.breeder.name }}</p>
+                    <p class="text-xs text-comparison/80 dark:text-blue-200/80">
+                        {{ comparisonAnalysis.breeder.name }}
+                    </p>
                 </div>
                 <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                    <div v-for="row in comparisonRows" :key="row.label" class="rounded-lg bg-background/80 p-3 text-sm">
-                        <p class="text-xs uppercase text-muted-foreground">{{ row.label }}</p>
+                    <div
+                        v-for="row in comparisonRows"
+                        :key="row.label"
+                        class="rounded-lg bg-background/80 p-3 text-sm"
+                    >
+                        <p class="text-xs text-muted-foreground uppercase">
+                            {{ row.label }}
+                        </p>
                         <div class="mt-1 grid grid-cols-2 gap-2">
                             <div>
-                                <p class="text-[10px] uppercase text-muted-foreground">Actuel</p>
+                                <p
+                                    class="text-[10px] text-muted-foreground uppercase"
+                                >
+                                    Actuel
+                                </p>
                                 <p class="font-semibold">{{ row.current }}</p>
                             </div>
                             <div>
-                                <p class="text-[10px] uppercase text-blue-700 dark:text-blue-300">Ancien</p>
-                                <p class="font-semibold text-blue-700 dark:text-blue-300">{{ row.previous }}</p>
+                                <p
+                                    class="text-[10px] text-comparison uppercase dark:text-blue-300"
+                                >
+                                    Ancien
+                                </p>
+                                <p
+                                    class="font-semibold text-comparison dark:text-blue-300"
+                                >
+                                    {{ row.previous }}
+                                </p>
                             </div>
                         </div>
                     </div>
@@ -440,7 +633,11 @@ const costCards = computed((): CostCard[] => [
 
             <!-- Niveau de mortalité des veaux -->
             <section class="rounded-xl border border-border bg-card p-3 sm:p-5">
-                <h2 class="mb-4 text-sm font-semibold uppercase tracking-wide text-blue-700 dark:text-blue-400">Niveau de mortalité des veaux</h2>
+                <h2
+                    class="mb-4 text-sm font-semibold tracking-wide text-comparison uppercase"
+                >
+                    Niveau de mortalité des veaux
+                </h2>
                 <div class="flex flex-col gap-4 sm:flex-row sm:items-center">
                     <!-- Gauge circle display -->
                     <div class="flex shrink-0 flex-col items-center gap-1">
@@ -450,83 +647,173 @@ const costCards = computed((): CostCard[] => [
                         >
                             {{ fmt(results.tx_mortalite_total_veaux, 1) }}%
                         </div>
-                        <p class="text-xs text-muted-foreground">Mortalité totale</p>
-                        <p v-if="compResult('tx_mortalite_total_veaux') !== null" class="text-[10px] text-blue-700">
-                            Ancien: {{ fmt(compResult('tx_mortalite_total_veaux'), 1, '%') }}
+                        <p class="text-xs text-muted-foreground">
+                            Mortalité totale
+                        </p>
+                        <p
+                            v-if="
+                                compResult('tx_mortalite_total_veaux') !== null
+                            "
+                            class="text-[10px] text-comparison"
+                        >
+                            Ancien:
+                            {{
+                                fmt(
+                                    compResult('tx_mortalite_total_veaux'),
+                                    1,
+                                    '%',
+                                )
+                            }}
                         </p>
                     </div>
 
                     <!-- Zone description -->
                     <div class="flex-1 space-y-3">
-                        <p class="font-medium" :class="mortalityZoneColor">{{ mortalityZoneLabel }}</p>
+                        <p class="font-medium" :class="mortalityZoneColor">
+                            {{ mortalityZoneLabel }}
+                        </p>
                         <div class="space-y-1.5 text-xs text-muted-foreground">
                             <div class="flex items-center gap-2">
-                                <span class="h-2 w-6 shrink-0 rounded-full bg-green-400"></span>
-                                <span>De 0 à 5% : troupeau parmi les 25% avec la mortalité la plus faible</span>
+                                <span
+                                    class="h-2 w-6 shrink-0 rounded-full bg-green-400"
+                                ></span>
+                                <span
+                                    >De 0 à 5% : troupeau parmi les 25% avec la
+                                    mortalité la plus faible</span
+                                >
                             </div>
                             <div class="flex items-center gap-2">
-                                <span class="h-2 w-6 shrink-0 rounded-full bg-lime-400"></span>
-                                <span>De 5 à 8% : mortalité inférieure ou égale à la moitié des exploitations</span>
+                                <span
+                                    class="h-2 w-6 shrink-0 rounded-full bg-lime-400"
+                                ></span>
+                                <span
+                                    >De 5 à 8% : mortalité inférieure ou égale à
+                                    la moitié des exploitations</span
+                                >
                             </div>
                             <div class="flex items-center gap-2">
-                                <span class="h-2 w-6 shrink-0 rounded-full bg-amber-400"></span>
-                                <span>De 8 à 12% : mortalité supérieure à 50% des exploitations</span>
+                                <span
+                                    class="h-2 w-6 shrink-0 rounded-full bg-amber-400"
+                                ></span>
+                                <span
+                                    >De 8 à 12% : mortalité supérieure à 50% des
+                                    exploitations</span
+                                >
                             </div>
                             <div class="flex items-center gap-2">
-                                <span class="h-2 w-6 shrink-0 rounded-full bg-orange-400"></span>
-                                <span>De 12 à 22% : mortalité supérieure à 75% des exploitations</span>
+                                <span
+                                    class="h-2 w-6 shrink-0 rounded-full bg-orange-400"
+                                ></span>
+                                <span
+                                    >De 12 à 22% : mortalité supérieure à 75%
+                                    des exploitations</span
+                                >
                             </div>
                             <div class="flex items-center gap-2">
-                                <span class="h-2 w-6 shrink-0 rounded-full bg-red-500"></span>
-                                <span>Au-delà de 22% : mortalité supérieure à toutes les exploitations analysées</span>
+                                <span
+                                    class="h-2 w-6 shrink-0 rounded-full bg-red-500"
+                                ></span>
+                                <span
+                                    >Au-delà de 22% : mortalité supérieure à
+                                    toutes les exploitations analysées</span
+                                >
                             </div>
                         </div>
                         <p class="text-xs text-muted-foreground">
-                            Source : données BDNI de 33 982 troupeaux de 8 races allaitantes entre 2005 et 2009.
+                            Source : données BDNI de 33 982 troupeaux de 8 races
+                            allaitantes entre 2005 et 2009.
                         </p>
                     </div>
 
                     <!-- Key mortality sub-indicators -->
-                    <div class="shrink-0 space-y-2 rounded-lg bg-muted/40 p-3 text-sm">
+                    <div
+                        class="shrink-0 space-y-2 rounded-lg bg-muted/40 p-3 text-sm"
+                    >
                         <div class="flex justify-between gap-6">
                             <span class="text-muted-foreground">Veaux nés</span>
-                            <span class="font-medium">{{ fmtInt(payload.nb_veaux_nes_vivants) }}</span>
+                            <span class="font-medium">{{
+                                fmtInt(payload.nb_veaux_nes_vivants)
+                            }}</span>
                         </div>
                         <div class="flex justify-between gap-6">
-                            <span class="text-muted-foreground">Dont accidents vêlage</span>
-                            <span class="font-medium">{{ fmtInt(payload.nb_accidents_velage, '') }}</span>
+                            <span class="text-muted-foreground"
+                                >Dont accidents vêlage</span
+                            >
+                            <span class="font-medium">{{
+                                fmtInt(payload.nb_accidents_velage, '')
+                            }}</span>
                         </div>
                         <div class="flex justify-between gap-6">
-                            <span class="text-muted-foreground">Morts au-delà de 24h</span>
-                            <span class="font-medium">{{ fmtInt(results.nb_morts_post24h_retenus ?? payload.nb_morts_post24h) }}</span>
+                            <span class="text-muted-foreground"
+                                >Morts au-delà de 24h</span
+                            >
+                            <span class="font-medium">{{
+                                fmtInt(
+                                    results.nb_morts_post24h_retenus ??
+                                        payload.nb_morts_post24h,
+                                )
+                            }}</span>
                         </div>
                         <div class="flex justify-between gap-6">
-                            <span class="text-muted-foreground">Avortements</span>
-                            <span class="font-medium">{{ fmtInt(payload.nb_avortons) }}</span>
+                            <span class="text-muted-foreground"
+                                >Avortements</span
+                            >
+                            <span class="font-medium">{{
+                                fmtInt(payload.nb_avortons)
+                            }}</span>
                         </div>
                         <div class="flex justify-between gap-6">
-                            <span class="text-muted-foreground">Sevrés / vendus</span>
-                            <span class="font-medium">{{ fmtInt(payload.nb_sevres) }}</span>
+                            <span class="text-muted-foreground"
+                                >Sevrés / vendus</span
+                            >
+                            <span class="font-medium">{{
+                                fmtInt(payload.nb_sevres)
+                            }}</span>
                         </div>
                     </div>
                 </div>
             </section>
 
             <!-- Causes de maladies et de mortalité -->
-            <section v-if="causeMaladies.length > 0 || causeMortalite.length > 0" class="rounded-xl border border-border bg-card p-3 sm:p-5">
-                <h2 class="mb-4 text-sm font-semibold uppercase tracking-wide text-blue-700 dark:text-blue-400">Causes de maladies et de mortalité</h2>
+            <section
+                v-if="causeMaladies.length > 0 || causeMortalite.length > 0"
+                class="rounded-xl border border-border bg-card p-3 sm:p-5"
+            >
+                <h2
+                    class="mb-4 text-sm font-semibold tracking-wide text-comparison uppercase"
+                >
+                    Causes de maladies et de mortalité
+                </h2>
                 <div class="grid gap-6 sm:grid-cols-2">
                     <!-- Maladies -->
                     <div v-if="causeMaladies.length > 0">
-                        <p class="mb-3 text-xs font-semibold uppercase text-muted-foreground">Causes de maladies</p>
+                        <p
+                            class="mb-3 text-xs font-semibold text-muted-foreground uppercase"
+                        >
+                            Causes de maladies
+                        </p>
                         <div class="space-y-2">
-                            <div v-for="c in causeMaladies" :key="c.label" class="space-y-0.5">
-                                <div class="flex items-center justify-between text-sm">
+                            <div
+                                v-for="c in causeMaladies"
+                                :key="c.label"
+                                class="space-y-0.5"
+                            >
+                                <div
+                                    class="flex items-center justify-between text-sm"
+                                >
                                     <span>{{ c.label }}</span>
-                                    <span class="font-medium">{{ c.pct.toFixed(1) }}%</span>
+                                    <span class="font-medium"
+                                        >{{ c.pct.toFixed(1) }}%</span
+                                    >
                                 </div>
-                                <div class="h-2 w-full overflow-hidden rounded-full bg-muted">
-                                    <div class="h-full rounded-full transition-all" :class="c.color" :style="`width: ${c.pct}%`"></div>
+                                <div
+                                    class="h-2 w-full overflow-hidden rounded-full bg-muted"
+                                >
+                                    <div
+                                        class="h-full rounded-full transition-all"
+                                        :class="c.color"
+                                        :style="`width: ${c.pct}%`"
+                                    ></div>
                                 </div>
                             </div>
                         </div>
@@ -534,15 +821,33 @@ const costCards = computed((): CostCard[] => [
 
                     <!-- Mortalité -->
                     <div v-if="causeMortalite.length > 0">
-                        <p class="mb-3 text-xs font-semibold uppercase text-muted-foreground">Causes de mortalité</p>
+                        <p
+                            class="mb-3 text-xs font-semibold text-muted-foreground uppercase"
+                        >
+                            Causes de mortalité
+                        </p>
                         <div class="space-y-2">
-                            <div v-for="c in causeMortalite" :key="c.label" class="space-y-0.5">
-                                <div class="flex items-center justify-between text-sm">
+                            <div
+                                v-for="c in causeMortalite"
+                                :key="c.label"
+                                class="space-y-0.5"
+                            >
+                                <div
+                                    class="flex items-center justify-between text-sm"
+                                >
                                     <span>{{ c.label }}</span>
-                                    <span class="font-medium">{{ c.pct.toFixed(1) }}%</span>
+                                    <span class="font-medium"
+                                        >{{ c.pct.toFixed(1) }}%</span
+                                    >
                                 </div>
-                                <div class="h-2 w-full overflow-hidden rounded-full bg-muted">
-                                    <div class="h-full rounded-full transition-all" :class="c.color" :style="`width: ${c.pct}%`"></div>
+                                <div
+                                    class="h-2 w-full overflow-hidden rounded-full bg-muted"
+                                >
+                                    <div
+                                        class="h-full rounded-full transition-all"
+                                        :class="c.color"
+                                        :style="`width: ${c.pct}%`"
+                                    ></div>
                                 </div>
                             </div>
                         </div>
@@ -552,15 +857,37 @@ const costCards = computed((): CostCard[] => [
 
             <!-- Taux de létalité -->
             <section class="rounded-xl border border-border bg-card p-3 sm:p-5">
-                <h2 class="mb-4 text-sm font-semibold uppercase tracking-wide text-blue-700 dark:text-blue-400">Taux de létalité (% morts parmi les malades)</h2>
+                <h2
+                    class="mb-4 text-sm font-semibold tracking-wide text-comparison uppercase"
+                >
+                    Taux de létalité (% morts parmi les malades)
+                </h2>
                 <div class="grid grid-cols-3 gap-3 sm:grid-cols-6">
-                    <div v-for="row in letaliteRows" :key="row.label" class="flex flex-col items-center gap-1 rounded-lg bg-muted/40 p-2">
-                        <p class="text-center text-[10px] text-muted-foreground">{{ row.label }}</p>
+                    <div
+                        v-for="row in letaliteRows"
+                        :key="row.label"
+                        class="flex flex-col items-center gap-1 rounded-lg bg-muted/40 p-2"
+                    >
+                        <p
+                            class="text-center text-[10px] text-muted-foreground"
+                        >
+                            {{ row.label }}
+                        </p>
                         <p
                             class="text-lg font-bold"
-                            :class="row.pct !== null && row.pct > 30 ? 'text-red-600' : row.pct !== null && row.pct > 10 ? 'text-amber-600' : 'text-green-700'"
+                            :class="
+                                row.pct !== null && row.pct > 30
+                                    ? 'text-red-600'
+                                    : row.pct !== null && row.pct > 10
+                                      ? 'text-amber-600'
+                                      : 'text-green-700'
+                            "
                         >
-                            {{ row.pct !== null ? row.pct.toFixed(1) + '%' : '–' }}
+                            {{
+                                row.pct !== null
+                                    ? row.pct.toFixed(1) + '%'
+                                    : '–'
+                            }}
                         </p>
                     </div>
                 </div>
@@ -568,9 +895,15 @@ const costCards = computed((): CostCard[] => [
 
             <!-- Impact reproduction -->
             <section class="rounded-xl border border-border bg-card p-3 sm:p-5">
-                <h2 class="mb-1 text-sm font-semibold uppercase tracking-wide text-blue-700 dark:text-blue-400">Impact de la reproduction</h2>
+                <h2
+                    class="mb-1 text-sm font-semibold tracking-wide text-comparison uppercase"
+                >
+                    Impact de la reproduction
+                </h2>
                 <p class="mb-4 text-xs text-muted-foreground">
-                    Facteurs de risque : déséquilibres alimentaires, rétentions placentaires, qualité de détection des chaleurs, agents infectieux (BDV, fièvre Q, néosporose).
+                    Facteurs de risque : déséquilibres alimentaires, rétentions
+                    placentaires, qualité de détection des chaleurs, agents
+                    infectieux (BDV, fièvre Q, néosporose).
                 </p>
                 <div class="flex flex-wrap gap-4">
                     <BseMetricBar
@@ -607,16 +940,25 @@ const costCards = computed((): CostCard[] => [
                         :comparison-value="compResult('tx_avortements')"
                     />
                 </div>
-                <p v-if="commentForKey('ivv')" class="mt-3 rounded-md bg-muted/40 p-3 text-sm italic text-muted-foreground">
+                <p
+                    v-if="commentForKey('ivv')"
+                    class="mt-3 rounded-md bg-muted/40 p-3 text-sm text-muted-foreground italic"
+                >
                     {{ commentForKey('ivv') }}
                 </p>
             </section>
 
             <!-- Impact péripartum -->
             <section class="rounded-xl border border-border bg-card p-3 sm:p-5">
-                <h2 class="mb-1 text-sm font-semibold uppercase tracking-wide text-blue-700 dark:text-blue-400">Impact des troubles péripartum</h2>
+                <h2
+                    class="mb-1 text-sm font-semibold tracking-wide text-comparison uppercase"
+                >
+                    Impact des troubles péripartum
+                </h2>
                 <p class="mb-4 text-xs text-muted-foreground">
-                    Facteurs de risque : déséquilibres alimentaires, abreuvement, détection précoce et modalités de traitement, agents pathogènes multi-infectieux.
+                    Facteurs de risque : déséquilibres alimentaires,
+                    abreuvement, détection précoce et modalités de traitement,
+                    agents pathogènes multi-infectieux.
                 </p>
                 <div class="flex flex-wrap gap-4">
                     <BseMetricBar
@@ -645,7 +987,9 @@ const costCards = computed((): CostCard[] => [
                         :thresholds="[2, 4]"
                         unit="%"
                         label="Torsions / retournements"
-                        :comparison-value="compResult('tx_torsions_retournements_matrices')"
+                        :comparison-value="
+                            compResult('tx_torsions_retournements_matrices')
+                        "
                     />
                     <BseMetricBar
                         :value="num(results.tx_metrites)"
@@ -659,9 +1003,14 @@ const costCards = computed((): CostCard[] => [
 
             <!-- Impact mortalité / maladies veaux -->
             <section class="rounded-xl border border-border bg-card p-3 sm:p-5">
-                <h2 class="mb-1 text-sm font-semibold uppercase tracking-wide text-blue-700 dark:text-blue-400">Impact des pathologies veaux</h2>
+                <h2
+                    class="mb-1 text-sm font-semibold tracking-wide text-comparison uppercase"
+                >
+                    Impact des pathologies veaux
+                </h2>
                 <p class="mb-4 text-xs text-muted-foreground">
-                    Facteurs de risque : difficulté de vêlage, surveillance, réanimation du veau, agents abortifs, alimentation.
+                    Facteurs de risque : difficulté de vêlage, surveillance,
+                    réanimation du veau, agents abortifs, alimentation.
                 </p>
                 <div class="flex flex-wrap gap-4">
                     <BseMetricBar
@@ -711,12 +1060,21 @@ const costCards = computed((): CostCard[] => [
 
             <!-- Estimation des performances et coûts -->
             <section class="rounded-xl border border-border bg-card p-3 sm:p-5">
-                <h2 class="mb-1 text-sm font-semibold uppercase tracking-wide text-blue-700 dark:text-blue-400">Estimation des performances et coûts</h2>
+                <h2
+                    class="mb-1 text-sm font-semibold tracking-wide text-comparison uppercase"
+                >
+                    Estimation des performances et coûts
+                </h2>
                 <p class="mb-4 text-xs text-muted-foreground">
-                    Chacun de ces problèmes persistants nécessite un service de conseils spécialisés de vos vétérinaires.
+                    Chacun de ces problèmes persistants nécessite un service de
+                    conseils spécialisés de vos vétérinaires.
                 </p>
                 <div class="space-y-3">
-                    <div v-for="card in costCards" :key="card.label" class="grid gap-4 rounded-lg border border-border p-4 sm:grid-cols-[auto_1fr]">
+                    <div
+                        v-for="card in costCards"
+                        :key="card.label"
+                        class="grid gap-4 rounded-lg border border-border p-4 sm:grid-cols-[auto_1fr]"
+                    >
                         <!-- Gauge indicator -->
                         <div class="flex flex-col items-center gap-1">
                             <div
@@ -727,24 +1085,50 @@ const costCards = computed((): CostCard[] => [
                                         : 'border-green-300 bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300'
                                 "
                             >
-                                <span class="text-center leading-tight">{{ card.rateValue }}</span>
+                                <span class="text-center leading-tight">{{
+                                    card.rateValue
+                                }}</span>
                             </div>
-                            <p class="text-center text-[10px] text-muted-foreground">{{ card.rateLabel }}</p>
+                            <p
+                                class="text-center text-[10px] text-muted-foreground"
+                            >
+                                {{ card.rateLabel }}
+                            </p>
                             <p
                                 class="text-sm font-semibold"
-                                :class="card.value !== null && card.value > 0 ? 'text-red-700 dark:text-red-400' : 'text-green-700 dark:text-green-400'"
+                                :class="
+                                    card.value !== null && card.value > 0
+                                        ? 'text-red-700 dark:text-red-400'
+                                        : 'text-green-700 dark:text-green-400'
+                                "
                             >
-                                {{ card.value !== null ? fmtInt(card.value, '€') : '-' }}
+                                {{
+                                    card.value !== null
+                                        ? fmtInt(card.value, '€')
+                                        : '-'
+                                }}
                             </p>
-                            <p v-if="card.comparisonValue !== null && card.comparisonValue !== undefined" class="text-center text-[10px] leading-tight text-blue-700">
-                                Ancien {{ fmtInt(card.comparisonValue, '€') }} · {{ card.comparisonRateValue }}
+                            <p
+                                v-if="
+                                    card.comparisonValue !== null &&
+                                    card.comparisonValue !== undefined
+                                "
+                                class="text-center text-[10px] leading-tight text-comparison"
+                            >
+                                Ancien {{ fmtInt(card.comparisonValue, '€') }} ·
+                                {{ card.comparisonRateValue }}
                             </p>
                         </div>
                         <!-- Description -->
                         <div>
                             <p class="mb-1 font-medium">{{ card.label }}</p>
-                            <p class="text-sm text-muted-foreground">{{ card.description }}</p>
-                            <p v-if="commentForKey(card.commentKey)" class="mt-2 text-sm italic text-muted-foreground">
+                            <p class="text-sm text-muted-foreground">
+                                {{ card.description }}
+                            </p>
+                            <p
+                                v-if="commentForKey(card.commentKey)"
+                                class="mt-2 text-sm text-muted-foreground italic"
+                            >
                                 {{ commentForKey(card.commentKey) }}
                             </p>
                         </div>

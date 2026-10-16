@@ -93,6 +93,9 @@ class Besoin
     {
         $categorie = RationHelper::normalizeCategorieAnimal($ration->categorie_animal ?? '');
         $semainesGestation = (float) ($ration->mois_gestation ?? 0) * 4.348;
+        if ($semainesGestation <= 0) {
+            return 0.0;
+        }
         $poidsVeau = (float) ($ration->poids_veau_naissance ?? 50);
 
         return match ($categorie) {
@@ -221,6 +224,9 @@ class Besoin
     {
         $categorie = RationHelper::normalizeCategorieAnimal($ration->categorie_animal ?? '');
         $semainesGestation = (float) ($ration->mois_gestation ?? 0) * 4.348;
+        if ($semainesGestation <= 0) {
+            return 0.0;
+        }
         $poidsVeau = (float) ($ration->poids_veau_naissance ?? 50);
 
         return match ($categorie) {

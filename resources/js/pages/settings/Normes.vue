@@ -270,6 +270,23 @@ onBeforeUnmount(() => {
                                                 >Borne basse</Label
                                             >
                                             <Input
+                                                :aria-invalid="
+                                                    Boolean(
+                                                        normeError(
+                                                            definition.key,
+                                                            'min',
+                                                        ),
+                                                    )
+                                                "
+                                                :aria-describedby="
+                                                    normeError(
+                                                        definition.key,
+                                                        'min',
+                                                    )
+                                                        ? `${definition.key}-min` +
+                                                          '-error'
+                                                        : undefined
+                                                "
                                                 :id="`${definition.key}-min`"
                                                 v-model="
                                                     normesDraft[definition.key]
@@ -307,6 +324,10 @@ onBeforeUnmount(() => {
                                                 }}
                                             </p>
                                             <InputError
+                                                :id="
+                                                    `${definition.key}-min` +
+                                                    '-error'
+                                                "
                                                 :message="
                                                     normeError(
                                                         definition.key,
@@ -325,6 +346,23 @@ onBeforeUnmount(() => {
                                                 >Borne haute</Label
                                             >
                                             <Input
+                                                :aria-invalid="
+                                                    Boolean(
+                                                        normeError(
+                                                            definition.key,
+                                                            'max',
+                                                        ),
+                                                    )
+                                                "
+                                                :aria-describedby="
+                                                    normeError(
+                                                        definition.key,
+                                                        'max',
+                                                    )
+                                                        ? `${definition.key}-max` +
+                                                          '-error'
+                                                        : undefined
+                                                "
                                                 :id="`${definition.key}-max`"
                                                 v-model="
                                                     normesDraft[definition.key]
@@ -362,6 +400,10 @@ onBeforeUnmount(() => {
                                                 }}
                                             </p>
                                             <InputError
+                                                :id="
+                                                    `${definition.key}-max` +
+                                                    '-error'
+                                                "
                                                 :message="
                                                     normeError(
                                                         definition.key,

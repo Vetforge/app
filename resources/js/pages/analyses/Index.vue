@@ -137,6 +137,7 @@ function deleteAnalysis(analysis: AnalysisRow): void {
                         class="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground"
                     />
                     <input
+                        :aria-label="'Rechercher par eleveur, animal, intervenant, ville, cheptel ou date...'"
                         v-model="search"
                         type="text"
                         placeholder="Rechercher par eleveur, animal, intervenant, ville, cheptel ou date..."
@@ -155,7 +156,9 @@ function deleteAnalysis(analysis: AnalysisRow): void {
             >
                 <div ref="tableStartElement" class="h-px" />
                 <table class="w-full text-sm">
-                    <thead class="hidden border-b border-border bg-muted/50 sm:table-header-group">
+                    <thead
+                        class="hidden border-b border-border bg-muted/50 sm:table-header-group"
+                    >
                         <tr>
                             <th
                                 class="px-4 py-3 text-left font-medium text-muted-foreground"
@@ -213,20 +216,36 @@ function deleteAnalysis(analysis: AnalysisRow): void {
                                     <p class="text-xs text-muted-foreground">
                                         {{ analysis.breeder.city ?? '' }}
                                     </p>
-                                    <div class="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground sm:hidden">
-                                        <span v-if="analysis.animal_nom">{{ analysis.animal_nom }}</span>
-                                        <span>{{ formatDate(analysis.analyzed_at) }}</span>
-                                        <span v-if="analysis.intervenant">{{ analysis.intervenant }}</span>
+                                    <div
+                                        class="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground sm:hidden"
+                                    >
+                                        <span v-if="analysis.animal_nom">{{
+                                            analysis.animal_nom
+                                        }}</span>
+                                        <span>{{
+                                            formatDate(analysis.analyzed_at)
+                                        }}</span>
+                                        <span v-if="analysis.intervenant">{{
+                                            analysis.intervenant
+                                        }}</span>
                                         <div class="flex gap-1">
                                             <Link
-                                                :href="analysisEdit({ analysis: analysis.id }).url"
+                                                :href="
+                                                    analysisEdit({
+                                                        analysis: analysis.id,
+                                                    }).url
+                                                "
                                                 class="rounded p-1 text-muted-foreground hover:bg-accent"
                                                 title="Modifier"
                                             >
                                                 <Edit class="size-3.5" />
                                             </Link>
                                             <a
-                                                :href="analysisPdf({ analysis: analysis.id }).url"
+                                                :href="
+                                                    analysisPdf({
+                                                        analysis: analysis.id,
+                                                    }).url
+                                                "
                                                 target="_blank"
                                                 rel="noreferrer"
                                                 class="rounded p-1 text-muted-foreground hover:bg-accent"
@@ -237,34 +256,58 @@ function deleteAnalysis(analysis: AnalysisRow): void {
                                             <button
                                                 class="rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
                                                 title="Supprimer"
-                                                @click="deleteAnalysis(analysis)"
+                                                @click="
+                                                    deleteAnalysis(analysis)
+                                                "
                                             >
                                                 <Trash2 class="size-3.5" />
                                             </button>
                                         </div>
                                     </div>
                                 </td>
-                                <td class="hidden px-4 py-3 text-muted-foreground sm:table-cell">
+                                <td
+                                    class="hidden px-4 py-3 text-muted-foreground sm:table-cell"
+                                >
                                     {{ analysis.animal_nom ?? '-' }}
                                 </td>
-                                <td class="hidden px-4 py-3 text-muted-foreground sm:table-cell">
-                                    <p>Analyse : {{ formatDate(analysis.analyzed_at) }}</p>
-                                    <p class="text-xs">Prelevement : {{ formatDate(analysis.sampled_at) }}</p>
+                                <td
+                                    class="hidden px-4 py-3 text-muted-foreground sm:table-cell"
+                                >
+                                    <p>
+                                        Analyse :
+                                        {{ formatDate(analysis.analyzed_at) }}
+                                    </p>
+                                    <p class="text-xs">
+                                        Prelevement :
+                                        {{ formatDate(analysis.sampled_at) }}
+                                    </p>
                                 </td>
-                                <td class="hidden px-4 py-3 text-muted-foreground sm:table-cell">
+                                <td
+                                    class="hidden px-4 py-3 text-muted-foreground sm:table-cell"
+                                >
                                     {{ analysis.intervenant ?? '-' }}
                                 </td>
                                 <td class="hidden px-4 py-3 sm:table-cell">
-                                    <div class="flex items-center justify-center gap-1">
+                                    <div
+                                        class="flex items-center justify-center gap-1"
+                                    >
                                         <Link
-                                            :href="analysisEdit({ analysis: analysis.id }).url"
+                                            :href="
+                                                analysisEdit({
+                                                    analysis: analysis.id,
+                                                }).url
+                                            "
                                             class="rounded p-1.5 text-muted-foreground hover:bg-accent"
                                             title="Modifier"
                                         >
                                             <Edit class="size-4" />
                                         </Link>
                                         <a
-                                            :href="analysisPdf({ analysis: analysis.id }).url"
+                                            :href="
+                                                analysisPdf({
+                                                    analysis: analysis.id,
+                                                }).url
+                                            "
                                             target="_blank"
                                             rel="noreferrer"
                                             class="rounded p-1.5 text-muted-foreground hover:bg-accent"
@@ -301,21 +344,35 @@ function deleteAnalysis(analysis: AnalysisRow): void {
                                     class="animate-pulse"
                                 >
                                     <td class="px-4 py-3">
-                                        <div class="h-4 w-32 rounded bg-muted" />
-                                        <div class="mt-2 h-3 w-20 rounded bg-muted/70" />
+                                        <div
+                                            class="h-4 w-32 rounded bg-muted"
+                                        />
+                                        <div
+                                            class="mt-2 h-3 w-20 rounded bg-muted/70"
+                                        />
                                     </td>
                                     <td class="hidden px-4 py-3 sm:table-cell">
-                                        <div class="h-4 w-24 rounded bg-muted" />
+                                        <div
+                                            class="h-4 w-24 rounded bg-muted"
+                                        />
                                     </td>
                                     <td class="hidden px-4 py-3 sm:table-cell">
-                                        <div class="h-4 w-28 rounded bg-muted" />
-                                        <div class="mt-2 h-3 w-24 rounded bg-muted/70" />
+                                        <div
+                                            class="h-4 w-28 rounded bg-muted"
+                                        />
+                                        <div
+                                            class="mt-2 h-3 w-24 rounded bg-muted/70"
+                                        />
                                     </td>
                                     <td class="hidden px-4 py-3 sm:table-cell">
-                                        <div class="h-4 w-28 rounded bg-muted" />
+                                        <div
+                                            class="h-4 w-28 rounded bg-muted"
+                                        />
                                     </td>
                                     <td class="hidden px-4 py-3 sm:table-cell">
-                                        <div class="mx-auto h-7 w-24 rounded bg-muted" />
+                                        <div
+                                            class="mx-auto h-7 w-24 rounded bg-muted"
+                                        />
                                     </td>
                                 </tr>
                             </template>

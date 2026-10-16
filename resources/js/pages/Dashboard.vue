@@ -1,6 +1,13 @@
 <script setup lang="ts">
 import { Head, Link, router } from '@inertiajs/vue3';
-import { Activity, ClipboardList, Salad, Search, Users, X } from 'lucide-vue-next';
+import {
+    Activity,
+    ClipboardList,
+    Salad,
+    Search,
+    Users,
+    X,
+} from 'lucide-vue-next';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import type { Component } from 'vue';
 import { create as alimentCreate } from '@/actions/App/Http/Controllers/AlimentController';
@@ -39,13 +46,53 @@ const props = defineProps<{
 
 const breadcrumbs: BreadcrumbItem[] = [{ title: 'Accueil', href: dashboard() }];
 
-const analyseModules = computed(() => props.analysis_modules.filter((m) => m.type === 'analyse'));
-const rapportModules = computed(() => props.analysis_modules.filter((m) => m.type === 'rapport'));
+const analyseModules = computed(() =>
+    props.analysis_modules.filter((m) => m.type === 'analyse'),
+);
+const rapportModules = computed(() =>
+    props.analysis_modules.filter((m) => m.type === 'rapport'),
+);
 
 const query = ref('');
 const searchResults = ref<RecentElement[]>([]);
 const isSearching = ref(false);
+const searchError = ref('');
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+let searchController: AbortController | null = null;
+let searchVersion = 0;
+
+async function search(trimmed: string, version: number): Promise<void> {
+    const controller = new AbortController();
+    searchController = controller;
+    isSearching.value = true;
+    try {
+        const res = await fetch(
+            dashboardSearch({ query: { q: trimmed } }).url,
+            {
+                signal: controller.signal,
+                headers: { Accept: 'application/json' },
+            },
+        );
+        if (!res.ok) throw new Error('Search failed');
+        const results = await res.json();
+        if (!Array.isArray(results)) throw new Error('Invalid search response');
+        if (version === searchVersion) searchResults.value = results;
+    } catch {
+        if (!controller.signal.aborted && version === searchVersion) {
+            searchResults.value = [];
+            searchError.value =
+                'La recherche est indisponible. Vérifiez votre connexion et réessayez.';
+        }
+    } finally {
+        if (version === searchVersion) isSearching.value = false;
+    }
+}
+
+function retrySearch(): void {
+    searchError.value = '';
+    searchController?.abort();
+    void search(query.value.trim(), ++searchVersion);
+}
 
 function clearSearch() {
     query.value = '';
@@ -54,24 +101,25 @@ function clearSearch() {
 
 watch(query, (val) => {
     if (debounceTimer) clearTimeout(debounceTimer);
+    searchController?.abort();
+    const version = ++searchVersion;
+    searchError.value = '';
+    searchResults.value = [];
+    isSearching.value = false;
     const trimmed = val.trim();
     if (trimmed.length < 2) {
         searchResults.value = [];
         return;
     }
-    debounceTimer = setTimeout(async () => {
-        isSearching.value = true;
-        try {
-            const res = await fetch(dashboardSearch({ query: { q: trimmed } }).url);
-            searchResults.value = await res.json();
-        } finally {
-            isSearching.value = false;
-        }
+    isSearching.value = true;
+    debounceTimer = setTimeout(() => {
+        void search(trimmed, version);
     }, 300);
 });
 
 onBeforeUnmount(() => {
     if (debounceTimer) clearTimeout(debounceTimer);
+    searchController?.abort();
     observer?.disconnect();
 });
 
@@ -81,7 +129,12 @@ const isLoadingMore = ref(false);
 let observer: IntersectionObserver | null = null;
 
 function loadMore() {
-    if (!props.recent_next_cursor || isLoadingMore.value || isSearchActive.value) return;
+    if (
+        !props.recent_next_cursor ||
+        isLoadingMore.value ||
+        isSearchActive.value
+    )
+        return;
     isLoadingMore.value = true;
     router.reload({
         only: ['recent_elements', 'recent_next_cursor'],
@@ -103,7 +156,9 @@ onMounted(() => {
 });
 
 const isSearchActive = computed(() => query.value.trim().length >= 2);
-const displayedElements = computed(() => (isSearchActive.value ? searchResults.value : props.recent_elements));
+const displayedElements = computed(() =>
+    isSearchActive.value ? searchResults.value : props.recent_elements,
+);
 
 const typeIconMap = {
     breeder: Users,
@@ -122,22 +177,28 @@ function getElementIcon(element: RecentElement): Component {
 
 function typeBadgeClass(type: string): string {
     const map: Record<string, string> = {
-        analysis: 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300',
-        breeder: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
+        analysis:
+            'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300',
+        breeder:
+            'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
         plan: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
         ration: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
-        aliment: 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300',
+        aliment:
+            'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300',
     };
     return map[type] ?? 'bg-muted text-muted-foreground';
 }
 
 function typeIconBgClass(type: string): string {
     const map: Record<string, string> = {
-        analysis: 'bg-violet-100 text-violet-600 dark:bg-violet-900/20 dark:text-violet-400',
-        breeder: 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400',
+        analysis:
+            'bg-violet-100 text-violet-600 dark:bg-violet-900/20 dark:text-violet-400',
+        breeder:
+            'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400',
         plan: 'bg-blue-100 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400',
         ration: 'bg-amber-100 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400',
-        aliment: 'bg-teal-100 text-teal-600 dark:bg-teal-900/20 dark:text-teal-400',
+        aliment:
+            'bg-teal-100 text-teal-600 dark:bg-teal-900/20 dark:text-teal-400',
     };
     return map[type] ?? 'bg-muted text-muted-foreground';
 }
@@ -152,7 +213,10 @@ function typeIconBgClass(type: string): string {
             <div class="rounded-xl border border-border bg-card p-4 shadow-sm">
                 <div class="flex flex-col gap-3">
                     <div class="flex items-start gap-3">
-                        <span class="mt-1.5 w-20 shrink-0 text-right text-xs font-medium text-muted-foreground">Ration</span>
+                        <span
+                            class="mt-1.5 w-20 shrink-0 text-right text-xs font-medium text-muted-foreground"
+                            >Ration</span
+                        >
                         <div class="flex flex-wrap gap-2">
                             <Link
                                 :href="planCreate().url"
@@ -171,31 +235,53 @@ function typeIconBgClass(type: string): string {
                         </div>
                     </div>
 
-                    <div v-if="analyseModules.length" class="flex items-start gap-3">
-                        <span class="mt-1.5 w-20 shrink-0 text-right text-xs font-medium text-muted-foreground">Analyses</span>
+                    <div
+                        v-if="analyseModules.length"
+                        class="flex items-start gap-3"
+                    >
+                        <span
+                            class="mt-1.5 w-20 shrink-0 text-right text-xs font-medium text-muted-foreground"
+                            >Analyses</span
+                        >
                         <div class="flex flex-wrap gap-2">
                             <Link
                                 v-for="module in analyseModules"
                                 :key="module.slug"
-                                :href="analysisCreate({ module: module.slug }).url"
+                                :href="
+                                    analysisCreate({ module: module.slug }).url
+                                "
                                 class="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground shadow-sm transition-colors hover:bg-accent"
                             >
-                                <component :is="getModuleIcon(module.slug)" class="size-3.5" />
+                                <component
+                                    :is="getModuleIcon(module.slug)"
+                                    class="size-3.5"
+                                />
                                 {{ module.short_label }}
                             </Link>
                         </div>
                     </div>
 
-                    <div v-if="rapportModules.length" class="flex items-start gap-3">
-                        <span class="mt-1.5 w-20 shrink-0 text-right text-xs font-medium text-muted-foreground">Rapports</span>
+                    <div
+                        v-if="rapportModules.length"
+                        class="flex items-start gap-3"
+                    >
+                        <span
+                            class="mt-1.5 w-20 shrink-0 text-right text-xs font-medium text-muted-foreground"
+                            >Rapports</span
+                        >
                         <div class="flex flex-wrap gap-2">
                             <Link
                                 v-for="module in rapportModules"
                                 :key="module.slug"
-                                :href="analysisCreate({ module: module.slug }).url"
+                                :href="
+                                    analysisCreate({ module: module.slug }).url
+                                "
                                 class="inline-flex items-center gap-1.5 rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground shadow-sm transition-colors hover:bg-accent"
                             >
-                                <component :is="getModuleIcon(module.slug)" class="size-3.5" />
+                                <component
+                                    :is="getModuleIcon(module.slug)"
+                                    class="size-3.5"
+                                />
                                 {{ module.short_label }}
                             </Link>
                         </div>
@@ -205,17 +291,22 @@ function typeIconBgClass(type: string): string {
 
             <!-- Barre de recherche -->
             <div class="relative">
-                <Search class="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Search
+                    class="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+                />
                 <input
+                    aria-label="Rechercher dans les dossiers, analyses et rations"
+                    aria-controls="dashboard-results"
                     v-model="query"
                     type="text"
                     placeholder="Rechercher un éleveur, une analyse, une ration..."
-                    class="w-full rounded-lg border border-border bg-card py-2.5 pl-9 pr-9 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                    class="w-full rounded-lg border border-border bg-card py-2.5 pr-9 pl-9 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
                 />
                 <button
+                    aria-label="Effacer la recherche"
                     v-if="query"
                     type="button"
-                    class="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    class="absolute top-1/2 right-0 inline-flex size-11 -translate-y-1/2 items-center justify-center rounded-lg text-muted-foreground hover:text-foreground"
                     @click="clearSearch"
                 >
                     <X class="size-4" />
@@ -223,31 +314,81 @@ function typeIconBgClass(type: string): string {
             </div>
 
             <!-- Liste des éléments -->
-            <div class="rounded-xl border border-border bg-card shadow-sm">
-                <div class="flex items-center justify-between border-b border-border px-4 py-2.5">
+            <div
+                id="dashboard-results"
+                :aria-busy="isSearching"
+                class="rounded-xl border border-border bg-card shadow-sm"
+            >
+                <div
+                    class="flex items-center justify-between border-b border-border px-4 py-2.5"
+                >
                     <h2 class="font-semibold text-foreground">
                         {{ isSearchActive ? 'Résultats' : 'Eléments récents' }}
                     </h2>
-                    <span v-if="isSearchActive && !isSearching" class="text-xs text-muted-foreground">
-                        {{ searchResults.length }} résultat{{ searchResults.length !== 1 ? 's' : '' }}
+                    <span
+                        v-if="isSearchActive && !isSearching && !searchError"
+                        role="status"
+                        class="text-xs text-muted-foreground"
+                    >
+                        {{ searchResults.length }} résultat{{
+                            searchResults.length !== 1 ? 's' : ''
+                        }}
                     </span>
-                    <span v-else-if="isSearching" class="text-xs text-muted-foreground">Recherche...</span>
+                    <span
+                        v-else-if="isSearching"
+                        role="status"
+                        class="text-xs text-muted-foreground"
+                        >Recherche...</span
+                    >
                 </div>
 
                 <!-- Skeleton de chargement -->
-                <div v-if="isSearching" class="divide-y divide-border/50">
-                    <div v-for="i in 4" :key="i" class="flex animate-pulse items-center gap-3 px-4 py-2.5">
-                        <div class="size-8 shrink-0 rounded-full bg-muted"></div>
+                <div
+                    v-if="searchError"
+                    role="alert"
+                    class="grid justify-items-start gap-3 p-4"
+                >
+                    <p class="text-sm text-destructive">{{ searchError }}</p>
+                    <button
+                        type="button"
+                        @click="retrySearch"
+                        class="min-h-11 rounded-lg border border-border px-4 py-2 text-sm hover:bg-accent"
+                    >
+                        Réessayer
+                    </button>
+                </div>
+                <div
+                    v-else-if="isSearching"
+                    aria-hidden="true"
+                    class="divide-y divide-border/50"
+                >
+                    <div
+                        v-for="i in 4"
+                        :key="i"
+                        class="flex animate-pulse items-center gap-3 px-4 py-2.5"
+                    >
+                        <div
+                            class="size-8 shrink-0 rounded-full bg-muted"
+                        ></div>
                         <div class="flex-1 space-y-1.5">
                             <div class="h-3 w-2/5 rounded bg-muted"></div>
                             <div class="h-2.5 w-1/4 rounded bg-muted"></div>
                         </div>
-                        <div class="h-5 w-14 shrink-0 rounded-full bg-muted"></div>
+                        <div
+                            class="h-5 w-14 shrink-0 rounded-full bg-muted"
+                        ></div>
                     </div>
                 </div>
 
-                <div v-else-if="displayedElements.length === 0" class="px-4 py-8 text-center text-sm text-muted-foreground">
-                    {{ isSearchActive ? 'Aucun résultat pour cette recherche' : 'Aucun élément récent' }}
+                <div
+                    v-else-if="displayedElements.length === 0"
+                    class="px-4 py-8 text-center text-sm text-muted-foreground"
+                >
+                    {{
+                        isSearchActive
+                            ? 'Aucun résultat pour cette recherche'
+                            : 'Aucun élément récent'
+                    }}
                 </div>
 
                 <div v-else class="divide-y divide-border/50">
@@ -261,11 +402,23 @@ function typeIconBgClass(type: string): string {
                             class="flex size-8 shrink-0 items-center justify-center rounded-full"
                             :class="typeIconBgClass(element.type)"
                         >
-                            <component :is="getElementIcon(element)" class="size-4" />
+                            <component
+                                :is="getElementIcon(element)"
+                                class="size-4"
+                            />
                         </div>
                         <div class="min-w-0 flex-1">
-                            <p class="truncate text-sm font-medium text-foreground">{{ element.label }}</p>
-                            <p v-if="element.sub" class="truncate text-xs text-muted-foreground">{{ element.sub }}</p>
+                            <p
+                                class="truncate text-sm font-medium text-foreground"
+                            >
+                                {{ element.label }}
+                            </p>
+                            <p
+                                v-if="element.sub"
+                                class="truncate text-xs text-muted-foreground"
+                            >
+                                {{ element.sub }}
+                            </p>
                         </div>
                         <div class="shrink-0 text-right">
                             <span
@@ -275,26 +428,42 @@ function typeIconBgClass(type: string): string {
                                 {{ element.type_label }}
                             </span>
                             <p class="mt-0.5 text-xs text-muted-foreground">
-                                {{ new Date(element.updated_at).toLocaleDateString('fr-FR') }}
+                                {{
+                                    new Date(
+                                        element.updated_at,
+                                    ).toLocaleDateString('fr-FR')
+                                }}
                             </p>
                         </div>
                     </Link>
 
                     <!-- Skeleton chargement suivant -->
                     <template v-if="isLoadingMore && !isSearchActive">
-                        <div v-for="i in 3" :key="`skel-${i}`" class="flex animate-pulse items-center gap-3 px-4 py-2.5">
-                            <div class="size-8 shrink-0 rounded-full bg-muted"></div>
+                        <div
+                            v-for="i in 3"
+                            :key="`skel-${i}`"
+                            class="flex animate-pulse items-center gap-3 px-4 py-2.5"
+                        >
+                            <div
+                                class="size-8 shrink-0 rounded-full bg-muted"
+                            ></div>
                             <div class="flex-1 space-y-1.5">
                                 <div class="h-3 w-2/5 rounded bg-muted"></div>
                                 <div class="h-2.5 w-1/4 rounded bg-muted"></div>
                             </div>
-                            <div class="h-5 w-14 shrink-0 rounded-full bg-muted"></div>
+                            <div
+                                class="h-5 w-14 shrink-0 rounded-full bg-muted"
+                            ></div>
                         </div>
                     </template>
                 </div>
 
                 <!-- Sentinel pour l'infinite scroll -->
-                <div v-if="!isSearchActive" ref="sentinelRef" class="h-px"></div>
+                <div
+                    v-if="!isSearchActive"
+                    ref="sentinelRef"
+                    class="h-px"
+                ></div>
             </div>
         </div>
     </AppLayout>

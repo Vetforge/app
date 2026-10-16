@@ -14,7 +14,7 @@ use App\Services\RationHelper;
  * Trois catégories :
  *  - brebis laitière ({@see CategorieAnimal::BrebisLaitiere}) — UFL, encombrement UEM ;
  *  - brebis allaitante / suitée ({@see CategorieAnimal::BrebisAllaitante}) — UFL, UEM ;
- *  - agneau / agnelle en croissance ({@see CategorieAnimal::AgneauCroissance}) — UFV, UEM.
+ *  - agneau à l'engraissement ({@see CategorieAnimal::AgneauCroissance}) — UFV, kg MS.
  *
  * Les numéros d'équation renvoient au chapitre 20. L'énergie de l'agneau (Éq. 20.53) a été validée
  * contre la Table 20.3 (ex. 20 kg + 100 g/j → 0,57 UFV ; 20 kg + 300 g/j → 0,97 UFV).
@@ -69,7 +69,9 @@ class OvinBesoin
 
         $temperature = (float) ($ration->temperature_ambiante ?? 15.0);
 
-        return max(0.0, $ci * (1.345 - 0.0183 * $temperature)); // Éq. 20.52.
+        $correctionTemperature = $temperature < 15.0 ? 1.345 - 0.0183 * $temperature : 1.0;
+
+        return max(0.0, $ci * $correctionTemperature); // Éq. 20.52, uniquement sous la thermoneutralité.
     }
 
     // ─── Énergie ─────────────────────────────────────────────────────────────────
@@ -126,7 +128,23 @@ class OvinBesoin
             return 0.00205 * self::adg($ration); // gain UFV (Éq. 20.53)
         }
 
-        return 0.0;
+        return 0.28 * self::adg($ration) / 100; // Éq. 20.15, jeunes reproductrices.
+    }
+
+    public static function besoinUFReserves(Ration $ration): float
+    {
+        if (self::cat($ration) === CategorieAnimal::AgneauCroissance) {
+            return 0.0;
+        }
+        $duration = (int) ($ration->duree_variation_nec_jours ?? 0);
+        $delta = (float) ($ration->variation_nec ?? 0);
+        if ($duration <= 0 || $delta == 0.0) {
+            return 0.0;
+        }
+        // Éq. 20.26 pour reconstitution ; mobilisation : 28 UFL/point/65 kg.
+        $coefficient = $delta > 0 ? 0.433 : 28.0 / 65.0;
+
+        return $coefficient * self::bw($ration) * $delta / $duration;
     }
 
     /**
@@ -216,7 +234,7 @@ class OvinBesoin
     public static function besoinPDIGain(Ration $ration): float
     {
         if (self::cat($ration) !== CategorieAnimal::AgneauCroissance) {
-            return 0.0;
+            return 0.130 * self::adg($ration) / self::effPdi($ration); // Éq. 20.25.
         }
         $effPdi = self::effPdi($ration);
 
@@ -248,7 +266,7 @@ class OvinBesoin
             $ca += self::caGestation($ration);
         }
 
-        return $ca;
+        return $ca + 6.75 * pow(self::bwAdulte($ration) / $bw, 0.28) * self::adg($ration) / 1000;
     }
 
     public static function calculerBesoinPabs(Ration $ration): float
@@ -269,7 +287,7 @@ class OvinBesoin
             $p += self::pGestation($ration); // Éq. 20.35
         }
 
-        return $p;
+        return $p + (3.19 * pow(self::bwAdulte($ration) / $bw, 0.28) + 1.2) * self::adg($ration) / 1000;
     }
 
     // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -289,18 +307,22 @@ class OvinBesoin
         return (float) ($ration->nec ?? 3);
     }
 
-    private static function my(Ration $ration): float
+    public static function my(Ration $ration): float
     {
+        if ($ration->lait_objectif === null && self::cat($ration) === CategorieAnimal::BrebisAllaitante && self::enLactation($ration)) {
+            return self::besoinUFLait($ration) / (0.686 * self::facteurLaitStandard($ration));
+        }
+
         return max(0.0, (float) ($ration->lait_objectif ?? 0));
     }
 
-    /** Lait standard (sMY, l/j) : Éq. 20.14. MFC/MPC du lait de brebis (défauts 76 / 55 g/kg, p. 323). */
+    /** Lait standard (sMY, l/j) : Éq. 20.14. MFC/MPC du lait de brebis (défauts 76 / 55 g/l, p. 323). */
     private static function smy(Ration $ration): float
     {
         return self::my($ration) * self::facteurLaitStandard($ration);
     }
 
-    /** Facteur de standardisation du lait de brebis (Éq. 20.14), défauts MFC 76 / MPC 55 g/kg (p. 323). */
+    /** Facteur de standardisation du lait de brebis (Éq. 20.14), défauts MFC 76 / MPC 55 g/l (p. 323). */
     private static function facteurLaitStandard(Ration $ration): float
     {
         $mfc = (float) ($ration->mfc ?? 76);

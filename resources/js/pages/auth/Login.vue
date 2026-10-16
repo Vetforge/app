@@ -42,6 +42,10 @@ defineProps<{
                 <div class="grid gap-2">
                     <Label for="email">Adresse e-mail</Label>
                     <Input
+                        :aria-invalid="Boolean(errors.email)"
+                        :aria-describedby="
+                            errors.email ? 'email-error' : undefined
+                        "
                         id="email"
                         type="email"
                         name="email"
@@ -51,7 +55,7 @@ defineProps<{
                         autocomplete="email"
                         placeholder="email@example.com"
                     />
-                    <InputError :message="errors.email" />
+                    <InputError id="email-error" :message="errors.email" />
                 </div>
 
                 <div class="grid gap-2">
@@ -67,6 +71,10 @@ defineProps<{
                         </TextLink> -->
                     </div>
                     <Input
+                        :aria-invalid="Boolean(errors.password)"
+                        :aria-describedby="
+                            errors.password ? 'password-error' : undefined
+                        "
                         id="password"
                         type="password"
                         name="password"
@@ -75,7 +83,10 @@ defineProps<{
                         autocomplete="current-password"
                         placeholder="Mot de passe"
                     />
-                    <InputError :message="errors.password" />
+                    <InputError
+                        id="password-error"
+                        :message="errors.password"
+                    />
                 </div>
 
                 <div class="flex items-center justify-between">
@@ -101,8 +112,8 @@ defineProps<{
                 class="text-center text-sm text-muted-foreground"
                 v-if="canRegister"
             >
-                    Vous n'avez pas de compte ?
-                    <span class="mx-1">·</span>
+                Vous n'avez pas de compte ?
+                <span class="mx-1">·</span>
                 <TextLink :href="register()" :tabindex="5">
                     S'inscrire
                 </TextLink>

@@ -251,6 +251,7 @@ function submit(event: Event) {
                             >Éleveur (facultatif)</label
                         >
                         <BreederSelectWithCreate
+                            :aria-label="'Éleveur (facultatif)'"
                             v-model="breederId"
                             name="breeder_id"
                             :breeders="breeders"

@@ -25,6 +25,11 @@ import { store } from '@/routes/password/confirm';
                 <div class="grid gap-2">
                     <Label htmlFor="password">Mot de passe</Label>
                     <Input
+                        :aria-label="'Mot de passe'"
+                        :aria-invalid="Boolean(errors.password)"
+                        :aria-describedby="
+                            errors.password ? 'password-error' : undefined
+                        "
                         id="password"
                         type="password"
                         name="password"
@@ -34,7 +39,10 @@ import { store } from '@/routes/password/confirm';
                         autofocus
                     />
 
-                    <InputError :message="errors.password" />
+                    <InputError
+                        id="password-error"
+                        :message="errors.password"
+                    />
                 </div>
 
                 <div class="flex items-center">

@@ -1,0 +1,922 @@
+{
+  "id": "allaitante-blonde",
+  "source": "vache allaitante foin + enrub + blé + soja.rtf",
+  "source_sha256": "6ac8f9dd136797e15c522e401460d6c737150752f4decca12e43261a137bf210",
+  "scenario_count": 3,
+  "feeds": [
+    {
+      "name": "Foin prairie perm. plaine beau temps c2 feuillue 5 sem",
+      "basis": "as_fed",
+      "category": "FOINS de prairie permanente",
+      "values": {
+        "Prix": {
+          "value": "0.00",
+          "unit": "€"
+        },
+        "MS": {
+          "value": "850",
+          "unit": "g"
+        },
+        "UEB": {
+          "value": "0.782",
+          "unit": "UEB"
+        },
+        "MO": {
+          "value": "768",
+          "unit": "g"
+        },
+        "dMO Ruminants°": {
+          "value": "69.00",
+          "unit": "%"
+        },
+        "UFL°": {
+          "value": "0.745",
+          "unit": "UFL"
+        },
+        "PB [MAT]": {
+          "value": "175",
+          "unit": "g"
+        },
+        "DT6 N°": {
+          "value": "67.00",
+          "unit": "%"
+        },
+        "PDI°": {
+          "value": "91.00",
+          "unit": "g"
+        },
+        "BPR°": {
+          "value": "41.20",
+          "unit": "g"
+        },
+        "Amidon": {
+          "value": "0.00",
+          "unit": "g"
+        },
+        "DT Amidon°": {
+          "value": "0.00",
+          "unit": "%"
+        },
+        "Sucres": {
+          "value": null,
+          "unit": "g"
+        },
+        "CB": {
+          "value": "247",
+          "unit": "g"
+        },
+        "NDF": {
+          "value": "499",
+          "unit": "g"
+        },
+        "ADF": {
+          "value": "269",
+          "unit": "g"
+        },
+        "Ca": {
+          "value": "4.76",
+          "unit": "g"
+        },
+        "Ca abs. Ruminants": {
+          "value": "1.70",
+          "unit": "g"
+        },
+        "P": {
+          "value": "2.81",
+          "unit": "g"
+        },
+        "P abs. Ruminants": {
+          "value": "1.87",
+          "unit": "g"
+        },
+        "Mg": {
+          "value": "1.87",
+          "unit": "g"
+        },
+        "K": {
+          "value": "16.20",
+          "unit": "g"
+        }
+      }
+    },
+    {
+      "name": "Enrub. demi-montagne c1 florais.",
+      "basis": "dry_matter",
+      "category": "ENSILAGES et ENRUBANNAGES prairie perm.",
+      "values": {
+        "Prix": {
+          "value": "0.00",
+          "unit": "€"
+        },
+        "MS": {
+          "value": "550",
+          "unit": "g"
+        },
+        "UEB": {
+          "value": "1.32",
+          "unit": "UEB"
+        },
+        "MO": {
+          "value": "917",
+          "unit": "g"
+        },
+        "dMO Ruminants°": {
+          "value": "57.40",
+          "unit": "%"
+        },
+        "UFL°": {
+          "value": "0.661",
+          "unit": "UFL"
+        },
+        "PB [MAT]": {
+          "value": "96.00",
+          "unit": "g"
+        },
+        "DT6 N°": {
+          "value": "70.30",
+          "unit": "%"
+        },
+        "PDI°": {
+          "value": "64.60",
+          "unit": "g"
+        },
+        "BPR°": {
+          "value": "-16.50",
+          "unit": "g"
+        },
+        "Amidon": {
+          "value": "0.00",
+          "unit": "g"
+        },
+        "DT Amidon°": {
+          "value": "0.00",
+          "unit": "%"
+        },
+        "Sucres": {
+          "value": null,
+          "unit": "g"
+        },
+        "CB": {
+          "value": "340",
+          "unit": "g"
+        },
+        "NDF": {
+          "value": "595",
+          "unit": "g"
+        },
+        "ADF": {
+          "value": "358",
+          "unit": "g"
+        },
+        "Ca": {
+          "value": "3.60",
+          "unit": "g"
+        },
+        "Ca abs. Ruminants": {
+          "value": "1.30",
+          "unit": "g"
+        },
+        "P": {
+          "value": "1.50",
+          "unit": "g"
+        },
+        "P abs. Ruminants": {
+          "value": "0.900",
+          "unit": "g"
+        },
+        "Mg": {
+          "value": "1.90",
+          "unit": "g"
+        },
+        "K": {
+          "value": "27.00",
+          "unit": "g"
+        }
+      }
+    },
+    {
+      "name": "Blé tendre",
+      "basis": "as_fed",
+      "category": "CÉRÉALES",
+      "values": {
+        "Prix": {
+          "value": "0.00",
+          "unit": "€"
+        },
+        "MS": {
+          "value": "868",
+          "unit": "g"
+        },
+        "MO": {
+          "value": "852",
+          "unit": "g"
+        },
+        "dMO Ruminants°": {
+          "value": "86.60",
+          "unit": "%"
+        },
+        "UFL°": {
+          "value": "1.03",
+          "unit": "UFL"
+        },
+        "PB [MAT]": {
+          "value": "105",
+          "unit": "g"
+        },
+        "DT6 N°": {
+          "value": "75.70",
+          "unit": "%"
+        },
+        "PDI°": {
+          "value": "75.80",
+          "unit": "g"
+        },
+        "BPR°": {
+          "value": "-14.50",
+          "unit": "g"
+        },
+        "Amidon": {
+          "value": "606",
+          "unit": "g"
+        },
+        "DT Amidon°": {
+          "value": "90.10",
+          "unit": "%"
+        },
+        "Sucres": {
+          "value": "23.40",
+          "unit": "g"
+        },
+        "CB": {
+          "value": "22.60",
+          "unit": "g"
+        },
+        "NDF": {
+          "value": "124",
+          "unit": "g"
+        },
+        "ADF": {
+          "value": "31.20",
+          "unit": "g"
+        },
+        "Ca": {
+          "value": "0.694",
+          "unit": "g"
+        },
+        "Ca abs. Ruminants": {
+          "value": "0.347",
+          "unit": "g"
+        },
+        "P": {
+          "value": "3.21",
+          "unit": "g"
+        },
+        "P abs. Ruminants": {
+          "value": "2.26",
+          "unit": "g"
+        },
+        "Mg": {
+          "value": "0.955",
+          "unit": "g"
+        },
+        "K": {
+          "value": "3.99",
+          "unit": "g"
+        }
+      }
+    },
+    {
+      "name": "Tourteau de soja 46",
+      "basis": "as_fed",
+      "category": "COPRODUITS des graines protéag.-oléag.",
+      "values": {
+        "Prix": {
+          "value": "0.00",
+          "unit": "€"
+        },
+        "MS": {
+          "value": "876",
+          "unit": "g"
+        },
+        "MO": {
+          "value": "811",
+          "unit": "g"
+        },
+        "dMO Ruminants°": {
+          "value": "90.60",
+          "unit": "%"
+        },
+        "UFL°": {
+          "value": "1.13",
+          "unit": "UFL"
+        },
+        "PB [MAT]": {
+          "value": "433",
+          "unit": "g"
+        },
+        "DT6 N°": {
+          "value": "62.80",
+          "unit": "%"
+        },
+        "PDI°": {
+          "value": "189",
+          "unit": "g"
+        },
+        "BPR°": {
+          "value": "195",
+          "unit": "g"
+        },
+        "Amidon": {
+          "value": "0.00",
+          "unit": "g"
+        },
+        "DT Amidon°": {
+          "value": "0.00",
+          "unit": "%"
+        },
+        "Sucres": {
+          "value": "85.00",
+          "unit": "g"
+        },
+        "CB": {
+          "value": "61.30",
+          "unit": "g"
+        },
+        "NDF": {
+          "value": "124",
+          "unit": "g"
+        },
+        "ADF": {
+          "value": "74.50",
+          "unit": "g"
+        },
+        "Ca": {
+          "value": "3.42",
+          "unit": "g"
+        },
+        "Ca abs. Ruminants": {
+          "value": "1.84",
+          "unit": "g"
+        },
+        "P": {
+          "value": "6.22",
+          "unit": "g"
+        },
+        "P abs. Ruminants": {
+          "value": "4.38",
+          "unit": "g"
+        },
+        "Mg": {
+          "value": "2.89",
+          "unit": "g"
+        },
+        "K": {
+          "value": "21.00",
+          "unit": "g"
+        }
+      }
+    }
+  ],
+  "quantities": [
+    {
+      "name": "Foin prairie perm. plaine beau temps c2 feuillue",
+      "basis": "as_fed",
+      "values": [
+        "0.00",
+        "1.08",
+        "1.03"
+      ]
+    },
+    {
+      "name": "Enrub. demi-montagne c1 florais.",
+      "basis": "dry_matter",
+      "values": [
+        "9.64",
+        "10.00",
+        "9.99"
+      ]
+    },
+    {
+      "name": "Blé tendre",
+      "basis": "as_fed",
+      "values": [
+        "1.04",
+        "2.86",
+        "2.26"
+      ]
+    },
+    {
+      "name": "Tourteau de soja 46",
+      "basis": "as_fed",
+      "values": [
+        "0.00",
+        "0.00",
+        "0.00"
+      ]
+    },
+    {
+      "name": "AMV",
+      "basis": "as_fed",
+      "values": [
+        "0.042",
+        "0.069",
+        "0.054"
+      ]
+    }
+  ],
+  "results": [
+    {
+      "label": "Mois par rapport au vêlage",
+      "column": "value",
+      "values": [
+        "-3.00",
+        "1.50",
+        "6.00"
+      ]
+    },
+    {
+      "label": "Lait estimé (kg/j)",
+      "column": "value",
+      "values": [
+        "0.00",
+        "6.80",
+        "5.47"
+      ]
+    },
+    {
+      "label": "MS totale (kg)",
+      "column": "value",
+      "values": [
+        "10.60",
+        "13.50",
+        "12.90"
+      ]
+    },
+    {
+      "label": "Matière brute (kg)",
+      "column": "value",
+      "values": [
+        "18.60",
+        "22.30",
+        "21.50"
+      ]
+    },
+    {
+      "label": "Matière sèche (%)",
+      "column": "value",
+      "values": [
+        "56.90",
+        "60.70",
+        "59.90"
+      ]
+    },
+    {
+      "label": "Concentrés (% MS)",
+      "column": "value",
+      "values": [
+        "8.50",
+        "18.40",
+        "15.20"
+      ]
+    },
+    {
+      "label": "UEB",
+      "column": "value",
+      "values": [
+        "12.70",
+        "14.30",
+        "14.00"
+      ]
+    },
+    {
+      "label": "UEB",
+      "column": "Optimum",
+      "values": [
+        "12.70",
+        "14.30",
+        "14.00"
+      ]
+    },
+    {
+      "label": "UEB",
+      "column": "Minimum",
+      "values": [
+        "12.70",
+        "14.30",
+        "14.00"
+      ]
+    },
+    {
+      "label": "UEB",
+      "column": "Maximum",
+      "values": [
+        "12.70",
+        "14.30",
+        "14.00"
+      ]
+    },
+    {
+      "label": "UFL",
+      "column": "value",
+      "values": [
+        "7.41",
+        "10.00",
+        "9.45"
+      ]
+    },
+    {
+      "label": "UFL",
+      "column": "Optimum",
+      "values": [
+        "7.41",
+        "10.00",
+        "9.45"
+      ]
+    },
+    {
+      "label": "UFL",
+      "column": "Minimum",
+      "values": [
+        "7.41",
+        "10.00",
+        "9.45"
+      ]
+    },
+    {
+      "label": "UFL",
+      "column": "Maximum",
+      "values": [
+        "8.41",
+        "11.00",
+        "10.50"
+      ]
+    },
+    {
+      "label": "UFL (/ kg MS)",
+      "column": "value",
+      "values": [
+        "0.700",
+        "0.742",
+        "0.734"
+      ]
+    },
+    {
+      "label": "Variation de NEC (points par mois)",
+      "column": "value",
+      "values": [
+        "0.000",
+        "0.000",
+        "0.000"
+      ]
+    },
+    {
+      "label": "PDI (g)",
+      "column": "value",
+      "values": [
+        "705",
+        "973",
+        "917"
+      ]
+    },
+    {
+      "label": "PDI (g)",
+      "column": "Optimum",
+      "values": [
+        "621",
+        "893",
+        "813"
+      ]
+    },
+    {
+      "label": "PDI (g)",
+      "column": "Minimum",
+      "values": [
+        "621",
+        "893",
+        "813"
+      ]
+    },
+    {
+      "label": "PDI (g)",
+      "column": "Maximum",
+      "values": [
+        "1370",
+        "1550",
+        "1500"
+      ]
+    },
+    {
+      "label": "BPR (g/kg MS)",
+      "column": "value",
+      "values": [
+        "-17.10",
+        "-13.00",
+        "-13.00"
+      ]
+    },
+    {
+      "label": "BPR (g/kg MS)",
+      "column": "Minimum",
+      "values": [
+        "-20.00",
+        "-13.00",
+        "-13.00"
+      ]
+    },
+    {
+      "label": "BPR (g/kg MS)",
+      "column": "Maximum",
+      "values": [
+        "40.00",
+        "40.00",
+        "40.00"
+      ]
+    },
+    {
+      "label": "PDI (g/kg MS)",
+      "column": "value",
+      "values": [
+        "66.60",
+        "71.90",
+        "71.20"
+      ]
+    },
+    {
+      "label": "PDI / UFL (g)",
+      "column": "value",
+      "values": [
+        "95.10",
+        "96.90",
+        "97.00"
+      ]
+    },
+    {
+      "label": "Matières azotées totales (% MS)",
+      "column": "value",
+      "values": [
+        "9.77",
+        "10.80",
+        "10.70"
+      ]
+    },
+    {
+      "label": "Cellulose Brute (% MS)",
+      "column": "value",
+      "values": [
+        "31.20",
+        "27.70",
+        "28.70"
+      ]
+    },
+    {
+      "label": "Cellulose Brute (% MS)",
+      "column": "Minimum",
+      "values": [
+        "18.00",
+        "18.00",
+        "18.00"
+      ]
+    },
+    {
+      "label": "NDF (% MS)",
+      "column": "value",
+      "values": [
+        "55.40",
+        "50.80",
+        "52.30"
+      ]
+    },
+    {
+      "label": "NDF (% MS)",
+      "column": "Minimum",
+      "values": [
+        "35.00",
+        "35.00",
+        "35.00"
+      ]
+    },
+    {
+      "label": "ADF (% MS)",
+      "column": "value",
+      "values": [
+        "32.90",
+        "29.40",
+        "30.50"
+      ]
+    },
+    {
+      "label": "ADF (% MS)",
+      "column": "Minimum",
+      "values": [
+        "21.00",
+        "21.00",
+        "21.00"
+      ]
+    },
+    {
+      "label": "Amidon (% MS)",
+      "column": "value",
+      "values": [
+        "5.93",
+        "12.80",
+        "10.60"
+      ]
+    },
+    {
+      "label": "Amidon dégradable (% MS)",
+      "column": "value",
+      "values": [
+        "5.40",
+        "11.60",
+        "9.61"
+      ]
+    },
+    {
+      "label": "(Amidon + Sucres (% MS))",
+      "column": "value",
+      "values": [
+        "6.16",
+        "13.30",
+        "11.00"
+      ]
+    },
+    {
+      "label": "Ca abs. Ruminants (g)",
+      "column": "value",
+      "values": [
+        "16.70",
+        "22.60",
+        "20.60"
+      ]
+    },
+    {
+      "label": "Ca abs. Ruminants (g)",
+      "column": "Minimum",
+      "values": [
+        "16.70",
+        "22.60",
+        "20.60"
+      ]
+    },
+    {
+      "label": "Ca abs. Ruminants (g)",
+      "column": "Maximum",
+      "values": [
+        "25.00",
+        "33.90",
+        "30.90"
+      ]
+    },
+    {
+      "label": "Ca (g)",
+      "column": "value",
+      "values": [
+        "44.80",
+        "60.20",
+        "55.10"
+      ]
+    },
+    {
+      "label": "P abs. Ruminants (g)",
+      "column": "value",
+      "values": [
+        "13.20",
+        "18.50",
+        "16.80"
+      ]
+    },
+    {
+      "label": "P abs. Ruminants (g)",
+      "column": "Minimum",
+      "values": [
+        "13.20",
+        "18.50",
+        "16.80"
+      ]
+    },
+    {
+      "label": "P abs. Ruminants (g)",
+      "column": "Maximum",
+      "values": [
+        "26.40",
+        "37.00",
+        "33.60"
+      ]
+    },
+    {
+      "label": "P (g)",
+      "column": "value",
+      "values": [
+        "21.10",
+        "28.80",
+        "26.30"
+      ]
+    },
+    {
+      "label": "Mg absorbable (g)",
+      "column": "value",
+      "values": [
+        "3.65",
+        "5.63",
+        "5.28"
+      ]
+    },
+    {
+      "label": "Mg absorbable (g)",
+      "column": "Minimum",
+      "values": [
+        "3.65",
+        "5.63",
+        "5.28"
+      ]
+    },
+    {
+      "label": "Mg (g)",
+      "column": "value",
+      "values": [
+        "20.40",
+        "30.10",
+        "28.50"
+      ]
+    },
+    {
+      "label": "Prix (€)",
+      "column": "value",
+      "values": [
+        "0.00",
+        "0.00",
+        "0.00"
+      ]
+    }
+  ],
+  "system": "2018",
+  "system_note": "PDI et BPR imprimés (système 2018). « INRA 2007 » dans les fiches indique leur origine, pas le système de calcul de la ration.",
+  "animal": {
+    "categorie_animal": "vache_allaitante",
+    "poids_vif": 680,
+    "nec": 2.5,
+    "pourcentage_primipare": 0,
+    "activite": "stabulation",
+    "age_velage": 36,
+    "race": "blonde",
+    "poids_veau_naissance": 50,
+    "tb_annuel": 44,
+    "tp_annuel": 34
+  },
+  "scenarios": [
+    "vêlage -3 mois",
+    "vêlage +1,5 mois",
+    "vêlage +6 mois"
+  ],
+  "mineral_percentages": [
+    [
+      8,
+      22,
+      3
+    ],
+    [
+      2,
+      25,
+      9
+    ],
+    [
+      2,
+      24,
+      10
+    ]
+  ],
+  "limitations": [
+    "Les quantités et analyses imprimées sont arrondies ; les chiffres significatifs sont conservés dans les chaînes de valeurs.",
+    "dr_N, AG, produits de fermentation et NIref ne sont pas imprimés ; EB manque aussi sauf dans le rapport génisse. Les UFL/PDI tabulées ne prouvent pas la parité des valeurs recalculées dans la ration.",
+    "Les optimums/minimums/maximums sont des contraintes du logiciel de référence ; ses réglages et tables ne sont pas fournis.",
+    "AMV automatique : seules les teneurs P/Ca/Mg en % du brut sont connues ; MS, K, absorbabilités et autres composants manquent. Seuls les apports totaux Ca/P/Mg sont comparables sans cette fiche.",
+    "En-tête désormais cohérent avec le tableau exporté et la confirmation utilisateur : Blonde de 680 kg."
+  ],
+  "reference_software": {
+    "name": "Larelev",
+    "version": "2018"
+  },
+  "source_header": "Vache allaitante \nPoids du veau 50\nPoids 680\nRace blonde\nStade lactation \nStade gestation \nTB 44\nTP 34\nPotentiel aucune adaptation \nAge \nStabulation libre\nNEC 2.5",
+  "unresolved_animal_inputs": {
+    "age": null,
+    "stade_lactation": null,
+    "stade_gestation": null,
+    "potential_printed": "aucune adaptation"
+  },
+  "confirmed_animal_inputs": {
+    "source": "Confirmation utilisateur dans la conversation",
+    "poids_vif_kg": 680,
+    "race": "blonde"
+  },
+  "scenario_animals": [
+    {
+      "lait_objectif": 0.0
+    },
+    {
+      "lait_objectif": 6.8
+    },
+    {
+      "lait_objectif": 5.47
+    }
+  ]
+}

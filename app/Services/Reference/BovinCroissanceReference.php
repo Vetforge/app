@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Reference;
 
+use App\Enums\CategorieAnimal;
 use App\Services\RationHelper;
 
 /**
@@ -60,6 +61,40 @@ class BovinCroissanceReference
         'laitiere' => ['bw_initial' => 200, 'bw_final' => 480, 'dc_initial' => 20, 'dc_final' => 13, 'lip_initial' => 9, 'lip_final' => 21, 'ne_maint' => 94, 'd1' => 1.5013, 'd2' => 0.0025, 'i_type' => 0.03915, 'c' => 0.90],
     ];
 
+    /** @return array<string, string> */
+    public static function parameterErrors(CategorieAnimal $categorie, ?int $reference, ?float $poidsVif, ?int $gmq): array
+    {
+        if (! in_array($categorie, [CategorieAnimal::BovinCroissance, CategorieAnimal::BovinEngraissement], true)) {
+            return [];
+        }
+
+        $errors = [];
+        $finition = $categorie === CategorieAnimal::BovinEngraissement;
+        $valides = $finition ? range(1, 9) : range(10, 14);
+        if ($reference === null) {
+            $errors['reference_bovine'] = 'Sélectionnez la catégorie de référence animale INRA (Table 19.2).';
+        } elseif (! in_array($reference, $valides, true)) {
+            $errors['reference_bovine'] = 'La référence choisie ne correspond pas au système énergétique de cette catégorie.';
+        }
+        if ($poidsVif === null || $poidsVif <= 0) {
+            $errors['poids_vif'] = 'Saisissez le poids vif de l’animal en kg.';
+        } elseif (in_array($reference, $valides, true)) {
+            $ref = self::REFERENCES[$reference];
+            if ($poidsVif >= $ref['bw_initial'] * exp($ref['d1'])) {
+                $errors['poids_vif'] = 'Le poids vif dépasse le poids adulte du modèle de cette référence INRA. Choisissez une référence adaptée à l’animal.';
+            }
+        }
+        if ($gmq === null || $gmq < 0 || $gmq > 3000) {
+            $errors['gmq'] = 'Saisissez le GMQ de l’animal, entre 0 et 3 000 g/j.';
+        } elseif (! $finition && $gmq > 1000) {
+            $errors['gmq'] = 'Au-delà de 1 000 g/j, utiliser la catégorie bovin à l’engraissement (UFV).';
+        } elseif ($finition && $gmq <= 1000) {
+            $errors['gmq'] = 'La catégorie engraissement (UFV) exige un GMQ supérieur à 1 000 g/j.';
+        }
+
+        return $errors;
+    }
+
     /**
      * Résout l'animal de référence pour une race et un type de production (engraissement/croissance).
      *
@@ -73,7 +108,17 @@ class BovinCroissanceReference
                 throw new \InvalidArgumentException("Référence bovine INRA incompatible : {$reference}");
             }
 
-            return self::REFERENCES[$reference];
+            $animal = self::REFERENCES[$reference];
+            $raceKey = self::normaliserRace($race);
+            if (in_array($reference, [10, 12], true) && $raceKey === 'limousine') {
+                $animal['i_type'] = 0.03115;
+            }
+            if ($reference === 4 && RationHelper::normalizeRace($race) === 'croiselaitiere') {
+                $animal['i_type'] = 0.20;
+                $animal['c'] = 0.60;
+            }
+
+            return $animal;
         }
 
         $table = $finition ? self::FINITION : self::CROISSANCE;

@@ -104,7 +104,8 @@ class Impact
         $apportTotalMS = Apport::calculerApportTotalMS($ration);
         $pourcentageMSParMB = Apport::calculerApportMSParMB($ration) * 100;
         $PFO = $apportTotalMS !== 0.0 ? Apport::calculerApportFourragesMS($ration) / $apportTotalMS : 0.0;
-        $MATf = $apportTotalMS !== 0.0 ? Apport::calculerApportFourragesMAT($ration) / $apportTotalMS : 0.0;
+        $fourragesMS = Apport::calculerApportFourragesMS($ration);
+        $MATf = $fourragesMS > 0 ? Apport::calculerApportFourragesMAT($ration) / $fourragesMS : 0.0;
         $eauBueTH = self::calculerEauBueTH($ration);
 
         return $pourcentageMSParMB !== 0.0

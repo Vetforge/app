@@ -56,8 +56,8 @@ const passwordInput = useTemplateRef('passwordInput');
                     >
                         <DialogHeader class="space-y-3">
                             <DialogTitle
-                                >Voulez-vous vraiment supprimer votre
-                                compte ?</DialogTitle
+                                >Voulez-vous vraiment supprimer votre compte
+                                ?</DialogTitle
                             >
                             <DialogDescription>
                                 Une fois votre compte supprimé, toutes ses
@@ -73,13 +73,22 @@ const passwordInput = useTemplateRef('passwordInput');
                                 >Mot de passe</Label
                             >
                             <Input
+                                :aria-invalid="Boolean(errors.password)"
+                                :aria-describedby="
+                                    errors.password
+                                        ? 'password-error'
+                                        : undefined
+                                "
                                 id="password"
                                 type="password"
                                 name="password"
                                 ref="passwordInput"
                                 placeholder="Mot de passe"
                             />
-                            <InputError :message="errors.password" />
+                            <InputError
+                                id="password-error"
+                                :message="errors.password"
+                            />
                         </div>
 
                         <DialogFooter class="gap-2">

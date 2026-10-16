@@ -38,7 +38,7 @@ const breadcrumbs: BreadcrumbItem[] = [
     <Head :title="isEdit ? 'Modifier eleveur' : 'Nouvel eleveur'" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
-        <div class="mx-auto w-full min-w-0 max-w-2xl p-4 sm:p-6">
+        <div class="mx-auto w-full max-w-2xl min-w-0 p-4 sm:p-6">
             <h1 class="mb-6 text-2xl font-bold text-foreground">
                 {{ isEdit ? 'Modifier eleveur' : 'Nouvel eleveur' }}
             </h1>
@@ -67,13 +67,17 @@ const breadcrumbs: BreadcrumbItem[] = [
                         >Nom / raison sociale *</label
                     >
                     <input
+                        :aria-invalid="Boolean(errors.name)"
+                        :aria-describedby="
+                            errors.name ? 'name-error' : undefined
+                        "
                         id="name"
                         name="name"
                         :value="breeder?.name ?? ''"
                         required
                         class="rounded-lg border border-border bg-background px-3 py-2 text-sm"
                     />
-                    <InputError :message="errors.name" />
+                    <InputError id="name-error" :message="errors.name" />
                 </div>
 
                 <div class="grid gap-2">
@@ -81,12 +85,16 @@ const breadcrumbs: BreadcrumbItem[] = [
                         >Adresse</label
                     >
                     <input
+                        :aria-invalid="Boolean(errors.address)"
+                        :aria-describedby="
+                            errors.address ? 'address-error' : undefined
+                        "
                         id="address"
                         name="address"
                         :value="breeder?.address ?? ''"
                         class="rounded-lg border border-border bg-background px-3 py-2 text-sm"
                     />
-                    <InputError :message="errors.address" />
+                    <InputError id="address-error" :message="errors.address" />
                 </div>
 
                 <div class="grid gap-4 sm:grid-cols-2">
@@ -95,24 +103,37 @@ const breadcrumbs: BreadcrumbItem[] = [
                             >Code postal</label
                         >
                         <input
+                            :aria-invalid="Boolean(errors.postal_code)"
+                            :aria-describedby="
+                                errors.postal_code
+                                    ? 'postal_code-error'
+                                    : undefined
+                            "
                             id="postal_code"
                             name="postal_code"
                             :value="breeder?.postal_code ?? ''"
                             class="rounded-lg border border-border bg-background px-3 py-2 text-sm"
                         />
-                        <InputError :message="errors.postal_code" />
+                        <InputError
+                            id="postal_code-error"
+                            :message="errors.postal_code"
+                        />
                     </div>
                     <div class="grid gap-2">
                         <label class="text-sm font-medium" for="city"
                             >Ville</label
                         >
                         <input
+                            :aria-invalid="Boolean(errors.city)"
+                            :aria-describedby="
+                                errors.city ? 'city-error' : undefined
+                            "
                             id="city"
                             name="city"
                             :value="breeder?.city ?? ''"
                             class="rounded-lg border border-border bg-background px-3 py-2 text-sm"
                         />
-                        <InputError :message="errors.city" />
+                        <InputError id="city-error" :message="errors.city" />
                     </div>
                 </div>
 
@@ -122,25 +143,33 @@ const breadcrumbs: BreadcrumbItem[] = [
                             >Telephone</label
                         >
                         <input
+                            :aria-invalid="Boolean(errors.phone)"
+                            :aria-describedby="
+                                errors.phone ? 'phone-error' : undefined
+                            "
                             id="phone"
                             name="phone"
                             :value="breeder?.phone ?? ''"
                             class="rounded-lg border border-border bg-background px-3 py-2 text-sm"
                         />
-                        <InputError :message="errors.phone" />
+                        <InputError id="phone-error" :message="errors.phone" />
                     </div>
                     <div class="grid gap-2">
                         <label class="text-sm font-medium" for="email"
                             >Email</label
                         >
                         <input
+                            :aria-invalid="Boolean(errors.email)"
+                            :aria-describedby="
+                                errors.email ? 'email-error' : undefined
+                            "
                             id="email"
                             name="email"
                             type="email"
                             :value="breeder?.email ?? ''"
                             class="rounded-lg border border-border bg-background px-3 py-2 text-sm"
                         />
-                        <InputError :message="errors.email" />
+                        <InputError id="email-error" :message="errors.email" />
                     </div>
                 </div>
 
@@ -149,23 +178,35 @@ const breadcrumbs: BreadcrumbItem[] = [
                         >Numero cheptel</label
                     >
                     <input
+                        :aria-invalid="Boolean(errors.herd_number)"
+                        :aria-describedby="
+                            errors.herd_number ? 'herd_number-error' : undefined
+                        "
                         id="herd_number"
                         name="herd_number"
                         :value="breeder?.herd_number ?? ''"
                         class="rounded-lg border border-border bg-background px-3 py-2 text-sm"
                     />
-                    <InputError :message="errors.herd_number" />
+                    <InputError
+                        id="herd_number-error"
+                        :message="errors.herd_number"
+                    />
                 </div>
 
                 <div class="grid gap-2">
                     <label class="text-sm font-medium" for="notes">Notes</label>
                     <textarea
+                        :aria-invalid="Boolean(errors.notes)"
+                        :aria-describedby="
+                            errors.notes ? 'notes-error' : undefined
+                        "
                         id="notes"
                         name="notes"
+                        :value="breeder?.notes ?? ''"
                         rows="4"
                         class="rounded-lg border border-border bg-background px-3 py-2 text-sm"
-                    >{{ breeder?.notes ?? '' }}</textarea>
-                    <InputError :message="errors.notes" />
+                    ></textarea>
+                    <InputError id="notes-error" :message="errors.notes" />
                 </div>
 
                 <div class="flex flex-col gap-3 pt-2 sm:flex-row">

@@ -178,7 +178,7 @@ test('ration calculator omits milk indicators without planned milk production', 
 
 test('non-lactating cows expose an energy-based weight gain or loss independently of the reserve target', function (float $quantity, bool $gain, ?int $parite) {
     $ration = createCalculationRation();
-    $ration->update(['lait_objectif' => 0, 'parite' => $parite, 'ecart_variation_reserve' => 0]);
+    $ration->update(['effectif' => 1, 'lait_objectif' => 0, 'parite' => $parite, 'ecart_variation_reserve' => 0]);
     addReference2018Ingredients($ration);
     $ration->rationAliments()->update(['quantite' => $quantity]);
     $ration->load(['rationAliments.aliment', 'melanges.melangeAliments.aliment', 'planRationnement']);
@@ -373,13 +373,13 @@ test('ration calculator exposes protein and health indicators for inra 2018 resu
     expect($resultats['supplementations']['vit_e'])->toBe(round(Besoin2018::calculerSupplementationVitE($ration), 0));
 
     $fourrage->refresh();
-    $expectedMAmicDuo = 12 * (new CalculValeur2018($ration, $fourrage))->calculerMAmic_duoAliment()
+    $expectedMAmicDuo = $ration->rationAliments->sum(fn ($line) => (float) $line->quantite
+        * (new CalculValeur2018($ration, $line->aliment))->calculerMAmic_duoAliment())
         / Apport2018::calculerApportTotalMS($ration);
 
     expect(Apport2018::calculerMAmic_duo($ration))->toBe($expectedMAmicDuo);
-    expect(Apport2018::calculerDTAmi($ration))->toBe(
-        Apport2018::calculerApportAmiD_ru($ration) * 100 / Apport2018::calculerApportAmidon($ration)
-    );
+    // NI=16/650*100, PCO=.25 ; pondération par 480 et 1280 g/j d'amidon.
+    expect(Apport2018::calculerDTAmi($ration))->toEqualWithDelta(75.97937727272728, 1e-9);
 });
 
 test('inra 2018 normalizes legacy activity and race aliases', function () {
@@ -768,7 +768,7 @@ test('inra 2007 formulas', function () {
     $expectedPdiEntretien = 3.25 * pow(700, 0.75);
     $expectedPdiProduction = 53 * 10;
     $expectedPdiCroissance = 80 * 0.25;
-    $expectedPdiGestation = 0.07 * 45 * exp(0.111 * 0);
+    $expectedPdiGestation = 0.0; // Zéro mois : aucune gestation.
     $expectedPdiTotal = $expectedPdiEntretien + $expectedPdiProduction + $expectedPdiCroissance + $expectedPdiGestation + 300;
     $expectedMgabs = (0.011 * 700) + (0.15 * 10);
 
@@ -981,9 +981,9 @@ test('inra 2018 potassium and chlorine requirements follow table 8.1', function 
     expect($semGestLactante)->toBeLessThan(27.0);
 
     // Table 8.1 : K entretien lactation = 0.150 × PV, lactation = 1.5 g/L, dernier tiers = +1.0.
-    expect(Besoin2018::calculerBesoinK($lactante))->toBe(0.150 * 650.0 + 1.5 * 30.0);
+    expect(Besoin2018::calculerBesoinK($lactante))->toBe(0.150 * 650.0 + 1.5 * (30.0 / 1.032));
     // Table 8.1 : Cl entretien lactation = 0.035 × PV, lactation = 1.15 g/L, dernier tiers = +1.0.
-    expect(Besoin2018::calculerBesoinCl($lactante))->toBe(0.035 * 650.0 + 1.15 * 30.0);
+    expect(Besoin2018::calculerBesoinCl($lactante))->toBe(0.035 * 650.0 + 1.15 * (30.0 / 1.032));
 
     // Vache tarie (non lactante) dans le dernier tiers de gestation.
     $tarie = createCalculationRation();

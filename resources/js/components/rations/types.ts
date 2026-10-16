@@ -2,6 +2,7 @@ export type AlimentValue = string | number | null | undefined;
 
 export interface Aliment {
     id: number;
+    code_inra?: string | null;
     libelle0: string;
     libelle1: string | null;
     type?: string | null;
@@ -79,6 +80,8 @@ export interface ResultatsMeta {
     unite_fourragere: string;
     unite_encombrement: string;
     est_laitiere?: boolean;
+    unite_lait?: 'kg/j' | 'l/j';
+    reference_equations?: string;
     mineraux_valides?: boolean;
     vitamines_semantique?: 'supplementation';
 }

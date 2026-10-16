@@ -68,14 +68,19 @@ const form = reactive<FormState>({
     breeder_id: props.analysis?.breeder_id ?? '',
     animal_nom: props.analysis?.animal_nom ?? '',
     sampled_at: props.analysis?.sampled_at?.slice(0, 10) ?? '',
-    analyzed_at: props.analysis?.analyzed_at?.slice(0, 10) ?? new Date().toISOString().slice(0, 10),
+    analyzed_at:
+        props.analysis?.analyzed_at?.slice(0, 10) ??
+        new Date().toISOString().slice(0, 10),
     intervenant: props.analysis?.intervenant ?? '',
     payload: clonePlain(props.analysis?.payload ?? props.payloadTemplate),
 });
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Accueil', href: dashboard() },
-    { title: props.module.short_label, href: analysesIndex({ module: props.module.slug }).url },
+    {
+        title: props.module.short_label,
+        href: analysesIndex({ module: props.module.slug }).url,
+    },
     { title: isEdit.value ? 'Modifier' : 'Nouvelle analyse', href: '#' },
 ];
 
@@ -102,14 +107,21 @@ const bloodGasNormFields = [
 ];
 
 const speciesOptions = computed(() => {
-    const options = Array.isArray(props.settings.species_options) ? props.settings.species_options : [];
+    const options = Array.isArray(props.settings.species_options)
+        ? props.settings.species_options
+        : [];
     if (options.length > 0) {
         return options
             .map((option: Record<string, any>) => ({
                 value: String(option.value ?? option.label ?? ''),
                 label: String(option.label ?? option.value ?? ''),
-                normKey: String(option.norm_key ?? option.value ?? option.label ?? ''),
-                calculationProfile: String(option.calculation_profile ?? defaultBloodGasProfile(String(option.value ?? ''))),
+                normKey: String(
+                    option.norm_key ?? option.value ?? option.label ?? '',
+                ),
+                calculationProfile: String(
+                    option.calculation_profile ??
+                        defaultBloodGasProfile(String(option.value ?? '')),
+                ),
             }))
             .filter((option) => option.value !== '');
     }
@@ -137,8 +149,15 @@ const selectedSpecies = computed(() => {
 
 const selectedNorms = computed(() => {
     const norms = isRecord(props.settings.norms) ? props.settings.norms : {};
-    const legacyKeys: Record<string, string> = { Bovin: 'bovine', Equin: 'equine' };
-    const candidates = [selectedSpecies.value.normKey, selectedSpecies.value.value, legacyKeys[selectedSpecies.value.value]].filter(Boolean);
+    const legacyKeys: Record<string, string> = {
+        Bovin: 'bovine',
+        Equin: 'equine',
+    };
+    const candidates = [
+        selectedSpecies.value.normKey,
+        selectedSpecies.value.value,
+        legacyKeys[selectedSpecies.value.value],
+    ].filter(Boolean);
     for (const candidate of candidates) {
         if (isRecord(norms[candidate])) return normalizeNorms(norms[candidate]);
     }
@@ -149,7 +168,14 @@ const normRows = computed(() =>
     bloodGasNormFields.map((field) => {
         const range = selectedNorms.value[field.key];
         const value = toNumber(form.payload[field.key]);
-        const status = value === null || !range ? 'unknown' : value < range[0] ? 'low' : value > range[1] ? 'high' : 'normal';
+        const status =
+            value === null || !range
+                ? 'unknown'
+                : value < range[0]
+                  ? 'low'
+                  : value > range[1]
+                    ? 'high'
+                    : 'normal';
         return { ...field, value, range, status };
     }),
 );
@@ -168,22 +194,48 @@ const calculation = computed(() => {
     const ph = toNumber(form.payload.ph);
     const hco3 = toNumber(form.payload.hco3);
     const glycemia = toNumber(form.payload.glycemia);
-    const dehydration = profile === 'ruminant'
-        ? (explicitDehydration ?? (enophtalmie === null ? null : round1(1.7 * enophtalmie + 0.38)))
-        : explicitDehydration;
+    const dehydration =
+        profile === 'ruminant'
+            ? (explicitDehydration ??
+              (enophtalmie === null ? null : round1(1.7 * enophtalmie + 0.38)))
+            : explicitDehydration;
     const baseHco3 = profile === 'ruminant' ? 24.8 : 25.6;
     const basePh = profile === 'ruminant' ? 7.4 : 7.37;
-    const volumeDeficit = weight === null || dehydration === null ? null : round1((weight * dehydration) / 100);
-    const bicarbonateDeficit = weight === null || ph === null || hco3 === null ? null
-        : Math.round(-(((hco3 - baseHco3 + 16.2 * (ph - basePh)) * (weight * 0.6) * 84) / 1000));
-    const glucoseDeficit = glycemia === null ? null
-        : profile === 'ruminant'
-          ? glycemia < 54 ? 100 : glycemia < 90 ? 50 : 0
-          : glycemia < 70 ? 100 : glycemia < 120 ? 50 : 0;
+    const volumeDeficit =
+        weight === null || dehydration === null
+            ? null
+            : round1((weight * dehydration) / 100);
+    const bicarbonateDeficit =
+        weight === null || ph === null || hco3 === null
+            ? null
+            : Math.round(
+                  -(
+                      ((hco3 - baseHco3 + 16.2 * (ph - basePh)) *
+                          (weight * 0.6) *
+                          84) /
+                      1000
+                  ),
+              );
+    const glucoseDeficit =
+        glycemia === null
+            ? null
+            : profile === 'ruminant'
+              ? glycemia < 54
+                  ? 100
+                  : glycemia < 90
+                    ? 50
+                    : 0
+              : glycemia < 70
+                ? 100
+                : glycemia < 120
+                  ? 50
+                  : 0;
     const apports = perfusionRows.value.reduce(
         (totals, perfusion) => {
-            const quantity = toNumber(form.payload.perfusions?.[perfusion.key]) ?? 0;
-            totals.bicarbonateG += quantity * (toNumber(perfusion.bicarbonate) ?? 0);
+            const quantity =
+                toNumber(form.payload.perfusions?.[perfusion.key]) ?? 0;
+            totals.bicarbonateG +=
+                quantity * (toNumber(perfusion.bicarbonate) ?? 0);
             totals.glucoseG += quantity * (toNumber(perfusion.glucose) ?? 0);
             totals.volumeL += quantity * (toNumber(perfusion.volume) ?? 0);
             return totals;
@@ -201,22 +253,35 @@ const calculation = computed(() => {
         glucoseDeficit,
         apports,
         restes: {
-            bicarbonateG: bicarbonateDeficit === null ? null : Math.round(bicarbonateDeficit - apports.bicarbonateG),
-            glucoseG: glucoseDeficit === null ? null : Math.round(glucoseDeficit - apports.glucoseG),
-            volumeL: volumeDeficit === null ? null : round1(volumeDeficit - apports.volumeL),
+            bicarbonateG:
+                bicarbonateDeficit === null
+                    ? null
+                    : Math.round(bicarbonateDeficit - apports.bicarbonateG),
+            glucoseG:
+                glucoseDeficit === null
+                    ? null
+                    : Math.round(glucoseDeficit - apports.glucoseG),
+            volumeL:
+                volumeDeficit === null
+                    ? null
+                    : round1(volumeDeficit - apports.volumeL),
         },
     };
 });
 
 function defaultBloodGasProfile(species: string): string {
-    return ['Bovin', 'Ovin', 'Caprin'].includes(species) ? 'ruminant' : 'equine';
+    return ['Bovin', 'Ovin', 'Caprin'].includes(species)
+        ? 'ruminant'
+        : 'equine';
 }
 
 function isRecord(value: unknown): value is Record<string, any> {
     return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function normalizeNorms(norms: Record<string, any>): Record<string, [number, number]> {
+function normalizeNorms(
+    norms: Record<string, any>,
+): Record<string, [number, number]> {
     return Object.fromEntries(
         bloodGasNormFields
             .map((field) => {
@@ -224,13 +289,16 @@ function normalizeNorms(norms: Record<string, any>): Record<string, [number, num
                 if (!Array.isArray(range) || range.length < 2) return null;
                 return [field.key, [Number(range[0]), Number(range[1])]];
             })
-            .filter((entry): entry is [string, [number, number]] => entry !== null),
+            .filter(
+                (entry): entry is [string, [number, number]] => entry !== null,
+            ),
     );
 }
 
 function toNumber(value: unknown): number | null {
     if (value === null || value === undefined || value === '') return null;
-    const normalized = typeof value === 'string' ? value.replace(',', '.') : value;
+    const normalized =
+        typeof value === 'string' ? value.replace(',', '.') : value;
     const number = Number(normalized);
     return Number.isFinite(number) ? number : null;
 }
@@ -244,17 +312,26 @@ function round2(value: number): number {
 }
 
 function formatResult(value: number | null | undefined, unit = ''): string {
-    if (value === null || value === undefined || Number.isNaN(value)) return '-';
+    if (value === null || value === undefined || Number.isNaN(value))
+        return '-';
     return `${value}${unit ? ` ${unit}` : ''}`;
 }
 
 function normStatusLabel(status: string): string {
-    return status === 'low' ? 'Bas' : status === 'high' ? 'Haut' : status === 'normal' ? 'OK' : '-';
+    return status === 'low'
+        ? 'Bas'
+        : status === 'high'
+          ? 'Haut'
+          : status === 'normal'
+            ? 'OK'
+            : '-';
 }
 
 function normStatusClass(status: string): string {
-    if (status === 'normal') return 'bg-emerald-50 text-emerald-700 ring-emerald-200';
-    if (status === 'low' || status === 'high') return 'bg-red-50 text-red-700 ring-red-200';
+    if (status === 'normal')
+        return 'bg-emerald-50 text-emerald-700 ring-emerald-200';
+    if (status === 'low' || status === 'high')
+        return 'bg-red-50 text-red-700 ring-red-200';
     return 'bg-muted text-muted-foreground ring-border';
 }
 
@@ -263,21 +340,36 @@ function submit(): void {
     errors.value = {};
     const options = {
         preserveScroll: true,
-        onError: (serverErrors: Errors) => { errors.value = serverErrors; },
-        onFinish: () => { processing.value = false; },
+        onError: (serverErrors: Errors) => {
+            errors.value = serverErrors;
+        },
+        onFinish: () => {
+            processing.value = false;
+        },
     };
     const data = clonePlain(form);
     if (props.analysis) {
-        router.put(analysisUpdate({ analysis: props.analysis.id }).url, data, options);
+        router.put(
+            analysisUpdate({ analysis: props.analysis.id }).url,
+            data,
+            options,
+        );
         return;
     }
-    router.post(analysisStore({ module: props.module.slug }).url, data, options);
+    router.post(
+        analysisStore({ module: props.module.slug }).url,
+        data,
+        options,
+    );
 }
 
 watch(
     speciesOptions,
     (options) => {
-        if (options.length > 0 && !options.some((o) => o.value === form.payload.species)) {
+        if (
+            options.length > 0 &&
+            !options.some((o) => o.value === form.payload.species)
+        ) {
             form.payload.species = options[0].value;
         }
     },
@@ -302,24 +394,46 @@ watch(
 watch(
     () => form.payload.enophtalmie,
     (val) => {
-        const n = val !== null && val !== '' && val !== undefined ? Number(val) : null;
-        form.payload.dehydration = n !== null ? Math.round(1.7 * n + 0.38) : null;
+        const n =
+            val !== null && val !== '' && val !== undefined
+                ? Number(val)
+                : null;
+        form.payload.dehydration =
+            n !== null ? Math.round(1.7 * n + 0.38) : null;
     },
 );
 </script>
 
 <template>
-    <Head :title="isEdit ? `Modifier ${module.short_label}` : `Nouvelle ${module.short_label}`" />
+    <Head
+        :title="
+            isEdit
+                ? `Modifier ${module.short_label}`
+                : `Nouvelle ${module.short_label}`
+        "
+    />
 
     <AppLayout :breadcrumbs="breadcrumbs">
-        <form class="analysis-form mx-auto flex max-w-7xl flex-col gap-3 p-3 sm:p-4" @submit.prevent="submit">
-            <div class="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
+        <form
+            class="analysis-form mx-auto flex max-w-7xl flex-col gap-3 p-3 sm:p-4"
+            @submit.prevent="submit"
+        >
+            <div
+                class="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between"
+            >
                 <div>
-                    <h1 class="text-xl font-bold text-foreground">{{ isEdit ? 'Modifier analyse' : 'Nouvelle analyse' }}</h1>
-                    <p class="text-xs text-muted-foreground">{{ module.label }}</p>
+                    <h1 class="text-xl font-bold text-foreground">
+                        {{ isEdit ? 'Modifier analyse' : 'Nouvelle analyse' }}
+                    </h1>
+                    <p class="text-xs text-muted-foreground">
+                        {{ module.label }}
+                    </p>
                 </div>
                 <div class="flex flex-wrap gap-2">
-                    <Link :href="moduleSettingsEdit({ module: module.slug }).url" class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1 text-xs font-medium hover:bg-accent">
+                    <Link
+                        :href="moduleSettingsEdit({ module: module.slug }).url"
+                        class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1 text-xs font-medium hover:bg-accent"
+                    >
                         <Settings class="size-3.5" />
                         Reglages
                     </Link>
@@ -335,30 +449,113 @@ watch(
                 </div>
                 <div class="grid gap-2 md:grid-cols-2 xl:grid-cols-12">
                     <div class="grid gap-1 xl:col-span-4">
-                        <label class="text-sm font-medium" for="breeder_id">Eleveur *</label>
-                        <BreederSelectWithCreate v-model="form.breeder_id" input-id="breeder_id" :breeders="breeders" :create-url="quickBreederStoreUrl" />
-                        <input v-model="form.breeder_id" type="hidden" required />
-                        <InputError :message="errors.breeder_id" />
+                        <label class="text-sm font-medium" for="breeder_id"
+                            >Eleveur *</label
+                        >
+                        <BreederSelectWithCreate
+                            :aria-invalid="Boolean(errors.breeder_id)"
+                            :aria-describedby="
+                                errors.breeder_id
+                                    ? 'breeder_id-error'
+                                    : undefined
+                            "
+                            v-model="form.breeder_id"
+                            input-id="breeder_id"
+                            :breeders="breeders"
+                            :create-url="quickBreederStoreUrl"
+                        />
+                        <input
+                            v-model="form.breeder_id"
+                            type="hidden"
+                            required
+                        />
+                        <InputError
+                            id="breeder_id-error"
+                            :message="errors.breeder_id"
+                        />
                     </div>
                     <div class="grid gap-1 xl:col-span-2">
-                        <label class="text-sm font-medium" for="animal_nom">Animal</label>
-                        <input id="animal_nom" v-model="form.animal_nom" class="h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" placeholder="Nom libre" />
-                        <InputError :message="errors.animal_nom" />
+                        <label class="text-sm font-medium" for="animal_nom"
+                            >Animal</label
+                        >
+                        <input
+                            :aria-invalid="Boolean(errors.animal_nom)"
+                            :aria-describedby="
+                                errors.animal_nom
+                                    ? 'animal_nom-error'
+                                    : undefined
+                            "
+                            id="animal_nom"
+                            v-model="form.animal_nom"
+                            class="h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                            placeholder="Nom libre"
+                        />
+                        <InputError
+                            id="animal_nom-error"
+                            :message="errors.animal_nom"
+                        />
                     </div>
                     <div class="grid gap-1 xl:col-span-2">
-                        <label class="text-sm font-medium" for="sampled_at">Prelevement</label>
-                        <input id="sampled_at" v-model="form.sampled_at" type="date" class="h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" />
-                        <InputError :message="errors.sampled_at" />
+                        <label class="text-sm font-medium" for="sampled_at"
+                            >Prelevement</label
+                        >
+                        <input
+                            :aria-invalid="Boolean(errors.sampled_at)"
+                            :aria-describedby="
+                                errors.sampled_at
+                                    ? 'sampled_at-error'
+                                    : undefined
+                            "
+                            id="sampled_at"
+                            v-model="form.sampled_at"
+                            type="date"
+                            class="h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                        />
+                        <InputError
+                            id="sampled_at-error"
+                            :message="errors.sampled_at"
+                        />
                     </div>
                     <div class="grid gap-1 xl:col-span-2">
-                        <label class="text-sm font-medium" for="analyzed_at">Analyse</label>
-                        <input id="analyzed_at" v-model="form.analyzed_at" type="date" class="h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" />
-                        <InputError :message="errors.analyzed_at" />
+                        <label class="text-sm font-medium" for="analyzed_at"
+                            >Analyse</label
+                        >
+                        <input
+                            :aria-invalid="Boolean(errors.analyzed_at)"
+                            :aria-describedby="
+                                errors.analyzed_at
+                                    ? 'analyzed_at-error'
+                                    : undefined
+                            "
+                            id="analyzed_at"
+                            v-model="form.analyzed_at"
+                            type="date"
+                            class="h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                        />
+                        <InputError
+                            id="analyzed_at-error"
+                            :message="errors.analyzed_at"
+                        />
                     </div>
                     <div class="grid gap-1 xl:col-span-2">
-                        <label class="text-sm font-medium" for="intervenant">Intervenant</label>
-                        <input id="intervenant" v-model="form.intervenant" class="h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" />
-                        <InputError :message="errors.intervenant" />
+                        <label class="text-sm font-medium" for="intervenant"
+                            >Intervenant</label
+                        >
+                        <input
+                            :aria-invalid="Boolean(errors.intervenant)"
+                            :aria-describedby="
+                                errors.intervenant
+                                    ? 'intervenant-error'
+                                    : undefined
+                            "
+                            id="intervenant"
+                            v-model="form.intervenant"
+                            class="h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                        />
+                        <InputError
+                            id="intervenant-error"
+                            :message="errors.intervenant"
+                        />
                     </div>
                 </div>
             </section>
@@ -371,34 +568,87 @@ watch(
                     </div>
                 </div>
 
-                <div class="grid gap-2 xl:grid-cols-[minmax(18rem,0.85fr)_minmax(0,1.6fr)]">
+                <div
+                    class="grid gap-2 xl:grid-cols-[minmax(18rem,0.85fr)_minmax(0,1.6fr)]"
+                >
                     <div class="analysis-subsection">
                         <h3>Contexte clinique</h3>
                         <div class="grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
                             <div class="grid gap-1">
-                                <label class="text-sm font-medium" for="blood_species">Espece</label>
-                                <select id="blood_species" v-model="form.payload.species" class="rounded border border-border bg-background px-2 py-1 text-sm">
-                                    <option v-for="species in speciesOptions" :key="species.value" :value="species.value">{{ species.label }}</option>
+                                <label
+                                    class="text-sm font-medium"
+                                    for="blood_species"
+                                    >Espece</label
+                                >
+                                <select
+                                    id="blood_species"
+                                    v-model="form.payload.species"
+                                    class="rounded border border-border bg-background px-2 py-1 text-sm"
+                                >
+                                    <option
+                                        v-for="species in speciesOptions"
+                                        :key="species.value"
+                                        :value="species.value"
+                                    >
+                                        {{ species.label }}
+                                    </option>
                                 </select>
                             </div>
                             <div class="grid gap-1">
-                                <label class="text-sm font-medium" for="blood-weight">Poids</label>
-                                <div class="analysis-unit-field analysis-unit-field--with-unit">
-                                    <input id="blood-weight" v-model="form.payload.weight" type="number" step="0.1" class="rounded border border-border bg-background px-2 py-1 text-sm" />
+                                <label
+                                    class="text-sm font-medium"
+                                    for="blood-weight"
+                                    >Poids</label
+                                >
+                                <div
+                                    class="analysis-unit-field analysis-unit-field--with-unit"
+                                >
+                                    <input
+                                        id="blood-weight"
+                                        v-model="form.payload.weight"
+                                        type="number"
+                                        step="0.1"
+                                        class="rounded border border-border bg-background px-2 py-1 text-sm"
+                                    />
                                     <span class="analysis-unit">kg</span>
                                 </div>
                             </div>
                             <div class="grid gap-1">
-                                <label class="text-sm font-medium" for="blood-enophtalmie">Enophtalmie</label>
-                                <div class="analysis-unit-field analysis-unit-field--with-unit">
-                                    <input id="blood-enophtalmie" v-model="form.payload.enophtalmie" type="number" step="0.1" class="rounded border border-border bg-background px-2 py-1 text-sm" />
+                                <label
+                                    class="text-sm font-medium"
+                                    for="blood-enophtalmie"
+                                    >Enophtalmie</label
+                                >
+                                <div
+                                    class="analysis-unit-field analysis-unit-field--with-unit"
+                                >
+                                    <input
+                                        id="blood-enophtalmie"
+                                        v-model="form.payload.enophtalmie"
+                                        type="number"
+                                        step="0.1"
+                                        class="rounded border border-border bg-background px-2 py-1 text-sm"
+                                    />
                                     <span class="analysis-unit">mm</span>
                                 </div>
                             </div>
                             <div class="grid gap-1">
-                                <label class="text-sm font-medium" for="blood-dehydration">Deshydratation</label>
-                                <div class="analysis-unit-field analysis-unit-field--with-unit">
-                                    <input id="blood-dehydration" v-model="form.payload.dehydration" type="number" step="0.1" class="rounded border border-border bg-background px-2 py-1 text-sm" @input="form.payload.enophtalmie = null" />
+                                <label
+                                    class="text-sm font-medium"
+                                    for="blood-dehydration"
+                                    >Deshydratation</label
+                                >
+                                <div
+                                    class="analysis-unit-field analysis-unit-field--with-unit"
+                                >
+                                    <input
+                                        id="blood-dehydration"
+                                        v-model="form.payload.dehydration"
+                                        type="number"
+                                        step="0.1"
+                                        class="rounded border border-border bg-background px-2 py-1 text-sm"
+                                        @input="form.payload.enophtalmie = null"
+                                    />
                                     <span class="analysis-unit">%</span>
                                 </div>
                             </div>
@@ -408,11 +658,35 @@ watch(
                     <div class="analysis-subsection">
                         <h3>Valeurs mesurees</h3>
                         <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                            <div v-for="field in bloodGasLabFields" :key="field.key" class="grid gap-1">
-                                <label class="text-sm font-medium" :for="`blood-${field.key}`">{{ field.label }}</label>
-                                <div class="analysis-unit-field" :class="{ 'analysis-unit-field--with-unit': field.unit }">
-                                    <input :id="`blood-${field.key}`" v-model="form.payload[field.key]" type="number" :step="field.step" class="rounded border border-border bg-background px-2 py-1 text-sm" />
-                                    <span v-if="field.unit" class="analysis-unit">{{ field.unit }}</span>
+                            <div
+                                v-for="field in bloodGasLabFields"
+                                :key="field.key"
+                                class="grid gap-1"
+                            >
+                                <label
+                                    class="text-sm font-medium"
+                                    :for="`blood-${field.key}`"
+                                    >{{ field.label }}</label
+                                >
+                                <div
+                                    class="analysis-unit-field"
+                                    :class="{
+                                        'analysis-unit-field--with-unit':
+                                            field.unit,
+                                    }"
+                                >
+                                    <input
+                                        :id="`blood-${field.key}`"
+                                        v-model="form.payload[field.key]"
+                                        type="number"
+                                        :step="field.step"
+                                        class="rounded border border-border bg-background px-2 py-1 text-sm"
+                                    />
+                                    <span
+                                        v-if="field.unit"
+                                        class="analysis-unit"
+                                        >{{ field.unit }}</span
+                                    >
                                 </div>
                             </div>
                         </div>
@@ -422,11 +696,38 @@ watch(
                 <div class="analysis-subsection">
                     <h3>Perfusions administrees</h3>
                     <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                        <div v-for="perfusion in perfusionRows" :key="perfusion.key" class="grid gap-1">
-                            <label class="text-sm font-medium" :for="`perf-${perfusion.key}`">{{ perfusion.label }}</label>
-                            <div class="analysis-unit-field" :class="{ 'analysis-unit-field--with-unit': perfusion.unit }">
-                                <input :id="`perf-${perfusion.key}`" v-model.number="form.payload.perfusions[perfusion.key]" type="number" min="0" step="0.1" class="rounded border border-border bg-background px-2 py-1 text-sm" />
-                                <span v-if="perfusion.unit" class="analysis-unit">{{ perfusion.unit }}</span>
+                        <div
+                            v-for="perfusion in perfusionRows"
+                            :key="perfusion.key"
+                            class="grid gap-1"
+                        >
+                            <label
+                                class="text-sm font-medium"
+                                :for="`perf-${perfusion.key}`"
+                                >{{ perfusion.label }}</label
+                            >
+                            <div
+                                class="analysis-unit-field"
+                                :class="{
+                                    'analysis-unit-field--with-unit':
+                                        perfusion.unit,
+                                }"
+                            >
+                                <input
+                                    :id="`perf-${perfusion.key}`"
+                                    v-model.number="
+                                        form.payload.perfusions[perfusion.key]
+                                    "
+                                    type="number"
+                                    min="0"
+                                    step="0.1"
+                                    class="rounded border border-border bg-background px-2 py-1 text-sm"
+                                />
+                                <span
+                                    v-if="perfusion.unit"
+                                    class="analysis-unit"
+                                    >{{ perfusion.unit }}</span
+                                >
                             </div>
                         </div>
                     </div>
@@ -436,62 +737,252 @@ watch(
                     <div class="analysis-subsection">
                         <div>
                             <h3>Resultats calcules</h3>
-                            <p class="text-sm text-muted-foreground">Profil {{ calculation.profile === 'ruminant' ? 'ruminant' : 'equin / autre' }}</p>
+                            <p class="text-sm text-muted-foreground">
+                                Profil
+                                {{
+                                    calculation.profile === 'ruminant'
+                                        ? 'ruminant'
+                                        : 'equin / autre'
+                                }}
+                            </p>
                         </div>
-                        <div class="grid gap-1.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-2">
+                        <div
+                            class="grid gap-1.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-2"
+                        >
                             <div class="rounded-md bg-muted/50 p-2">
-                                <p class="text-[0.65rem] text-muted-foreground uppercase">Deshydratation</p>
-                                <p class="text-base font-semibold">{{ formatResult(calculation.dehydration, '%') }}</p>
+                                <p
+                                    class="text-[0.65rem] text-muted-foreground uppercase"
+                                >
+                                    Deshydratation
+                                </p>
+                                <p class="text-base font-semibold">
+                                    {{
+                                        formatResult(
+                                            calculation.dehydration,
+                                            '%',
+                                        )
+                                    }}
+                                </p>
                             </div>
                             <div class="rounded-md bg-muted/50 p-2">
-                                <p class="text-[0.65rem] text-muted-foreground uppercase">Deficit hydrique</p>
-                                <p class="text-base font-semibold">{{ formatResult(calculation.volumeDeficit, 'L') }}</p>
+                                <p
+                                    class="text-[0.65rem] text-muted-foreground uppercase"
+                                >
+                                    Deficit hydrique
+                                </p>
+                                <p class="text-base font-semibold">
+                                    {{
+                                        formatResult(
+                                            calculation.volumeDeficit,
+                                            'L',
+                                        )
+                                    }}
+                                </p>
                             </div>
                             <div class="rounded-md bg-muted/50 p-2">
-                                <p class="text-[0.65rem] text-muted-foreground uppercase">Deficit bicarbonate</p>
-                                <p class="text-base font-semibold">{{ formatResult(calculation.bicarbonateDeficit, 'g') }}</p>
+                                <p
+                                    class="text-[0.65rem] text-muted-foreground uppercase"
+                                >
+                                    Deficit bicarbonate
+                                </p>
+                                <p class="text-base font-semibold">
+                                    {{
+                                        formatResult(
+                                            calculation.bicarbonateDeficit,
+                                            'g',
+                                        )
+                                    }}
+                                </p>
                             </div>
                             <div class="rounded-md bg-muted/50 p-2">
-                                <p class="text-[0.65rem] text-muted-foreground uppercase">Deficit glucose</p>
-                                <p class="text-base font-semibold">{{ formatResult(calculation.glucoseDeficit, 'g') }}</p>
+                                <p
+                                    class="text-[0.65rem] text-muted-foreground uppercase"
+                                >
+                                    Deficit glucose
+                                </p>
+                                <p class="text-base font-semibold">
+                                    {{
+                                        formatResult(
+                                            calculation.glucoseDeficit,
+                                            'g',
+                                        )
+                                    }}
+                                </p>
                             </div>
                         </div>
                         <div class="analysis-table-wrap">
                             <table class="w-full text-sm">
                                 <thead class="hidden sm:table-header-group">
-                                    <tr class="border-b border-border bg-muted/40">
-                                        <th class="px-2 py-1 text-left font-medium text-xs">Poste</th>
-                                        <th class="px-2 py-1 text-left font-medium text-xs">Bicarbonate</th>
-                                        <th class="px-2 py-1 text-left font-medium text-xs">Glucose</th>
-                                        <th class="px-2 py-1 text-left font-medium text-xs">Volume</th>
+                                    <tr
+                                        class="border-b border-border bg-muted/40"
+                                    >
+                                        <th
+                                            class="px-2 py-1 text-left text-xs font-medium"
+                                        >
+                                            Poste
+                                        </th>
+                                        <th
+                                            class="px-2 py-1 text-left text-xs font-medium"
+                                        >
+                                            Bicarbonate
+                                        </th>
+                                        <th
+                                            class="px-2 py-1 text-left text-xs font-medium"
+                                        >
+                                            Glucose
+                                        </th>
+                                        <th
+                                            class="px-2 py-1 text-left text-xs font-medium"
+                                        >
+                                            Volume
+                                        </th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <tr class="border-b border-border/50">
                                         <td class="px-2 py-1">
-                                            <div class="font-medium">Apports perfusions</div>
-                                            <div class="mt-0.5 flex flex-wrap gap-x-2 gap-y-0.5 text-xs text-muted-foreground sm:hidden">
-                                                <span>Bicarb : {{ formatResult(calculation.apports.bicarbonateG, 'g') }}</span>
-                                                <span>Glucose : {{ formatResult(calculation.apports.glucoseG, 'g') }}</span>
-                                                <span>Vol : {{ formatResult(calculation.apports.volumeL, 'L') }}</span>
+                                            <div class="font-medium">
+                                                Apports perfusions
+                                            </div>
+                                            <div
+                                                class="mt-0.5 flex flex-wrap gap-x-2 gap-y-0.5 text-xs text-muted-foreground sm:hidden"
+                                            >
+                                                <span
+                                                    >Bicarb :
+                                                    {{
+                                                        formatResult(
+                                                            calculation.apports
+                                                                .bicarbonateG,
+                                                            'g',
+                                                        )
+                                                    }}</span
+                                                >
+                                                <span
+                                                    >Glucose :
+                                                    {{
+                                                        formatResult(
+                                                            calculation.apports
+                                                                .glucoseG,
+                                                            'g',
+                                                        )
+                                                    }}</span
+                                                >
+                                                <span
+                                                    >Vol :
+                                                    {{
+                                                        formatResult(
+                                                            calculation.apports
+                                                                .volumeL,
+                                                            'L',
+                                                        )
+                                                    }}</span
+                                                >
                                             </div>
                                         </td>
-                                        <td class="hidden px-2 py-1 sm:table-cell">{{ formatResult(calculation.apports.bicarbonateG, 'g') }}</td>
-                                        <td class="hidden px-2 py-1 sm:table-cell">{{ formatResult(calculation.apports.glucoseG, 'g') }}</td>
-                                        <td class="hidden px-2 py-1 sm:table-cell">{{ formatResult(calculation.apports.volumeL, 'L') }}</td>
+                                        <td
+                                            class="hidden px-2 py-1 sm:table-cell"
+                                        >
+                                            {{
+                                                formatResult(
+                                                    calculation.apports
+                                                        .bicarbonateG,
+                                                    'g',
+                                                )
+                                            }}
+                                        </td>
+                                        <td
+                                            class="hidden px-2 py-1 sm:table-cell"
+                                        >
+                                            {{
+                                                formatResult(
+                                                    calculation.apports
+                                                        .glucoseG,
+                                                    'g',
+                                                )
+                                            }}
+                                        </td>
+                                        <td
+                                            class="hidden px-2 py-1 sm:table-cell"
+                                        >
+                                            {{
+                                                formatResult(
+                                                    calculation.apports.volumeL,
+                                                    'L',
+                                                )
+                                            }}
+                                        </td>
                                     </tr>
                                     <tr>
                                         <td class="px-2 py-1">
-                                            <div class="font-medium">Reste a couvrir</div>
-                                            <div class="mt-0.5 flex flex-wrap gap-x-2 gap-y-0.5 text-xs text-muted-foreground sm:hidden">
-                                                <span>Bicarb : {{ formatResult(calculation.restes.bicarbonateG, 'g') }}</span>
-                                                <span>Glucose : {{ formatResult(calculation.restes.glucoseG, 'g') }}</span>
-                                                <span>Vol : {{ formatResult(calculation.restes.volumeL, 'L') }}</span>
+                                            <div class="font-medium">
+                                                Reste a couvrir
+                                            </div>
+                                            <div
+                                                class="mt-0.5 flex flex-wrap gap-x-2 gap-y-0.5 text-xs text-muted-foreground sm:hidden"
+                                            >
+                                                <span
+                                                    >Bicarb :
+                                                    {{
+                                                        formatResult(
+                                                            calculation.restes
+                                                                .bicarbonateG,
+                                                            'g',
+                                                        )
+                                                    }}</span
+                                                >
+                                                <span
+                                                    >Glucose :
+                                                    {{
+                                                        formatResult(
+                                                            calculation.restes
+                                                                .glucoseG,
+                                                            'g',
+                                                        )
+                                                    }}</span
+                                                >
+                                                <span
+                                                    >Vol :
+                                                    {{
+                                                        formatResult(
+                                                            calculation.restes
+                                                                .volumeL,
+                                                            'L',
+                                                        )
+                                                    }}</span
+                                                >
                                             </div>
                                         </td>
-                                        <td class="hidden px-2 py-1 sm:table-cell">{{ formatResult(calculation.restes.bicarbonateG, 'g') }}</td>
-                                        <td class="hidden px-2 py-1 sm:table-cell">{{ formatResult(calculation.restes.glucoseG, 'g') }}</td>
-                                        <td class="hidden px-2 py-1 sm:table-cell">{{ formatResult(calculation.restes.volumeL, 'L') }}</td>
+                                        <td
+                                            class="hidden px-2 py-1 sm:table-cell"
+                                        >
+                                            {{
+                                                formatResult(
+                                                    calculation.restes
+                                                        .bicarbonateG,
+                                                    'g',
+                                                )
+                                            }}
+                                        </td>
+                                        <td
+                                            class="hidden px-2 py-1 sm:table-cell"
+                                        >
+                                            {{
+                                                formatResult(
+                                                    calculation.restes.glucoseG,
+                                                    'g',
+                                                )
+                                            }}
+                                        </td>
+                                        <td
+                                            class="hidden px-2 py-1 sm:table-cell"
+                                        >
+                                            {{
+                                                formatResult(
+                                                    calculation.restes.volumeL,
+                                                    'L',
+                                                )
+                                            }}
+                                        </td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -501,35 +992,103 @@ watch(
                     <div class="analysis-subsection">
                         <div>
                             <h3>Normes {{ selectedSpecies.label }}</h3>
-                            <p class="text-sm text-muted-foreground">Lecture des valeurs saisies par rapport aux references de l'espece.</p>
+                            <p class="text-sm text-muted-foreground">
+                                Lecture des valeurs saisies par rapport aux
+                                references de l'espece.
+                            </p>
                         </div>
                         <div class="analysis-table-wrap">
                             <table class="w-full text-sm">
                                 <thead class="hidden sm:table-header-group">
-                                    <tr class="border-b border-border bg-muted/40">
-                                        <th class="px-2 py-1 text-left font-medium text-xs">Parametre</th>
-                                        <th class="px-2 py-1 text-left font-medium text-xs">Valeur</th>
-                                        <th class="px-2 py-1 text-left font-medium text-xs">Norme</th>
-                                        <th class="px-2 py-1 text-left font-medium text-xs">Statut</th>
+                                    <tr
+                                        class="border-b border-border bg-muted/40"
+                                    >
+                                        <th
+                                            class="px-2 py-1 text-left text-xs font-medium"
+                                        >
+                                            Parametre
+                                        </th>
+                                        <th
+                                            class="px-2 py-1 text-left text-xs font-medium"
+                                        >
+                                            Valeur
+                                        </th>
+                                        <th
+                                            class="px-2 py-1 text-left text-xs font-medium"
+                                        >
+                                            Norme
+                                        </th>
+                                        <th
+                                            class="px-2 py-1 text-left text-xs font-medium"
+                                        >
+                                            Statut
+                                        </th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <tr v-for="row in normRows" :key="row.key" class="border-b border-border/50 last:border-b-0">
+                                    <tr
+                                        v-for="row in normRows"
+                                        :key="row.key"
+                                        class="border-b border-border/50 last:border-b-0"
+                                    >
                                         <td class="px-2 py-1">
-                                            <div class="font-medium">{{ row.label }}</div>
-                                            <div class="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs sm:hidden">
-                                                <span>{{ formatResult(row.value) }}</span>
-                                                <span class="text-muted-foreground"><span v-if="row.range">{{ row.range[0] }} - {{ row.range[1] }}</span><span v-else>-</span></span>
-                                                <span class="inline-flex rounded-full px-1.5 py-0.5 font-medium ring-1" :class="normStatusClass(row.status)">{{ normStatusLabel(row.status) }}</span>
+                                            <div class="font-medium">
+                                                {{ row.label }}
+                                            </div>
+                                            <div
+                                                class="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs sm:hidden"
+                                            >
+                                                <span>{{
+                                                    formatResult(row.value)
+                                                }}</span>
+                                                <span
+                                                    class="text-muted-foreground"
+                                                    ><span v-if="row.range"
+                                                        >{{ row.range[0] }} -
+                                                        {{ row.range[1] }}</span
+                                                    ><span v-else>-</span></span
+                                                >
+                                                <span
+                                                    class="inline-flex rounded-full px-1.5 py-0.5 font-medium ring-1"
+                                                    :class="
+                                                        normStatusClass(
+                                                            row.status,
+                                                        )
+                                                    "
+                                                    >{{
+                                                        normStatusLabel(
+                                                            row.status,
+                                                        )
+                                                    }}</span
+                                                >
                                             </div>
                                         </td>
-                                        <td class="hidden px-2 py-1 sm:table-cell">{{ formatResult(row.value) }}</td>
-                                        <td class="hidden px-2 py-1 text-muted-foreground sm:table-cell">
-                                            <span v-if="row.range">{{ row.range[0] }} - {{ row.range[1] }}</span>
+                                        <td
+                                            class="hidden px-2 py-1 sm:table-cell"
+                                        >
+                                            {{ formatResult(row.value) }}
+                                        </td>
+                                        <td
+                                            class="hidden px-2 py-1 text-muted-foreground sm:table-cell"
+                                        >
+                                            <span v-if="row.range"
+                                                >{{ row.range[0] }} -
+                                                {{ row.range[1] }}</span
+                                            >
                                             <span v-else>-</span>
                                         </td>
-                                        <td class="hidden px-2 py-1 sm:table-cell">
-                                            <span class="inline-flex rounded-full px-2 py-1 text-xs font-medium ring-1" :class="normStatusClass(row.status)">{{ normStatusLabel(row.status) }}</span>
+                                        <td
+                                            class="hidden px-2 py-1 sm:table-cell"
+                                        >
+                                            <span
+                                                class="inline-flex rounded-full px-2 py-1 text-xs font-medium ring-1"
+                                                :class="
+                                                    normStatusClass(row.status)
+                                                "
+                                                >{{
+                                                    normStatusLabel(row.status)
+                                                }}</span
+                                            >
                                         </td>
                                     </tr>
                                 </tbody>
@@ -539,22 +1098,43 @@ watch(
                 </div>
 
                 <div class="grid gap-1">
-                    <label class="text-sm font-medium" for="treatment">Traitement / remarques</label>
-                    <textarea id="treatment" v-model="form.payload.treatment" rows="3" class="rounded border border-border bg-background px-2 py-1 text-sm"></textarea>
+                    <label class="text-sm font-medium" for="treatment"
+                        >Traitement / remarques</label
+                    >
+                    <textarea
+                        id="treatment"
+                        v-model="form.payload.treatment"
+                        rows="3"
+                        class="rounded border border-border bg-background px-2 py-1 text-sm"
+                    ></textarea>
                 </div>
             </section>
 
-            <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div
+                class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"
+            >
                 <Link
-                    :href="analysis ? analysisShow({ analysis: analysis.id }).url : analysesIndex({ module: module.slug }).url"
+                    :href="
+                        analysis
+                            ? analysisShow({ analysis: analysis.id }).url
+                            : analysesIndex({ module: module.slug }).url
+                    "
                     class="inline-flex items-center justify-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-accent"
                 >
                     <Minus class="size-3.5" />
                     Annuler
                 </Link>
-                <button type="submit" :disabled="processing" class="inline-flex items-center justify-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground shadow hover:bg-primary/90 disabled:opacity-50">
+                <button
+                    type="submit"
+                    :disabled="processing"
+                    class="inline-flex items-center justify-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground shadow hover:bg-primary/90 disabled:opacity-50"
+                >
                     <Save class="size-4" />
-                    {{ processing ? 'Enregistrement...' : "Enregistrer l'analyse" }}
+                    {{
+                        processing
+                            ? 'Enregistrement...'
+                            : "Enregistrer l'analyse"
+                    }}
                 </button>
             </div>
         </form>
@@ -629,7 +1209,12 @@ watch(
     font-size: 0.8125rem;
     line-height: 1.25rem;
 }
-.analysis-form :is(input:not([type='checkbox']):not([type='hidden']), select, textarea):focus {
+.analysis-form
+    :is(
+        input:not([type='checkbox']):not([type='hidden']),
+        select,
+        textarea
+    ):focus {
     border-color: var(--primary);
     box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 22%, transparent);
     outline: none;
@@ -639,7 +1224,9 @@ watch(
     height: 0.875rem;
     accent-color: var(--primary);
 }
-.analysis-form table :is(input:not([type='checkbox']):not([type='hidden']), select) {
+.analysis-form
+    table
+    :is(input:not([type='checkbox']):not([type='hidden']), select) {
     height: 1.625rem;
     min-height: 1.625rem;
     padding: 0.125rem 0.375rem;

@@ -1,8 +1,6 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
 import Heading from '@/components/Heading.vue';
-import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
 import { useCurrentUrl } from '@/composables/useCurrentUrl';
 import { toUrl } from '@/lib/utils';
 import { edit as editAppearance } from '@/routes/appearance';
@@ -50,7 +48,10 @@ const { isCurrentOrParentUrl } = useCurrentUrl();
             description="Gérez votre profil et les paramètres de votre compte"
         />
 
-        <nav class="mb-6 flex flex-wrap gap-1 border-b border-border" aria-label="Paramètres">
+        <nav
+            class="mb-6 flex flex-wrap gap-1 border-b border-border"
+            aria-label="Paramètres"
+        >
             <Link
                 v-for="item in sidebarNavItems"
                 :key="toUrl(item.href)"

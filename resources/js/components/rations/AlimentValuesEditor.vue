@@ -1,9 +1,11 @@
 <script setup lang="ts">
+import InputError from '@/components/InputError.vue';
 import { alimentEditableFieldGroups } from '@/components/rations/alimentEditableFields';
 import type { Aliment } from '@/components/rations/types';
 import { ALIMENT_TYPES } from '@/types/aliment';
 
 const aliment = defineModel<Aliment>('aliment', { required: true });
+defineProps<{ errors?: Record<string, string> }>();
 </script>
 
 <template>
@@ -34,6 +36,12 @@ const aliment = defineModel<Aliment>('aliment', { required: true });
 
                     <select
                         v-if="field.key === 'type'"
+                        :aria-invalid="Boolean(errors?.[field.key])"
+                        :aria-describedby="
+                            errors?.[field.key]
+                                ? `aliment-${field.key}-error`
+                                : undefined
+                        "
                         v-model="aliment.type"
                         name="type"
                         required
@@ -50,6 +58,12 @@ const aliment = defineModel<Aliment>('aliment', { required: true });
                     </select>
                     <input
                         v-else-if="field.type === 'number'"
+                        :aria-invalid="Boolean(errors?.[field.key])"
+                        :aria-describedby="
+                            errors?.[field.key]
+                                ? `aliment-${field.key}-error`
+                                : undefined
+                        "
                         v-model.number="aliment[field.key]"
                         :name="field.key"
                         type="number"
@@ -58,11 +72,21 @@ const aliment = defineModel<Aliment>('aliment', { required: true });
                     />
                     <input
                         v-else
+                        :aria-invalid="Boolean(errors?.[field.key])"
+                        :aria-describedby="
+                            errors?.[field.key]
+                                ? `aliment-${field.key}-error`
+                                : undefined
+                        "
                         v-model="aliment[field.key]"
                         :name="field.key"
                         type="text"
                         :required="field.required"
                         class="rounded border border-border bg-background px-2 py-1 text-sm focus:ring-2 focus:ring-primary focus:outline-none"
+                    />
+                    <InputError
+                        :id="`aliment-${field.key}-error`"
+                        :message="errors?.[field.key]"
                     />
                 </label>
             </div>

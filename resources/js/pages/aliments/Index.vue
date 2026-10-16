@@ -101,6 +101,7 @@ function deleteAliment(aliment: Aliment) {
                         class="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground"
                     />
                     <input
+                        :aria-label="'Rechercher un aliment…'"
                         v-model="search"
                         type="text"
                         placeholder="Rechercher un aliment…"
@@ -108,6 +109,7 @@ function deleteAliment(aliment: Aliment) {
                     />
                 </div>
                 <select
+                    :aria-label="'Filtrer par type d’aliment'"
                     v-model="type"
                     class="h-10 rounded-lg border border-border bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:outline-none"
                 >

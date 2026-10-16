@@ -623,6 +623,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
                         Chargement…
                     </div>
                     <select
+                        :aria-label="'Type spécifique'"
                         v-else
                         v-model="typeSelected"
                         class="h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:outline-none"
@@ -672,6 +673,22 @@ function isRecord(value: unknown): value is Record<string, unknown> {
                             >
                         </label>
                         <input
+                            :aria-label="
+                                field.label +
+                                ' ' +
+                                '(' +
+                                ' ' +
+                                field.unit +
+                                ' ' +
+                                ')'
+                            "
+                            :aria-invalid="Boolean(fieldErrors[field.key])"
+                            :aria-describedby="
+                                fieldErrors[field.key]
+                                    ? field.key + '-error'
+                                    : undefined
+                            "
+                            :id="field.key"
                             type="number"
                             step="0.01"
                             min="0"
@@ -679,7 +696,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
                             class="rounded-lg border border-border bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:outline-none"
                             :placeholder="field.label"
                         />
-                        <InputError :message="fieldErrors[field.key]" />
+                        <InputError
+                            :id="field.key + '-error'"
+                            :message="fieldErrors[field.key]"
+                        />
                     </div>
 
                     <div v-if="needsAmidon" class="flex flex-col gap-1">
@@ -689,6 +709,14 @@ function isRecord(value: unknown): value is Record<string, unknown> {
                             <span class="ml-1 text-xs text-primary">*</span>
                         </label>
                         <input
+                            :aria-label="'Amidon' + ' ' + '(% MB)' + ' ' + '*'"
+                            :aria-invalid="Boolean(fieldErrors.amidon)"
+                            :aria-describedby="
+                                fieldErrors.amidon
+                                    ? 'fieldErrors_amidon-error'
+                                    : undefined
+                            "
+                            id="fieldErrors_amidon"
                             type="number"
                             step="0.01"
                             min="0"
@@ -696,7 +724,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
                             class="rounded-lg border border-primary/50 bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:outline-none"
                             placeholder="Amidon"
                         />
-                        <InputError :message="fieldErrors.amidon" />
+                        <InputError
+                            id="fieldErrors_amidon-error"
+                            :message="fieldErrors.amidon"
+                        />
                     </div>
                 </div>
 
@@ -719,6 +750,22 @@ function isRecord(value: unknown): value is Record<string, unknown> {
                                 >
                             </label>
                             <input
+                                :aria-label="
+                                    min.label +
+                                    ' ' +
+                                    '(' +
+                                    ' ' +
+                                    min.unit +
+                                    ' ' +
+                                    ')'
+                                "
+                                :aria-invalid="Boolean(fieldErrors[min.key])"
+                                :aria-describedby="
+                                    fieldErrors[min.key]
+                                        ? min.key + '-error'
+                                        : undefined
+                                "
+                                :id="min.key"
                                 type="number"
                                 step="0.001"
                                 min="0"
@@ -726,7 +773,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
                                 class="rounded-lg border border-border bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:outline-none"
                                 :placeholder="min.label"
                             />
-                            <InputError :message="fieldErrors[min.key]" />
+                            <InputError
+                                :id="min.key + '-error'"
+                                :message="fieldErrors[min.key]"
+                            />
                         </div>
                     </div>
                 </div>
@@ -1202,6 +1252,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
                                         class="size-4 text-muted-foreground"
                                     />
                                     <input
+                                        :aria-label="'Rechercher par code INRA, type ou libellé…'"
                                         v-model="referenceQuery"
                                         type="text"
                                         placeholder="Rechercher par code INRA, type ou libellé…"
@@ -1376,11 +1427,24 @@ function isRecord(value: unknown): value is Record<string, unknown> {
                                         >Éleveur (facultatif)</label
                                     >
                                     <BreederSelectWithCreate
+                                        :aria-label="'Éleveur (facultatif)'"
+                                        :aria-invalid="
+                                            Boolean(
+                                                page.props.errors.breeder_id,
+                                            )
+                                        "
+                                        :aria-describedby="
+                                            page.props.errors.breeder_id
+                                                ? 'breeder_id-error'
+                                                : undefined
+                                        "
+                                        input-id="breeder_id"
                                         v-model="breederId"
                                         :breeders="breeders"
                                         :create-url="quickBreederStoreUrl"
                                     />
                                     <InputError
+                                        id="breeder_id-error"
                                         :message="page.props.errors.breeder_id"
                                     />
                                 </div>
@@ -1391,6 +1455,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
                                         Nom de l'aliment créé
                                     </label>
                                     <input
+                                        :aria-label="'Nom de l\'aliment créé'"
                                         type="text"
                                         v-model="saveNom"
                                         placeholder="Nom de l'aliment…"

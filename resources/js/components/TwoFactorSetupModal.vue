@@ -56,7 +56,8 @@ const modalConfig = computed<TwoFactorConfigContent>(() => {
     if (showVerificationStep.value) {
         return {
             title: "Vérifier le code d'authentification",
-            description: "Saisissez le code à 6 chiffres de votre application d’authentification",
+            description:
+                'Saisissez le code à 6 chiffres de votre application d’authentification',
             buttonText: 'Continuer',
         };
     }
@@ -214,6 +215,7 @@ watch(
                                 </div>
                                 <template v-else>
                                     <input
+                                        :aria-label="'Clé de configuration de la double authentification'"
                                         type="text"
                                         readonly
                                         :value="manualSetupKey"
@@ -253,6 +255,10 @@ watch(
                                 class="flex w-full flex-col items-center justify-center space-y-3 py-2"
                             >
                                 <InputOTP
+                                    :aria-invalid="Boolean(errors?.code)"
+                                    :aria-describedby="
+                                        errors?.code ? 'otp-error' : undefined
+                                    "
                                     id="otp"
                                     v-model="code"
                                     :maxlength="6"
@@ -266,7 +272,10 @@ watch(
                                         />
                                     </InputOTPGroup>
                                 </InputOTP>
-                                <InputError :message="errors?.code" />
+                                <InputError
+                                    id="otp-error"
+                                    :message="errors?.code"
+                                />
                             </div>
 
                             <div class="flex w-full items-center space-x-5">

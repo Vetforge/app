@@ -48,8 +48,16 @@ const breadcrumbItems: BreadcrumbItem[] = [
                     v-slot="{ errors, processing, recentlySuccessful }"
                 >
                     <div class="grid gap-2">
-                        <Label for="current_password">Mot de passe actuel</Label>
+                        <Label for="current_password"
+                            >Mot de passe actuel</Label
+                        >
                         <Input
+                            :aria-invalid="Boolean(errors.current_password)"
+                            :aria-describedby="
+                                errors.current_password
+                                    ? 'current_password-error'
+                                    : undefined
+                            "
                             id="current_password"
                             name="current_password"
                             type="password"
@@ -57,12 +65,19 @@ const breadcrumbItems: BreadcrumbItem[] = [
                             autocomplete="current-password"
                             placeholder="Mot de passe actuel"
                         />
-                        <InputError :message="errors.current_password" />
+                        <InputError
+                            id="current_password-error"
+                            :message="errors.current_password"
+                        />
                     </div>
 
                     <div class="grid gap-2">
                         <Label for="password">Nouveau mot de passe</Label>
                         <Input
+                            :aria-invalid="Boolean(errors.password)"
+                            :aria-describedby="
+                                errors.password ? 'password-error' : undefined
+                            "
                             id="password"
                             name="password"
                             type="password"
@@ -70,7 +85,10 @@ const breadcrumbItems: BreadcrumbItem[] = [
                             autocomplete="new-password"
                             placeholder="Nouveau mot de passe"
                         />
-                        <InputError :message="errors.password" />
+                        <InputError
+                            id="password-error"
+                            :message="errors.password"
+                        />
                     </div>
 
                     <div class="grid gap-2">
@@ -78,6 +96,14 @@ const breadcrumbItems: BreadcrumbItem[] = [
                             >Confirmer le mot de passe</Label
                         >
                         <Input
+                            :aria-invalid="
+                                Boolean(errors.password_confirmation)
+                            "
+                            :aria-describedby="
+                                errors.password_confirmation
+                                    ? 'password_confirmation-error'
+                                    : undefined
+                            "
                             id="password_confirmation"
                             name="password_confirmation"
                             type="password"
@@ -85,7 +111,10 @@ const breadcrumbItems: BreadcrumbItem[] = [
                             autocomplete="new-password"
                             placeholder="Confirmer le mot de passe"
                         />
-                        <InputError :message="errors.password_confirmation" />
+                        <InputError
+                            id="password_confirmation-error"
+                            :message="errors.password_confirmation"
+                        />
                     </div>
 
                     <div class="flex items-center gap-4">

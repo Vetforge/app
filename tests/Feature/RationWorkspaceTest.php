@@ -170,6 +170,8 @@ it('fills intake capacity for an INRA 2018 ad libitum silage', function () {
         'plan_rationnement_id' => $plan->id,
         'categorie_animal' => 'brebis_laitiere',
         'poids_vif' => 60,
+        'parite' => 2,
+        'jours_lactation' => 60,
         'lait_objectif' => 4,
         'race' => 'lacaune',
         'mfc' => 70,

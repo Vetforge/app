@@ -54,6 +54,10 @@ const user = computed(() => page.props.auth.user);
                     <div class="grid gap-2">
                         <Label for="name">Nom</Label>
                         <Input
+                            :aria-invalid="Boolean(errors.name)"
+                            :aria-describedby="
+                                errors.name ? 'name-error' : undefined
+                            "
                             id="name"
                             class="mt-1 block w-full"
                             name="name"
@@ -62,12 +66,20 @@ const user = computed(() => page.props.auth.user);
                             autocomplete="name"
                             placeholder="Nom complet"
                         />
-                        <InputError class="mt-2" :message="errors.name" />
+                        <InputError
+                            id="name-error"
+                            class="mt-2"
+                            :message="errors.name"
+                        />
                     </div>
 
                     <div class="grid gap-2">
                         <Label for="email">Adresse e-mail</Label>
                         <Input
+                            :aria-invalid="Boolean(errors.email)"
+                            :aria-describedby="
+                                errors.email ? 'email-error' : undefined
+                            "
                             id="email"
                             type="email"
                             class="mt-1 block w-full"
@@ -77,7 +89,11 @@ const user = computed(() => page.props.auth.user);
                             autocomplete="username"
                             placeholder="Adresse e-mail"
                         />
-                        <InputError class="mt-2" :message="errors.email" />
+                        <InputError
+                            id="email-error"
+                            class="mt-2"
+                            :message="errors.email"
+                        />
                     </div>
 
                     <div v-if="mustVerifyEmail && !user.email_verified_at">
@@ -115,6 +131,14 @@ const user = computed(() => page.props.auth.user);
                                 >Nom de la clinique</Label
                             >
                             <Input
+                                :aria-invalid="
+                                    Boolean(errors['clinic_profile.name'])
+                                "
+                                :aria-describedby="
+                                    errors['clinic_profile.name']
+                                        ? 'clinic_profile_name-error'
+                                        : undefined
+                                "
                                 id="clinic_profile_name"
                                 class="mt-1 block w-full"
                                 name="clinic_profile[name]"
@@ -123,6 +147,7 @@ const user = computed(() => page.props.auth.user);
                                 placeholder="Clinique vétérinaire"
                             />
                             <InputError
+                                id="clinic_profile_name-error"
                                 class="mt-2"
                                 :message="errors['clinic_profile.name']"
                             />
@@ -131,6 +156,14 @@ const user = computed(() => page.props.auth.user);
                         <div class="grid gap-2">
                             <Label for="clinic_profile_address">Adresse</Label>
                             <Input
+                                :aria-invalid="
+                                    Boolean(errors['clinic_profile.address'])
+                                "
+                                :aria-describedby="
+                                    errors['clinic_profile.address']
+                                        ? 'clinic_profile_address-error'
+                                        : undefined
+                                "
                                 id="clinic_profile_address"
                                 class="mt-1 block w-full"
                                 name="clinic_profile[address]"
@@ -141,6 +174,7 @@ const user = computed(() => page.props.auth.user);
                                 placeholder="Adresse"
                             />
                             <InputError
+                                id="clinic_profile_address-error"
                                 class="mt-2"
                                 :message="errors['clinic_profile.address']"
                             />
@@ -152,6 +186,18 @@ const user = computed(() => page.props.auth.user);
                                     >Code postal</Label
                                 >
                                 <Input
+                                    :aria-invalid="
+                                        Boolean(
+                                            errors[
+                                                'clinic_profile.postal_code'
+                                            ],
+                                        )
+                                    "
+                                    :aria-describedby="
+                                        errors['clinic_profile.postal_code']
+                                            ? 'clinic_profile_postal_code-error'
+                                            : undefined
+                                    "
                                     id="clinic_profile_postal_code"
                                     class="mt-1 block w-full"
                                     name="clinic_profile[postal_code]"
@@ -162,6 +208,7 @@ const user = computed(() => page.props.auth.user);
                                     placeholder="Code postal"
                                 />
                                 <InputError
+                                    id="clinic_profile_postal_code-error"
                                     class="mt-2"
                                     :message="
                                         errors['clinic_profile.postal_code']
@@ -172,6 +219,14 @@ const user = computed(() => page.props.auth.user);
                             <div class="grid gap-2">
                                 <Label for="clinic_profile_city">Ville</Label>
                                 <Input
+                                    :aria-invalid="
+                                        Boolean(errors['clinic_profile.city'])
+                                    "
+                                    :aria-describedby="
+                                        errors['clinic_profile.city']
+                                            ? 'clinic_profile_city-error'
+                                            : undefined
+                                    "
                                     id="clinic_profile_city"
                                     class="mt-1 block w-full"
                                     name="clinic_profile[city]"
@@ -182,6 +237,7 @@ const user = computed(() => page.props.auth.user);
                                     placeholder="Ville"
                                 />
                                 <InputError
+                                    id="clinic_profile_city-error"
                                     class="mt-2"
                                     :message="errors['clinic_profile.city']"
                                 />
@@ -194,6 +250,14 @@ const user = computed(() => page.props.auth.user);
                                     >Téléphone</Label
                                 >
                                 <Input
+                                    :aria-invalid="
+                                        Boolean(errors['clinic_profile.phone'])
+                                    "
+                                    :aria-describedby="
+                                        errors['clinic_profile.phone']
+                                            ? 'clinic_profile_phone-error'
+                                            : undefined
+                                    "
                                     id="clinic_profile_phone"
                                     class="mt-1 block w-full"
                                     name="clinic_profile[phone]"
@@ -204,6 +268,7 @@ const user = computed(() => page.props.auth.user);
                                     placeholder="Téléphone"
                                 />
                                 <InputError
+                                    id="clinic_profile_phone-error"
                                     class="mt-2"
                                     :message="errors['clinic_profile.phone']"
                                 />
@@ -214,6 +279,14 @@ const user = computed(() => page.props.auth.user);
                                     >E-mail clinique</Label
                                 >
                                 <Input
+                                    :aria-invalid="
+                                        Boolean(errors['clinic_profile.email'])
+                                    "
+                                    :aria-describedby="
+                                        errors['clinic_profile.email']
+                                            ? 'clinic_profile_email-error'
+                                            : undefined
+                                    "
                                     id="clinic_profile_email"
                                     type="email"
                                     class="mt-1 block w-full"
@@ -225,6 +298,7 @@ const user = computed(() => page.props.auth.user);
                                     placeholder="contact@clinique.fr"
                                 />
                                 <InputError
+                                    id="clinic_profile_email-error"
                                     class="mt-2"
                                     :message="errors['clinic_profile.email']"
                                 />

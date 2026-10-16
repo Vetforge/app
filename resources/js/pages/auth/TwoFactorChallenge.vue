@@ -64,6 +64,10 @@ const code = ref<string>('');
                     >
                         <div class="flex w-full items-center justify-center">
                             <InputOTP
+                                :aria-invalid="Boolean(errors.code)"
+                                :aria-describedby="
+                                    errors.code ? 'otp-error' : undefined
+                                "
                                 id="otp"
                                 v-model="code"
                                 :maxlength="6"
@@ -79,7 +83,7 @@ const code = ref<string>('');
                                 </InputOTPGroup>
                             </InputOTP>
                         </div>
-                        <InputError :message="errors.code" />
+                        <InputError id="otp-error" :message="errors.code" />
                     </div>
                     <Button type="submit" class="w-full" :disabled="processing"
                         >Continuer</Button
@@ -105,13 +109,24 @@ const code = ref<string>('');
                     #default="{ errors, processing, clearErrors }"
                 >
                     <Input
+                        :aria-label="'Saisir un code de secours'"
+                        :aria-invalid="Boolean(errors.recovery_code)"
+                        :aria-describedby="
+                            errors.recovery_code
+                                ? 'recovery_code-error'
+                                : undefined
+                        "
+                        id="recovery_code"
                         name="recovery_code"
                         type="text"
                         placeholder="Saisir un code de secours"
                         :autofocus="showRecoveryInput"
                         required
                     />
-                    <InputError :message="errors.recovery_code" />
+                    <InputError
+                        id="recovery_code-error"
+                        :message="errors.recovery_code"
+                    />
                     <Button type="submit" class="w-full" :disabled="processing"
                         >Continuer</Button
                     >

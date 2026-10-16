@@ -294,9 +294,9 @@ class CalculValeur
     }
 
     /**
-     * AmiD_int (amidon digéré intestinalement) en g/kg MS.
+     * Dégradabilité théorique de l'amidon corrigée du NI et du PCO, en %.
      */
-    public function calculerAmiD_intAliment(): float
+    public function calculerDT_AmiAliment(): float
     {
         if ($this->aliment->type === TypeAliment::Mineral->value) {
             return 0.0;
@@ -305,16 +305,23 @@ class CalculValeur
         $PCO = Apport::calculerPCO($this->ration);
         $NI = Apport::calculerNI($this->ration);
         $DT6_Ami = (float) ($this->aliment->dt6_ami ?? 0);
-        $amidon = (float) ($this->aliment->amidon ?? 0);
 
-        $DT_Ami = 18.8 + 1.3 * $DT6_Ami - 0.00575 * $DT6_Ami * $DT6_Ami
+        return 18.8 + 1.3 * $DT6_Ami - 0.00575 * $DT6_Ami * $DT6_Ami
             - 9.42 * $NI + 9.14 * $PCO * $PCO + 0.0897 * $NI * $DT6_Ami - 1.97 * $NI * $PCO;
+    }
 
-        return 0.826 * $amidon * (1 - 0.01 * $DT_Ami);
+    /** Éq. 3.27 : amidon digéré intestinalement, en g/kg MS. */
+    public function calculerAmiD_intAliment(): float
+    {
+        if ($this->aliment->type === TypeAliment::Mineral->value) {
+            return 0.0;
+        }
+
+        return 0.826 * (float) ($this->aliment->amidon ?? 0) * (1 - 0.01 * $this->calculerDT_AmiAliment());
     }
 
     /**
-     * AmiD_ru (amidon digéré dans le rumen) en g/kg MS.
+     * Éq. 3.26 : amidon dégradé dans le rumen, en g/kg MS, hors pertes fécales.
      */
     public function calculerAmiD_ruAliment(): float
     {
@@ -322,7 +329,7 @@ class CalculValeur
             return 0.0;
         }
 
-        return (float) ($this->aliment->amidon ?? 0) - $this->calculerAmiD_intAliment();
+        return (float) ($this->aliment->amidon ?? 0) * 0.01 * $this->calculerDT_AmiAliment();
     }
 
     /**

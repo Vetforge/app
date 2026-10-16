@@ -35,9 +35,9 @@ class CaprinBesoin
         // Chèvre laitière (Éq. 21.46).
         $ci = 1.3 + 0.016 * ($bw - 60) + 0.24 * self::laitStandard35Potentiel($ration);
 
-        return $ci * self::indiceCILactation($ration)
+        return max(0.0, $ci * self::indiceCILactation($ration)
             * self::indiceCIGestation($ration)
-            * self::indiceCIProteines($ration);
+            * self::indiceCIProteines($ration));
     }
 
     // ─── Énergie (UFL) ───────────────────────────────────────────────────────────
@@ -61,7 +61,7 @@ class CaprinBesoin
     }
 
     /**
-     * Coût énergétique (UFL) d'un litre de lait produit — Éq. 21.7a, ou 21.7b si le TP est renseigné.
+     * Coût énergétique (UFL) d'un kilogramme de lait produit — Éq. 21.7a, ou 21.7b si le TP est renseigné.
      * Sert à la fois au besoin lait ({@see besoinUFLait}) et au lait permis par les UFL.
      */
     public static function coutUFLParLitreLait(Ration $ration): float
@@ -83,9 +83,6 @@ class CaprinBesoin
      */
     public static function besoinUFGestation(Ration $ration): float
     {
-        if (self::estChevrette($ration)) {
-            return 0.0;
-        }
         $dg = self::dg($ration);
         if ($dg <= 0) {
             return 0.0;
@@ -99,11 +96,11 @@ class CaprinBesoin
         return ($a * exp(0.034 * $dg) / 0.14) * 0.65 / self::UFL_KCAL;
     }
 
-    /** Gain potentiel de la chevrette selon l'âge et la race (Éq. 21.39a/b). */
+    /** Gain de référence (Éq. 21.39a/b) ramené au GMQ demandé via la courbe 21.33. */
     public static function besoinUFGain(Ration $ration): float
     {
         if (! self::estChevrette($ration)) {
-            return 0.0;
+            return self::croissanceReproductrice($ration)['energie'];
         }
 
         $age = self::ageJours($ration);
@@ -111,7 +108,13 @@ class CaprinBesoin
             ? 0.530 * exp(-0.00198 * $age)
             : 0.506 * exp(-0.00239 * $age);
 
-        return $neGain / 1.76;
+        return $neGain / 1.76 * self::rapportGainReference($ration);
+    }
+
+    /** Chapitre 21.1.4 : variation du poids corporel vide, UFL/kg. */
+    public static function besoinUFReserves(Ration $ration): float
+    {
+        return self::estChevrette($ration) ? 0.0 : 2.22 * (float) ($ration->ecart_variation_reserve ?? 0);
     }
 
     public static function calculerBesoinTotalUF(Ration $ration): float
@@ -119,7 +122,7 @@ class CaprinBesoin
         return self::besoinUFEntretien($ration)
             + self::besoinUFLait($ration)
             + self::besoinUFGestation($ration)
-            + self::besoinUFGain($ration);
+            + self::besoinUFGain($ration); // UFLreq (21.3) exclut les réserves (21.4).
     }
 
     // ─── Protéines (PDI) ─────────────────────────────────────────────────────────
@@ -149,7 +152,7 @@ class CaprinBesoin
     }
 
     /**
-     * Coût protéique (PDI) d'un litre de lait produit — Éq. 21.15 : MPC / PDIeff.
+     * Coût protéique (PDI) d'un kilogramme de lait produit — Éq. 21.15 : MPC / PDIeff.
      * Sert à la fois au besoin lait ({@see besoinPDILait}) et au lait permis par les PDI.
      */
     public static function coutPDIParLitreLait(Ration $ration): float
@@ -165,9 +168,6 @@ class CaprinBesoin
     /** PDI gestation (Éq. 21.30) : a × exp(0,03383 × DG) / PDIeff. */
     public static function besoinPDIGestation(Ration $ration): float
     {
-        if (self::estChevrette($ration)) {
-            return 0.0;
-        }
         $dg = self::dg($ration);
         $effPdi = self::effPdi($ration);
         if ($dg <= 0 || $effPdi <= 0) {
@@ -186,7 +186,7 @@ class CaprinBesoin
     public static function besoinPDIGain(Ration $ration): float
     {
         if (! self::estChevrette($ration)) {
-            return 0.0;
+            return self::croissanceReproductrice($ration)['pdi'] * 0.50 / self::effPdi($ration);
         }
         $effPdi = self::effPdi($ration);
 
@@ -198,7 +198,7 @@ class CaprinBesoin
             ? 31.0 * exp(-0.00235 * $age)
             : 30.0 * exp(-0.00281 * $age);
 
-        return $proteineNette / $effPdi;
+        return $proteineNette / $effPdi * self::rapportGainReference($ration);
     }
 
     public static function calculerBesoinTotalPDI(Ration $ration): float
@@ -220,7 +220,8 @@ class CaprinBesoin
             $dmi = Apport::calculerApportTotalMS($ration);
             $gain = 6.75 * pow(self::bwAdulte($ration), 0.28) * pow($bw, -0.28) * self::gainKgJour($ration);
 
-            return 0.67 * $dmi + 0.01 * $bw + $gain; // Éq. 21.42.
+            return 0.67 * $dmi + 0.01 * $bw + $gain
+                + (self::dg($ration) >= 100 ? (self::nombreKids($ration) >= 2 ? 2.0 : 1.0) : 0.0); // Éq. 21.42 + Table 8.1.
         }
 
         // Deux derniers mois de gestation, y compris en chevauchement avec la lactation (Éq. 21.31).
@@ -230,7 +231,11 @@ class CaprinBesoin
         }
 
         // Éq. 21.20.
-        return 0.67 * Apport::calculerApportTotalMS($ration) + 0.01 * self::bw($ration) + 1.21 * $my;
+        $growth = self::gainReproductriceKgJour($ration);
+        $adultWeight = self::estSaanen($ration) ? 94.6 : 76.6;
+
+        return 0.67 * Apport::calculerApportTotalMS($ration) + 0.01 * self::bw($ration) + 1.21 * $my
+            + 6.75 * pow($adultWeight / self::bw($ration), 0.28) * $growth;
     }
 
     public static function calculerBesoinPabs(Ration $ration): float
@@ -242,7 +247,8 @@ class CaprinBesoin
             $dmi = Apport::calculerApportTotalMS($ration);
             $gain = (1.2 + 3.19 * pow(self::bwAdulte($ration), 0.28) * pow($bw, -0.28)) * self::gainKgJour($ration);
 
-            return 0.3 + 0.905 * $dmi + 0.002 * $bw + $gain; // Éq. 21.43.
+            return 0.3 + 0.905 * $dmi + 0.002 * $bw + $gain
+                + (self::dg($ration) >= 100 ? (self::nombreKids($ration) >= 2 ? 1.2 : 0.6) : 0.0); // Éq. 21.43 + Table 8.1.
         }
 
         if (self::dg($ration) >= 90) {
@@ -251,7 +257,11 @@ class CaprinBesoin
         }
 
         // Éq. 21.21.
-        return 0.905 * Apport::calculerApportTotalMS($ration) + 0.3 + 0.002 * self::bw($ration) + 0.92 * $my;
+        $growth = self::gainReproductriceKgJour($ration);
+        $adultWeight = self::estSaanen($ration) ? 94.6 : 76.6;
+
+        return 0.905 * Apport::calculerApportTotalMS($ration) + 0.3 + 0.002 * self::bw($ration) + 0.92 * $my
+            + (1.2 + 3.19 * pow($adultWeight / self::bw($ration), 0.28)) * $growth;
     }
 
     // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -309,7 +319,7 @@ class CaprinBesoin
         // à DIM = 1 l'indice vaut ≈ 0,726 (semaine 1) et non ≈ 0,541 (cf. CAP-03).
         $semaine = (int) ceil($dim / 7.0);
 
-        return $semaine >= 5 ? 1.0 : 0.5 + 0.5 * (1 - exp(-0.6 * $semaine));
+        return $semaine > 5 ? 1.0 : 0.5 + 0.5 * (1 - exp(-0.6 * $semaine));
     }
 
     /** Indice CI lié au stade de gestation (Éq. 21.48). */
@@ -331,6 +341,9 @@ class CaprinBesoin
     /** Indice CI lié à la teneur en protéines de la ration (Éq. 21.49). */
     private static function indiceCIProteines(Ration $ration): float
     {
+        if (Apport::calculerApportTotalMS($ration) <= 0) {
+            return 1.0;
+        }
         $cp = Apport::calculerApportMAT($ration); // MAT par kg MS (g/kg)
 
         return 1.06 - 0.046 * exp(-0.025 * ($cp - 150));
@@ -344,6 +357,84 @@ class CaprinBesoin
     private static function gainKgJour(Ration $ration): float
     {
         return max(0.0, (float) ($ration->gmq ?? 0) / 1000.0);
+    }
+
+    /** Le coût par kg de gain suit l'âge et la race, puis s'applique au gain réel demandé. */
+    private static function rapportGainReference(Ration $ration): float
+    {
+        [$poidsAdulte, $poidsNaissance, $taux] = self::estSaanen($ration)
+            ? [94.6, 3.8, 0.00213]
+            : [76.6, 4.5, 0.00259];
+        $gainReference = $taux * ($poidsAdulte - $poidsNaissance) * exp(-$taux * self::ageJours($ration));
+
+        return self::gainKgJour($ration) / $gainReference;
+    }
+
+    /**
+     * Moyennes publiées en 21.3.2-21.3.3 pour les premières et secondes lactations/gestations.
+     * Les PDI de référence sont exprimées à EffPDI = 0,50.
+     *
+     * @return array{energie: float, pdi: float}
+     */
+    private static function croissanceReproductrice(Ration $ration): array
+    {
+        $age = self::ageReproductriceJours($ration);
+        if ($ration->age_mois !== null && $age !== null) {
+            $ne = self::estSaanen($ration) ? 0.530 * exp(-0.00198 * $age) : 0.506 * exp(-0.00239 * $age);
+            $protein = self::estSaanen($ration) ? 31 * exp(-0.00235 * $age) : 30 * exp(-0.00281 * $age);
+
+            return ['energie' => $ne / 1.76, 'pdi' => $protein / 0.5];
+        }
+        $parite = (int) ($ration->parite ?? 0);
+        if (self::dg($ration) > 0) {
+            $parite++; // La parité compte les mises bas déjà réalisées.
+        }
+        if (! in_array($parite, [1, 2], true)) {
+            return ['energie' => 0.0, 'pdi' => 0.0];
+        }
+        if (self::dg($ration) > 0) {
+            [$energie, $pdi] = self::estSaanen($ration)
+                ? [1 => [0.17, 26.6], 2 => [0.08, 11.2]][$parite]
+                : [1 => [0.14, 21.9], 2 => [0.06, 7.7]][$parite];
+        } elseif ((int) ($ration->jours_lactation ?? 0) > 0) {
+            [$energie, $pdi] = self::estSaanen($ration)
+                ? [1 => [0.12, 19.8], 2 => [0.06, 8.6]][$parite]
+                : [1 => [0.09, 15.4], 2 => [0.04, 5.7]][$parite];
+        } else {
+            return ['energie' => 0.0, 'pdi' => 0.0];
+        }
+
+        return ['energie' => $energie, 'pdi' => $pdi];
+    }
+
+    /** Âge saisi, ou âges moyens de la Table 21.6 pour les deux premiers cycles. */
+    private static function ageReproductriceJours(Ration $ration): ?float
+    {
+        if ($ration->age_mois !== null) {
+            return (float) $ration->age_mois * 365.25 / 12;
+        }
+        $parity = (int) ($ration->parite ?? 0);
+        $months = self::dg($ration) > 0
+            ? match ($parity) {
+                0 => 11, 1 => 21, default => null
+            }
+        : ((int) ($ration->jours_lactation ?? 0) > 0
+            ? match ($parity) {
+                1 => 17, 2 => 28, default => null
+            } : null);
+
+        return $months !== null ? $months * 365.25 / 12 : null;
+    }
+
+    public static function gainReproductriceKgJour(Ration $ration): float
+    {
+        $age = self::ageReproductriceJours($ration);
+        if ($age === null) {
+            return 0.0;
+        }
+        [$adult, $birth, $rate] = self::estSaanen($ration) ? [94.6, 3.8, 0.00213] : [76.6, 4.5, 0.00259];
+
+        return $rate * ($adult - $birth) * exp(-$rate * $age);
     }
 
     private static function ageJours(Ration $ration): float

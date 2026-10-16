@@ -50,28 +50,40 @@ let searchTimeout: ReturnType<typeof setTimeout>;
 watch(search, (value) => {
     clearTimeout(searchTimeout);
     searchTimeout = setTimeout(() => {
-        router.get(breedersIndex().url, { search: value }, { preserveState: true, replace: true });
+        router.get(
+            breedersIndex().url,
+            { search: value },
+            { preserveState: true, replace: true },
+        );
     }, 350);
 });
 
 function deleteBreeder(breeder: Breeder): void {
-    if (confirm(`Supprimer "${breeder.name}" ? Les analyses rattachees seront aussi supprimees.`)) {
+    if (
+        confirm(
+            `Supprimer "${breeder.name}" ? Les analyses rattachees seront aussi supprimees.`,
+        )
+    ) {
         router.delete(breederDestroy({ breeder: breeder.id }).url);
     }
 }
 
 function uploadCsv(): void {
-    if (! importFile.value) {
+    if (!importFile.value) {
         return;
     }
 
-    router.post(breederImport().url, { file: importFile.value }, {
-        forceFormData: true,
-        preserveScroll: true,
-        onSuccess: () => {
-            importFile.value = null;
+    router.post(
+        breederImport().url,
+        { file: importFile.value },
+        {
+            forceFormData: true,
+            preserveScroll: true,
+            onSuccess: () => {
+                importFile.value = null;
+            },
         },
-    });
+    );
 }
 </script>
 
@@ -80,10 +92,14 @@ function uploadCsv(): void {
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="flex flex-col gap-6 p-6">
-            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div
+                class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+            >
                 <div>
                     <h1 class="text-2xl font-bold text-foreground">Eleveurs</h1>
-                    <p class="text-sm text-muted-foreground">Base privee rattachee a votre compte.</p>
+                    <p class="text-sm text-muted-foreground">
+                        Base privee rattachee a votre compte.
+                    </p>
                 </div>
                 <Link
                     :href="breederCreate().url"
@@ -100,6 +116,7 @@ function uploadCsv(): void {
                         class="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground"
                     />
                     <input
+                        :aria-label="'Rechercher par nom, ville, email ou numero cheptel...'"
                         v-model="search"
                         type="text"
                         placeholder="Rechercher par nom, ville, email ou numero cheptel..."
@@ -116,10 +133,15 @@ function uploadCsv(): void {
                         Exemple CSV
                     </a>
                     <input
+                        :aria-label="'Fichier CSV des éleveurs à importer'"
                         type="file"
                         accept=".csv,text/csv,text/plain"
                         class="rounded-lg border border-border bg-background px-3 py-2 text-sm"
-                        @change="importFile = ($event.target as HTMLInputElement).files?.[0] ?? null"
+                        @change="
+                            importFile =
+                                ($event.target as HTMLInputElement)
+                                    .files?.[0] ?? null
+                        "
                     />
                     <button
                         type="button"
@@ -133,37 +155,82 @@ function uploadCsv(): void {
                 </div>
             </div>
 
-            <div class="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+            <div
+                class="overflow-hidden rounded-xl border border-border bg-card shadow-sm"
+            >
                 <div class="overflow-x-auto">
                     <table class="w-full text-sm">
                         <thead class="border-b border-border bg-muted/50">
                             <tr>
-                                <th class="px-4 py-3 text-left font-medium text-muted-foreground">Nom</th>
-                                <th class="px-4 py-3 text-left font-medium text-muted-foreground">Coordonnees</th>
-                                <th class="px-4 py-3 text-left font-medium text-muted-foreground">Cheptel</th>
-                                <th class="px-4 py-3 text-right font-medium text-muted-foreground">Analyses</th>
-                                <th class="px-4 py-3 text-center font-medium text-muted-foreground">Actions</th>
+                                <th
+                                    class="px-4 py-3 text-left font-medium text-muted-foreground"
+                                >
+                                    Nom
+                                </th>
+                                <th
+                                    class="px-4 py-3 text-left font-medium text-muted-foreground"
+                                >
+                                    Coordonnees
+                                </th>
+                                <th
+                                    class="px-4 py-3 text-left font-medium text-muted-foreground"
+                                >
+                                    Cheptel
+                                </th>
+                                <th
+                                    class="px-4 py-3 text-right font-medium text-muted-foreground"
+                                >
+                                    Analyses
+                                </th>
+                                <th
+                                    class="px-4 py-3 text-center font-medium text-muted-foreground"
+                                >
+                                    Actions
+                                </th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-border/50">
-                            <tr v-for="breeder in breeders.data" :key="breeder.id" class="hover:bg-accent/20">
+                            <tr
+                                v-for="breeder in breeders.data"
+                                :key="breeder.id"
+                                class="hover:bg-accent/20"
+                            >
                                 <td class="px-4 py-3">
                                     <Link
-                                        :href="breederShow({ breeder: breeder.id }).url"
+                                        :href="
+                                            breederShow({ breeder: breeder.id })
+                                                .url
+                                        "
                                         class="font-medium text-foreground hover:underline"
                                     >
                                         {{ breeder.name }}
                                     </Link>
-                                    <p class="text-xs text-muted-foreground">{{ breeder.address }}</p>
+                                    <p class="text-xs text-muted-foreground">
+                                        {{ breeder.address }}
+                                    </p>
                                 </td>
                                 <td class="px-4 py-3 text-muted-foreground">
-                                    <p>{{ breeder.postal_code }} {{ breeder.city }}</p>
-                                    <p>{{ breeder.phone ?? breeder.email ?? '-' }}</p>
+                                    <p>
+                                        {{ breeder.postal_code }}
+                                        {{ breeder.city }}
+                                    </p>
+                                    <p>
+                                        {{
+                                            breeder.phone ??
+                                            breeder.email ??
+                                            '-'
+                                        }}
+                                    </p>
                                 </td>
-                                <td class="px-4 py-3 text-muted-foreground">{{ breeder.herd_number ?? '-' }}</td>
+                                <td class="px-4 py-3 text-muted-foreground">
+                                    {{ breeder.herd_number ?? '-' }}
+                                </td>
                                 <td class="px-4 py-3 text-right tabular-nums">
                                     <Link
-                                        :href="breederShow({ breeder: breeder.id }).url"
+                                        :href="
+                                            breederShow({ breeder: breeder.id })
+                                                .url
+                                        "
                                         class="hover:underline"
                                         title="Voir les analyses"
                                     >
@@ -171,9 +238,15 @@ function uploadCsv(): void {
                                     </Link>
                                 </td>
                                 <td class="px-4 py-3">
-                                    <div class="flex items-center justify-center gap-1">
+                                    <div
+                                        class="flex items-center justify-center gap-1"
+                                    >
                                         <Link
-                                            :href="breederEdit({ breeder: breeder.id }).url"
+                                            :href="
+                                                breederEdit({
+                                                    breeder: breeder.id,
+                                                }).url
+                                            "
                                             class="rounded p-1.5 text-muted-foreground hover:bg-accent hover:text-accent-foreground"
                                             title="Modifier"
                                         >
@@ -190,7 +263,12 @@ function uploadCsv(): void {
                                 </td>
                             </tr>
                             <tr v-if="breeders.data.length === 0">
-                                <td colspan="5" class="px-4 py-10 text-center text-sm text-muted-foreground">Aucun eleveur trouve.</td>
+                                <td
+                                    colspan="5"
+                                    class="px-4 py-10 text-center text-sm text-muted-foreground"
+                                >
+                                    Aucun eleveur trouve.
+                                </td>
                             </tr>
                         </tbody>
                     </table>

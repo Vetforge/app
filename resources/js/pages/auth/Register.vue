@@ -28,6 +28,10 @@ import { store } from '@/routes/register';
                 <div class="grid gap-2">
                     <Label for="name">Nom</Label>
                     <Input
+                        :aria-invalid="Boolean(errors.name)"
+                        :aria-describedby="
+                            errors.name ? 'name-error' : undefined
+                        "
                         id="name"
                         type="text"
                         required
@@ -37,12 +41,16 @@ import { store } from '@/routes/register';
                         name="name"
                         placeholder="Nom complet"
                     />
-                    <InputError :message="errors.name" />
+                    <InputError id="name-error" :message="errors.name" />
                 </div>
 
                 <div class="grid gap-2">
                     <Label for="email">Adresse e-mail</Label>
                     <Input
+                        :aria-invalid="Boolean(errors.email)"
+                        :aria-describedby="
+                            errors.email ? 'email-error' : undefined
+                        "
                         id="email"
                         type="email"
                         required
@@ -51,12 +59,16 @@ import { store } from '@/routes/register';
                         name="email"
                         placeholder="email@example.com"
                     />
-                    <InputError :message="errors.email" />
+                    <InputError id="email-error" :message="errors.email" />
                 </div>
 
                 <div class="grid gap-2">
                     <Label for="password">Mot de passe</Label>
                     <Input
+                        :aria-invalid="Boolean(errors.password)"
+                        :aria-describedby="
+                            errors.password ? 'password-error' : undefined
+                        "
                         id="password"
                         type="password"
                         required
@@ -65,12 +77,23 @@ import { store } from '@/routes/register';
                         name="password"
                         placeholder="Mot de passe"
                     />
-                    <InputError :message="errors.password" />
+                    <InputError
+                        id="password-error"
+                        :message="errors.password"
+                    />
                 </div>
 
                 <div class="grid gap-2">
-                    <Label for="password_confirmation">Confirmer le mot de passe</Label>
+                    <Label for="password_confirmation"
+                        >Confirmer le mot de passe</Label
+                    >
                     <Input
+                        :aria-invalid="Boolean(errors.password_confirmation)"
+                        :aria-describedby="
+                            errors.password_confirmation
+                                ? 'password_confirmation-error'
+                                : undefined
+                        "
                         id="password_confirmation"
                         type="password"
                         required
@@ -79,7 +102,10 @@ import { store } from '@/routes/register';
                         name="password_confirmation"
                         placeholder="Confirmer le mot de passe"
                     />
-                    <InputError :message="errors.password_confirmation" />
+                    <InputError
+                        id="password_confirmation-error"
+                        :message="errors.password_confirmation"
+                    />
                 </div>
 
                 <Button

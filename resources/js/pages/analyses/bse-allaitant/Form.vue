@@ -75,7 +75,9 @@ const form = reactive<FormState>({
     breeder_id: props.analysis?.breeder_id ?? '',
     animal_nom: props.analysis?.animal_nom ?? '',
     sampled_at: props.analysis?.sampled_at?.slice(0, 10) ?? '',
-    analyzed_at: props.analysis?.analyzed_at?.slice(0, 10) ?? new Date().toISOString().slice(0, 10),
+    analyzed_at:
+        props.analysis?.analyzed_at?.slice(0, 10) ??
+        new Date().toISOString().slice(0, 10),
     intervenant: props.analysis?.intervenant ?? '',
     payload: clonePlain(props.analysis?.payload ?? props.payloadTemplate),
 });
@@ -86,24 +88,42 @@ if (form.payload.comparison_analysis_id === undefined) {
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Accueil', href: dashboard() },
-    { title: props.module.short_label, href: analysesIndex({ module: props.module.slug }).url },
+    {
+        title: props.module.short_label,
+        href: analysesIndex({ module: props.module.slug }).url,
+    },
     { title: isEdit.value ? 'Modifier' : 'Nouvelle analyse', href: '#' },
 ];
 
-const raceOptions = ['Charolaise', 'Limousine', 'Blonde d\'Aquitaine', 'Salers', 'Aubrac', 'Autre'];
+const raceOptions = [
+    'Charolaise',
+    'Limousine',
+    "Blonde d'Aquitaine",
+    'Salers',
+    'Aubrac',
+    'Autre',
+];
 
 const filteredComparisonAnalyses = computed(() => {
     if (!form.breeder_id) return [];
     const breederId = Number(form.breeder_id);
-    return props.comparisonAnalyses.filter((analysis) => analysis.breeder_id === breederId);
+    return props.comparisonAnalyses.filter(
+        (analysis) => analysis.breeder_id === breederId,
+    );
 });
 
 watch(
     () => form.breeder_id,
     () => {
-        const selectedComparisonId = Number(form.payload.comparison_analysis_id);
+        const selectedComparisonId = Number(
+            form.payload.comparison_analysis_id,
+        );
         if (!selectedComparisonId) return;
-        if (!filteredComparisonAnalyses.value.some((analysis) => analysis.id === selectedComparisonId)) {
+        if (
+            !filteredComparisonAnalyses.value.some(
+                (analysis) => analysis.id === selectedComparisonId,
+            )
+        ) {
             form.payload.comparison_analysis_id = null;
         }
     },
@@ -114,30 +134,60 @@ function submit(): void {
     errors.value = {};
     const options = {
         preserveScroll: true,
-        onError: (serverErrors: Errors) => { errors.value = serverErrors; },
-        onFinish: () => { processing.value = false; },
+        onError: (serverErrors: Errors) => {
+            errors.value = serverErrors;
+        },
+        onFinish: () => {
+            processing.value = false;
+        },
     };
     const data = clonePlain(form);
     if (props.analysis) {
-        router.put(analysisUpdate({ analysis: props.analysis.id }).url, data, options);
+        router.put(
+            analysisUpdate({ analysis: props.analysis.id }).url,
+            data,
+            options,
+        );
         return;
     }
-    router.post(analysisStore({ module: props.module.slug }).url, data, options);
+    router.post(
+        analysisStore({ module: props.module.slug }).url,
+        data,
+        options,
+    );
 }
 </script>
 
 <template>
-    <Head :title="isEdit ? `Modifier ${module.short_label}` : `Nouvelle ${module.short_label}`" />
+    <Head
+        :title="
+            isEdit
+                ? `Modifier ${module.short_label}`
+                : `Nouvelle ${module.short_label}`
+        "
+    />
 
     <AppLayout :breadcrumbs="breadcrumbs">
-        <form class="analysis-form mx-auto flex max-w-7xl flex-col gap-3 p-3 sm:p-4" @submit.prevent="submit">
-            <div class="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between">
+        <form
+            class="analysis-form mx-auto flex max-w-7xl flex-col gap-3 p-3 sm:p-4"
+            @submit.prevent="submit"
+        >
+            <div
+                class="flex flex-col gap-2 lg:flex-row lg:items-start lg:justify-between"
+            >
                 <div>
-                    <h1 class="text-xl font-bold text-foreground">{{ isEdit ? 'Modifier BSE' : 'Nouveau BSE Allaitant' }}</h1>
-                    <p class="text-xs text-muted-foreground">{{ module.label }}</p>
+                    <h1 class="text-xl font-bold text-foreground">
+                        {{ isEdit ? 'Modifier BSE' : 'Nouveau BSE Allaitant' }}
+                    </h1>
+                    <p class="text-xs text-muted-foreground">
+                        {{ module.label }}
+                    </p>
                 </div>
                 <div class="flex flex-wrap gap-2">
-                    <Link :href="moduleSettingsEdit({ module: module.slug }).url" class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1 text-xs font-medium hover:bg-accent">
+                    <Link
+                        :href="moduleSettingsEdit({ module: module.slug }).url"
+                        class="inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1 text-xs font-medium hover:bg-accent"
+                    >
                         <Settings class="size-3.5" />
                         Reglages
                     </Link>
@@ -153,45 +203,141 @@ function submit(): void {
                 </div>
                 <div class="grid gap-2 md:grid-cols-2 xl:grid-cols-12">
                     <div class="grid gap-1 xl:col-span-4">
-                        <label class="text-sm font-medium" for="breeder_id">Eleveur *</label>
-                        <BreederSelectWithCreate v-model="form.breeder_id" input-id="breeder_id" :breeders="breeders" :create-url="quickBreederStoreUrl" />
-                        <input v-model="form.breeder_id" type="hidden" required />
-                        <InputError :message="errors.breeder_id" />
+                        <label class="text-sm font-medium" for="breeder_id"
+                            >Eleveur *</label
+                        >
+                        <BreederSelectWithCreate
+                            :aria-invalid="Boolean(errors.breeder_id)"
+                            :aria-describedby="
+                                errors.breeder_id
+                                    ? 'breeder_id-error'
+                                    : undefined
+                            "
+                            v-model="form.breeder_id"
+                            input-id="breeder_id"
+                            :breeders="breeders"
+                            :create-url="quickBreederStoreUrl"
+                        />
+                        <input
+                            v-model="form.breeder_id"
+                            type="hidden"
+                            required
+                        />
+                        <InputError
+                            id="breeder_id-error"
+                            :message="errors.breeder_id"
+                        />
                     </div>
                     <div class="grid gap-1 xl:col-span-2">
-                        <label class="text-sm font-medium" for="annee_reference">Annee de reference</label>
-                        <input id="annee_reference" v-model.number="form.payload.annee_reference" type="number" min="2000" max="2099" class="h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" />
+                        <label class="text-sm font-medium" for="annee_reference"
+                            >Annee de reference</label
+                        >
+                        <input
+                            id="annee_reference"
+                            v-model.number="form.payload.annee_reference"
+                            type="number"
+                            min="2000"
+                            max="2099"
+                            class="h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                        />
                     </div>
                     <div class="grid gap-1 xl:col-span-2">
-                        <label class="text-sm font-medium" for="race">Race</label>
-                        <select id="race" v-model="form.payload.race" class="h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm">
-                            <option v-for="race in raceOptions" :key="race" :value="race">{{ race }}</option>
+                        <label class="text-sm font-medium" for="race"
+                            >Race</label
+                        >
+                        <select
+                            id="race"
+                            v-model="form.payload.race"
+                            class="h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                        >
+                            <option
+                                v-for="race in raceOptions"
+                                :key="race"
+                                :value="race"
+                            >
+                                {{ race }}
+                            </option>
                         </select>
                     </div>
                     <div class="grid gap-1 xl:col-span-2">
-                        <label class="text-sm font-medium" for="analyzed_at">Date du bilan</label>
-                        <input id="analyzed_at" v-model="form.analyzed_at" type="date" class="h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" />
-                        <InputError :message="errors.analyzed_at" />
+                        <label class="text-sm font-medium" for="analyzed_at"
+                            >Date du bilan</label
+                        >
+                        <input
+                            :aria-invalid="Boolean(errors.analyzed_at)"
+                            :aria-describedby="
+                                errors.analyzed_at
+                                    ? 'analyzed_at-error'
+                                    : undefined
+                            "
+                            id="analyzed_at"
+                            v-model="form.analyzed_at"
+                            type="date"
+                            class="h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                        />
+                        <InputError
+                            id="analyzed_at-error"
+                            :message="errors.analyzed_at"
+                        />
                     </div>
                     <div class="grid gap-1 xl:col-span-2">
-                        <label class="text-sm font-medium" for="intervenant">Intervenant</label>
-                        <input id="intervenant" v-model="form.intervenant" class="h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm" />
-                        <InputError :message="errors.intervenant" />
+                        <label class="text-sm font-medium" for="intervenant"
+                            >Intervenant</label
+                        >
+                        <input
+                            :aria-invalid="Boolean(errors.intervenant)"
+                            :aria-describedby="
+                                errors.intervenant
+                                    ? 'intervenant-error'
+                                    : undefined
+                            "
+                            id="intervenant"
+                            v-model="form.intervenant"
+                            class="h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                        />
+                        <InputError
+                            id="intervenant-error"
+                            :message="errors.intervenant"
+                        />
                     </div>
                     <div class="grid gap-1 xl:col-span-4">
-                        <label class="text-sm font-medium" for="comparison_analysis_id">Comparer avec</label>
+                        <label
+                            class="text-sm font-medium"
+                            for="comparison_analysis_id"
+                            >Comparer avec</label
+                        >
                         <select
+                            :aria-invalid="
+                                Boolean(
+                                    errors['payload.comparison_analysis_id'],
+                                )
+                            "
+                            :aria-describedby="
+                                errors['payload.comparison_analysis_id']
+                                    ? 'comparison_analysis_id-error'
+                                    : undefined
+                            "
                             id="comparison_analysis_id"
                             v-model="form.payload.comparison_analysis_id"
                             class="h-10 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-                            :disabled="!form.breeder_id || filteredComparisonAnalyses.length === 0"
+                            :disabled="
+                                !form.breeder_id ||
+                                filteredComparisonAnalyses.length === 0
+                            "
                         >
                             <option :value="null">Aucun ancien bilan</option>
-                            <option v-for="comparison in filteredComparisonAnalyses" :key="comparison.id" :value="comparison.id">
+                            <option
+                                v-for="comparison in filteredComparisonAnalyses"
+                                :key="comparison.id"
+                                :value="comparison.id"
+                            >
                                 {{ comparison.label }}
                             </option>
                         </select>
-                        <InputError :message="errors['payload.comparison_analysis_id']" />
+                        <InputError
+                            id="comparison_analysis_id-error"
+                            :message="errors['payload.comparison_analysis_id']"
+                        />
                     </div>
                 </div>
             </section>
@@ -205,40 +351,120 @@ function submit(): void {
                 </div>
                 <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
                     <div class="grid gap-1">
-                        <label class="text-sm font-medium" for="nb_vaches">Nb vaches reproductrices</label>
-                        <input id="nb_vaches" v-model.number="form.payload.nb_vaches_reproductrices" type="number" min="0" class="rounded border border-border bg-background px-2 py-1 text-sm" />
+                        <label class="text-sm font-medium" for="nb_vaches"
+                            >Nb vaches reproductrices</label
+                        >
+                        <input
+                            id="nb_vaches"
+                            v-model.number="
+                                form.payload.nb_vaches_reproductrices
+                            "
+                            type="number"
+                            min="0"
+                            class="rounded border border-border bg-background px-2 py-1 text-sm"
+                        />
                     </div>
                     <div class="grid gap-1">
-                        <label class="text-sm font-medium" for="ivv">IVV (jours)</label>
-                        <input id="ivv" v-model.number="form.payload.ivv" type="number" min="0" class="rounded border border-border bg-background px-2 py-1 text-sm" />
+                        <label class="text-sm font-medium" for="ivv"
+                            >IVV (jours)</label
+                        >
+                        <input
+                            id="ivv"
+                            v-model.number="form.payload.ivv"
+                            type="number"
+                            min="0"
+                            class="rounded border border-border bg-background px-2 py-1 text-sm"
+                        />
                     </div>
                     <div class="grid gap-1">
-                        <label class="text-sm font-medium" for="nb_veaux_nes">Nb veaux nes vivants</label>
-                        <input id="nb_veaux_nes" v-model.number="form.payload.nb_veaux_nes_vivants" type="number" min="0" class="rounded border border-border bg-background px-2 py-1 text-sm" />
+                        <label class="text-sm font-medium" for="nb_veaux_nes"
+                            >Nb veaux nes vivants</label
+                        >
+                        <input
+                            id="nb_veaux_nes"
+                            v-model.number="form.payload.nb_veaux_nes_vivants"
+                            type="number"
+                            min="0"
+                            class="rounded border border-border bg-background px-2 py-1 text-sm"
+                        />
                     </div>
                     <div class="grid gap-1">
-                        <label class="text-sm font-medium" for="nb_jumeaux">Nb jumeaux</label>
-                        <input id="nb_jumeaux" v-model.number="form.payload.nb_jumeaux" type="number" min="0" class="rounded border border-border bg-background px-2 py-1 text-sm" />
+                        <label class="text-sm font-medium" for="nb_jumeaux"
+                            >Nb jumeaux</label
+                        >
+                        <input
+                            id="nb_jumeaux"
+                            v-model.number="form.payload.nb_jumeaux"
+                            type="number"
+                            min="0"
+                            class="rounded border border-border bg-background px-2 py-1 text-sm"
+                        />
                     </div>
                     <div class="grid gap-1">
-                        <label class="text-sm font-medium" for="nb_accidents_velage">Nb accidents velage (mort-nes)</label>
-                        <input id="nb_accidents_velage" v-model.number="form.payload.nb_accidents_velage" type="number" min="0" class="rounded border border-border bg-background px-2 py-1 text-sm" />
+                        <label
+                            class="text-sm font-medium"
+                            for="nb_accidents_velage"
+                            >Nb accidents velage (mort-nes)</label
+                        >
+                        <input
+                            id="nb_accidents_velage"
+                            v-model.number="form.payload.nb_accidents_velage"
+                            type="number"
+                            min="0"
+                            class="rounded border border-border bg-background px-2 py-1 text-sm"
+                        />
                     </div>
                     <div class="grid gap-1">
-                        <label class="text-sm font-medium" for="nb_avortons">Nb avortons</label>
-                        <input id="nb_avortons" v-model.number="form.payload.nb_avortons" type="number" min="0" class="rounded border border-border bg-background px-2 py-1 text-sm" />
+                        <label class="text-sm font-medium" for="nb_avortons"
+                            >Nb avortons</label
+                        >
+                        <input
+                            id="nb_avortons"
+                            v-model.number="form.payload.nb_avortons"
+                            type="number"
+                            min="0"
+                            class="rounded border border-border bg-background px-2 py-1 text-sm"
+                        />
                     </div>
                     <div class="grid gap-1">
-                        <label class="text-sm font-medium" for="nb_morts_post24h">Nb morts apres 24h</label>
-                        <input id="nb_morts_post24h" v-model.number="form.payload.nb_morts_post24h" type="number" min="0" class="rounded border border-border bg-background px-2 py-1 text-sm" />
+                        <label
+                            class="text-sm font-medium"
+                            for="nb_morts_post24h"
+                            >Nb morts apres 24h</label
+                        >
+                        <input
+                            id="nb_morts_post24h"
+                            v-model.number="form.payload.nb_morts_post24h"
+                            type="number"
+                            min="0"
+                            class="rounded border border-border bg-background px-2 py-1 text-sm"
+                        />
                     </div>
                     <div class="grid gap-1">
-                        <label class="text-sm font-medium" for="nb_sevres">Nb sevres</label>
-                        <input id="nb_sevres" v-model.number="form.payload.nb_sevres" type="number" min="0" class="rounded border border-border bg-background px-2 py-1 text-sm" />
+                        <label class="text-sm font-medium" for="nb_sevres"
+                            >Nb sevres</label
+                        >
+                        <input
+                            id="nb_sevres"
+                            v-model.number="form.payload.nb_sevres"
+                            type="number"
+                            min="0"
+                            class="rounded border border-border bg-background px-2 py-1 text-sm"
+                        />
                     </div>
                     <div class="grid gap-1">
-                        <label class="text-sm font-medium" for="nb_morts_avant3_mois">Nb morts avant 3 mois</label>
-                        <input id="nb_morts_avant3_mois" v-model.number="form.payload.nb_morts_avant3_mois" type="number" min="0" class="rounded border border-border bg-background px-2 py-1 text-sm" />
+                        <label
+                            class="text-sm font-medium"
+                            for="nb_morts_avant3_mois"
+                            >Nb morts avant 3 mois</label
+                        >
+                        <input
+                            id="nb_morts_avant3_mois"
+                            v-model.number="form.payload.nb_morts_avant3_mois"
+                            type="number"
+                            min="0"
+                            class="rounded border border-border bg-background px-2 py-1 text-sm"
+                        />
                     </div>
                 </div>
             </section>
@@ -254,50 +480,220 @@ function submit(): void {
                     <table class="w-full text-sm">
                         <thead>
                             <tr class="border-b border-border bg-muted/40">
-                                <th class="px-3 py-2 text-left font-medium text-xs">Affection</th>
-                                <th class="px-3 py-2 text-left font-medium text-xs">Nb malades</th>
-                                <th class="px-3 py-2 text-left font-medium text-xs">Nb morts</th>
+                                <th
+                                    class="px-3 py-2 text-left text-xs font-medium"
+                                >
+                                    Affection
+                                </th>
+                                <th
+                                    class="px-3 py-2 text-left text-xs font-medium"
+                                >
+                                    Nb malades
+                                </th>
+                                <th
+                                    class="px-3 py-2 text-left text-xs font-medium"
+                                >
+                                    Nb morts
+                                </th>
                             </tr>
                         </thead>
                         <tbody>
                             <tr class="border-b border-border/50">
-                                <td class="px-3 py-1.5 font-medium">Diarrhée 0-4j</td>
-                                <td class="px-3 py-1.5"><input v-model.number="form.payload.nb_malades_diar1" type="number" min="0" class="w-24 rounded border border-border bg-background px-2 py-1" /></td>
-                                <td class="px-3 py-1.5"><input v-model.number="form.payload.nb_morts_diar1" type="number" min="0" class="w-24 rounded border border-border bg-background px-2 py-1" /></td>
+                                <td class="px-3 py-1.5 font-medium">
+                                    Diarrhée 0-4j
+                                </td>
+                                <td class="px-3 py-1.5">
+                                    <input
+                                        :aria-label="'Malades — diarrhée de première semaine'"
+                                        v-model.number="
+                                            form.payload.nb_malades_diar1
+                                        "
+                                        type="number"
+                                        min="0"
+                                        class="w-24 rounded border border-border bg-background px-2 py-1"
+                                    />
+                                </td>
+                                <td class="px-3 py-1.5">
+                                    <input
+                                        :aria-label="'Morts — diarrhée de première semaine'"
+                                        v-model.number="
+                                            form.payload.nb_morts_diar1
+                                        "
+                                        type="number"
+                                        min="0"
+                                        class="w-24 rounded border border-border bg-background px-2 py-1"
+                                    />
+                                </td>
                             </tr>
                             <tr class="border-b border-border/50">
-                                <td class="px-3 py-1.5 font-medium">Diarrhée 5-21j</td>
-                                <td class="px-3 py-1.5"><input v-model.number="form.payload.nb_malades_diar2et3" type="number" min="0" class="w-24 rounded border border-border bg-background px-2 py-1" /></td>
-                                <td class="px-3 py-1.5"><input v-model.number="form.payload.nb_morts_diar2et3" type="number" min="0" class="w-24 rounded border border-border bg-background px-2 py-1" /></td>
+                                <td class="px-3 py-1.5 font-medium">
+                                    Diarrhée 5-21j
+                                </td>
+                                <td class="px-3 py-1.5">
+                                    <input
+                                        :aria-label="'Malades — diarrhée de deuxième et troisième semaines'"
+                                        v-model.number="
+                                            form.payload.nb_malades_diar2et3
+                                        "
+                                        type="number"
+                                        min="0"
+                                        class="w-24 rounded border border-border bg-background px-2 py-1"
+                                    />
+                                </td>
+                                <td class="px-3 py-1.5">
+                                    <input
+                                        :aria-label="'Morts — diarrhée de deuxième et troisième semaines'"
+                                        v-model.number="
+                                            form.payload.nb_morts_diar2et3
+                                        "
+                                        type="number"
+                                        min="0"
+                                        class="w-24 rounded border border-border bg-background px-2 py-1"
+                                    />
+                                </td>
                             </tr>
                             <tr class="border-b border-border/50">
-                                <td class="px-3 py-1.5 font-medium">Diarrhée > 21j</td>
-                                <td class="px-3 py-1.5"><input v-model.number="form.payload.nb_malades_diar4" type="number" min="0" class="w-24 rounded border border-border bg-background px-2 py-1" /></td>
-                                <td class="px-3 py-1.5"><input v-model.number="form.payload.nb_morts_diar4" type="number" min="0" class="w-24 rounded border border-border bg-background px-2 py-1" /></td>
+                                <td class="px-3 py-1.5 font-medium">
+                                    Diarrhée > 21j
+                                </td>
+                                <td class="px-3 py-1.5">
+                                    <input
+                                        :aria-label="'Malades — diarrhée de quatrième semaine'"
+                                        v-model.number="
+                                            form.payload.nb_malades_diar4
+                                        "
+                                        type="number"
+                                        min="0"
+                                        class="w-24 rounded border border-border bg-background px-2 py-1"
+                                    />
+                                </td>
+                                <td class="px-3 py-1.5">
+                                    <input
+                                        :aria-label="'Morts — diarrhée de quatrième semaine'"
+                                        v-model.number="
+                                            form.payload.nb_morts_diar4
+                                        "
+                                        type="number"
+                                        min="0"
+                                        class="w-24 rounded border border-border bg-background px-2 py-1"
+                                    />
+                                </td>
                             </tr>
                             <tr class="border-b border-border/50">
-                                <td class="px-3 py-1.5 text-muted-foreground text-xs pl-5">dont perfs diarrhee</td>
-                                <td class="px-3 py-1.5" colspan="2"><input v-model.number="form.payload.nb_diar_perf" type="number" min="0" class="w-24 rounded border border-border bg-background px-2 py-1" /></td>
+                                <td
+                                    class="px-3 py-1.5 pl-5 text-xs text-muted-foreground"
+                                >
+                                    dont perfs diarrhee
+                                </td>
+                                <td class="px-3 py-1.5" colspan="2">
+                                    <input
+                                        :aria-label="'Veaux perfusés pour diarrhée'"
+                                        v-model.number="
+                                            form.payload.nb_diar_perf
+                                        "
+                                        type="number"
+                                        min="0"
+                                        class="w-24 rounded border border-border bg-background px-2 py-1"
+                                    />
+                                </td>
                             </tr>
                             <tr class="border-b border-border/50">
-                                <td class="px-3 py-1.5 font-medium">Respiratoire</td>
-                                <td class="px-3 py-1.5"><input v-model.number="form.payload.nb_malades_respi" type="number" min="0" class="w-24 rounded border border-border bg-background px-2 py-1" /></td>
-                                <td class="px-3 py-1.5"><input v-model.number="form.payload.nb_morts_respi" type="number" min="0" class="w-24 rounded border border-border bg-background px-2 py-1" /></td>
+                                <td class="px-3 py-1.5 font-medium">
+                                    Respiratoire
+                                </td>
+                                <td class="px-3 py-1.5">
+                                    <input
+                                        :aria-label="'Malades — troubles respiratoires'"
+                                        v-model.number="
+                                            form.payload.nb_malades_respi
+                                        "
+                                        type="number"
+                                        min="0"
+                                        class="w-24 rounded border border-border bg-background px-2 py-1"
+                                    />
+                                </td>
+                                <td class="px-3 py-1.5">
+                                    <input
+                                        :aria-label="'Morts — troubles respiratoires'"
+                                        v-model.number="
+                                            form.payload.nb_morts_respi
+                                        "
+                                        type="number"
+                                        min="0"
+                                        class="w-24 rounded border border-border bg-background px-2 py-1"
+                                    />
+                                </td>
                             </tr>
                             <tr class="border-b border-border/50">
-                                <td class="px-3 py-1.5 font-medium">Omphalite</td>
-                                <td class="px-3 py-1.5"><input v-model.number="form.payload.nb_malades_omphalite" type="number" min="0" class="w-24 rounded border border-border bg-background px-2 py-1" /></td>
-                                <td class="px-3 py-1.5"><input v-model.number="form.payload.nb_morts_omphalite" type="number" min="0" class="w-24 rounded border border-border bg-background px-2 py-1" /></td>
+                                <td class="px-3 py-1.5 font-medium">
+                                    Omphalite
+                                </td>
+                                <td class="px-3 py-1.5">
+                                    <input
+                                        :aria-label="'Malades — omphalites'"
+                                        v-model.number="
+                                            form.payload.nb_malades_omphalite
+                                        "
+                                        type="number"
+                                        min="0"
+                                        class="w-24 rounded border border-border bg-background px-2 py-1"
+                                    />
+                                </td>
+                                <td class="px-3 py-1.5">
+                                    <input
+                                        :aria-label="'Morts — omphalites'"
+                                        v-model.number="
+                                            form.payload.nb_morts_omphalite
+                                        "
+                                        type="number"
+                                        min="0"
+                                        class="w-24 rounded border border-border bg-background px-2 py-1"
+                                    />
+                                </td>
                             </tr>
                             <tr class="border-b border-border/50">
                                 <td class="px-3 py-1.5 font-medium">Autres</td>
-                                <td class="px-3 py-1.5"><input v-model.number="form.payload.nb_malades_autres" type="number" min="0" class="w-24 rounded border border-border bg-background px-2 py-1" /></td>
-                                <td class="px-3 py-1.5"><input v-model.number="form.payload.nb_morts_autres" type="number" min="0" class="w-24 rounded border border-border bg-background px-2 py-1" /></td>
+                                <td class="px-3 py-1.5">
+                                    <input
+                                        :aria-label="'Malades — autres troubles'"
+                                        v-model.number="
+                                            form.payload.nb_malades_autres
+                                        "
+                                        type="number"
+                                        min="0"
+                                        class="w-24 rounded border border-border bg-background px-2 py-1"
+                                    />
+                                </td>
+                                <td class="px-3 py-1.5">
+                                    <input
+                                        :aria-label="'Morts — autres troubles'"
+                                        v-model.number="
+                                            form.payload.nb_morts_autres
+                                        "
+                                        type="number"
+                                        min="0"
+                                        class="w-24 rounded border border-border bg-background px-2 py-1"
+                                    />
+                                </td>
                             </tr>
-                            <tr class="border-b border-border/50 last:border-b-0">
-                                <td class="px-3 py-1.5 font-medium">Morts subites</td>
+                            <tr
+                                class="border-b border-border/50 last:border-b-0"
+                            >
+                                <td class="px-3 py-1.5 font-medium">
+                                    Morts subites
+                                </td>
                                 <td class="px-3 py-1.5">-</td>
-                                <td class="px-3 py-1.5"><input v-model.number="form.payload.nb_morts_subites" type="number" min="0" class="w-24 rounded border border-border bg-background px-2 py-1" /></td>
+                                <td class="px-3 py-1.5">
+                                    <input
+                                        :aria-label="'Morts subites'"
+                                        v-model.number="
+                                            form.payload.nb_morts_subites
+                                        "
+                                        type="number"
+                                        min="0"
+                                        class="w-24 rounded border border-border bg-background px-2 py-1"
+                                    />
+                                </td>
                             </tr>
                         </tbody>
                     </table>
@@ -313,24 +709,70 @@ function submit(): void {
                 </div>
                 <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
                     <div class="grid gap-1">
-                        <label class="text-sm font-medium" for="nb_velages_longs">Nb velages longs</label>
-                        <input id="nb_velages_longs" v-model.number="form.payload.nb_velages_longs" type="number" min="0" class="rounded border border-border bg-background px-2 py-1 text-sm" />
+                        <label
+                            class="text-sm font-medium"
+                            for="nb_velages_longs"
+                            >Nb velages longs</label
+                        >
+                        <input
+                            id="nb_velages_longs"
+                            v-model.number="form.payload.nb_velages_longs"
+                            type="number"
+                            min="0"
+                            class="rounded border border-border bg-background px-2 py-1 text-sm"
+                        />
                     </div>
                     <div class="grid gap-1">
-                        <label class="text-sm font-medium" for="nb_cesariennes">Nb cesariennes</label>
-                        <input id="nb_cesariennes" v-model.number="form.payload.nb_cesariennes" type="number" min="0" class="rounded border border-border bg-background px-2 py-1 text-sm" />
+                        <label class="text-sm font-medium" for="nb_cesariennes"
+                            >Nb cesariennes</label
+                        >
+                        <input
+                            id="nb_cesariennes"
+                            v-model.number="form.payload.nb_cesariennes"
+                            type="number"
+                            min="0"
+                            class="rounded border border-border bg-background px-2 py-1 text-sm"
+                        />
                     </div>
                     <div class="grid gap-1">
-                        <label class="text-sm font-medium" for="nb_non_delivrances">Nb non-delivrances</label>
-                        <input id="nb_non_delivrances" v-model.number="form.payload.nb_non_delivrances" type="number" min="0" class="rounded border border-border bg-background px-2 py-1 text-sm" />
+                        <label
+                            class="text-sm font-medium"
+                            for="nb_non_delivrances"
+                            >Nb non-delivrances</label
+                        >
+                        <input
+                            id="nb_non_delivrances"
+                            v-model.number="form.payload.nb_non_delivrances"
+                            type="number"
+                            min="0"
+                            class="rounded border border-border bg-background px-2 py-1 text-sm"
+                        />
                     </div>
                     <div class="grid gap-1">
-                        <label class="text-sm font-medium" for="nb_torsions">Nb torsions / retournements de matrice</label>
-                        <input id="nb_torsions" v-model.number="form.payload.nb_torsions_retournements_matrices" type="number" min="0" class="rounded border border-border bg-background px-2 py-1 text-sm" />
+                        <label class="text-sm font-medium" for="nb_torsions"
+                            >Nb torsions / retournements de matrice</label
+                        >
+                        <input
+                            id="nb_torsions"
+                            v-model.number="
+                                form.payload.nb_torsions_retournements_matrices
+                            "
+                            type="number"
+                            min="0"
+                            class="rounded border border-border bg-background px-2 py-1 text-sm"
+                        />
                     </div>
                     <div class="grid gap-1">
-                        <label class="text-sm font-medium" for="nb_metrites">Nb metrites</label>
-                        <input id="nb_metrites" v-model.number="form.payload.nb_metrites" type="number" min="0" class="rounded border border-border bg-background px-2 py-1 text-sm" />
+                        <label class="text-sm font-medium" for="nb_metrites"
+                            >Nb metrites</label
+                        >
+                        <input
+                            id="nb_metrites"
+                            v-model.number="form.payload.nb_metrites"
+                            type="number"
+                            min="0"
+                            class="rounded border border-border bg-background px-2 py-1 text-sm"
+                        />
                     </div>
                 </div>
             </section>
@@ -344,55 +786,159 @@ function submit(): void {
                 </div>
                 <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
                     <div class="grid gap-1">
-                        <label class="text-sm font-medium" for="ha_foin">Ha foin</label>
-                        <input id="ha_foin" v-model.number="form.payload.ha_foin" type="number" min="0" step="0.1" class="rounded border border-border bg-background px-2 py-1 text-sm" />
+                        <label class="text-sm font-medium" for="ha_foin"
+                            >Ha foin</label
+                        >
+                        <input
+                            id="ha_foin"
+                            v-model.number="form.payload.ha_foin"
+                            type="number"
+                            min="0"
+                            step="0.1"
+                            class="rounded border border-border bg-background px-2 py-1 text-sm"
+                        />
                     </div>
                     <div class="grid gap-1">
-                        <label class="text-sm font-medium" for="ha_ensilage_herbe">Ha ensilage herbe</label>
-                        <input id="ha_ensilage_herbe" v-model.number="form.payload.ha_ensilage_herbe" type="number" min="0" step="0.1" class="rounded border border-border bg-background px-2 py-1 text-sm" />
+                        <label
+                            class="text-sm font-medium"
+                            for="ha_ensilage_herbe"
+                            >Ha ensilage herbe</label
+                        >
+                        <input
+                            id="ha_ensilage_herbe"
+                            v-model.number="form.payload.ha_ensilage_herbe"
+                            type="number"
+                            min="0"
+                            step="0.1"
+                            class="rounded border border-border bg-background px-2 py-1 text-sm"
+                        />
                     </div>
                     <div class="grid gap-1">
-                        <label class="text-sm font-medium" for="ha_ensilage_mais">Ha ensilage mais</label>
-                        <input id="ha_ensilage_mais" v-model.number="form.payload.ha_ensilage_mais" type="number" min="0" step="0.1" class="rounded border border-border bg-background px-2 py-1 text-sm" />
+                        <label
+                            class="text-sm font-medium"
+                            for="ha_ensilage_mais"
+                            >Ha ensilage mais</label
+                        >
+                        <input
+                            id="ha_ensilage_mais"
+                            v-model.number="form.payload.ha_ensilage_mais"
+                            type="number"
+                            min="0"
+                            step="0.1"
+                            class="rounded border border-border bg-background px-2 py-1 text-sm"
+                        />
                     </div>
                     <div class="grid gap-1">
-                        <label class="text-sm font-medium" for="prod_cereales">Production cereales (t)</label>
-                        <input id="prod_cereales" v-model.number="form.payload.production_cereales_tonnes" type="number" min="0" step="0.1" class="rounded border border-border bg-background px-2 py-1 text-sm" />
+                        <label class="text-sm font-medium" for="prod_cereales"
+                            >Production cereales (t)</label
+                        >
+                        <input
+                            id="prod_cereales"
+                            v-model.number="
+                                form.payload.production_cereales_tonnes
+                            "
+                            type="number"
+                            min="0"
+                            step="0.1"
+                            class="rounded border border-border bg-background px-2 py-1 text-sm"
+                        />
                     </div>
                     <div class="grid gap-1">
-                        <label class="text-sm font-medium" for="achat_cereales_t">Achat cereales (t)</label>
-                        <input id="achat_cereales_t" v-model.number="form.payload.achat_cereales_tonnes" type="number" min="0" step="0.1" class="rounded border border-border bg-background px-2 py-1 text-sm" />
+                        <label
+                            class="text-sm font-medium"
+                            for="achat_cereales_t"
+                            >Achat cereales (t)</label
+                        >
+                        <input
+                            id="achat_cereales_t"
+                            v-model.number="form.payload.achat_cereales_tonnes"
+                            type="number"
+                            min="0"
+                            step="0.1"
+                            class="rounded border border-border bg-background px-2 py-1 text-sm"
+                        />
                     </div>
                     <div class="grid gap-1">
-                        <label class="text-sm font-medium" for="achat_cereales_eur">Achat cereales (€)</label>
-                        <input id="achat_cereales_eur" v-model.number="form.payload.achat_cereales_euros" type="number" min="0" class="rounded border border-border bg-background px-2 py-1 text-sm" />
+                        <label
+                            class="text-sm font-medium"
+                            for="achat_cereales_eur"
+                            >Achat cereales (€)</label
+                        >
+                        <input
+                            id="achat_cereales_eur"
+                            v-model.number="form.payload.achat_cereales_euros"
+                            type="number"
+                            min="0"
+                            class="rounded border border-border bg-background px-2 py-1 text-sm"
+                        />
                     </div>
                     <div class="grid gap-1">
-                        <label class="text-sm font-medium" for="achat_compl_t">Achat complementaire (t)</label>
-                        <input id="achat_compl_t" v-model.number="form.payload.achat_complementaire_tonnes" type="number" min="0" step="0.1" class="rounded border border-border bg-background px-2 py-1 text-sm" />
+                        <label class="text-sm font-medium" for="achat_compl_t"
+                            >Achat complementaire (t)</label
+                        >
+                        <input
+                            id="achat_compl_t"
+                            v-model.number="
+                                form.payload.achat_complementaire_tonnes
+                            "
+                            type="number"
+                            min="0"
+                            step="0.1"
+                            class="rounded border border-border bg-background px-2 py-1 text-sm"
+                        />
                     </div>
                     <div class="grid gap-1">
-                        <label class="text-sm font-medium" for="achat_compl_eur">Achat complementaire (€)</label>
-                        <input id="achat_compl_eur" v-model.number="form.payload.achat_complementaire_euros" type="number" min="0" class="rounded border border-border bg-background px-2 py-1 text-sm" />
+                        <label class="text-sm font-medium" for="achat_compl_eur"
+                            >Achat complementaire (€)</label
+                        >
+                        <input
+                            id="achat_compl_eur"
+                            v-model.number="
+                                form.payload.achat_complementaire_euros
+                            "
+                            type="number"
+                            min="0"
+                            class="rounded border border-border bg-background px-2 py-1 text-sm"
+                        />
                     </div>
                     <div class="grid gap-1">
-                        <label class="text-sm font-medium" for="achat_amv">Achat AMV (€)</label>
-                        <input id="achat_amv" v-model.number="form.payload.achat_amv_euros" type="number" min="0" class="rounded border border-border bg-background px-2 py-1 text-sm" />
+                        <label class="text-sm font-medium" for="achat_amv"
+                            >Achat AMV (€)</label
+                        >
+                        <input
+                            id="achat_amv"
+                            v-model.number="form.payload.achat_amv_euros"
+                            type="number"
+                            min="0"
+                            class="rounded border border-border bg-background px-2 py-1 text-sm"
+                        />
                     </div>
                 </div>
             </section>
 
-            <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div
+                class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"
+            >
                 <Link
-                    :href="analysis ? analysisShow({ analysis: analysis.id }).url : analysesIndex({ module: module.slug }).url"
+                    :href="
+                        analysis
+                            ? analysisShow({ analysis: analysis.id }).url
+                            : analysesIndex({ module: module.slug }).url
+                    "
                     class="inline-flex items-center justify-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium hover:bg-accent"
                 >
                     <Minus class="size-3.5" />
                     Annuler
                 </Link>
-                <button type="submit" :disabled="processing" class="inline-flex items-center justify-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground shadow hover:bg-primary/90 disabled:opacity-50">
+                <button
+                    type="submit"
+                    :disabled="processing"
+                    class="inline-flex items-center justify-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground shadow hover:bg-primary/90 disabled:opacity-50"
+                >
                     <Save class="size-4" />
-                    {{ processing ? 'Enregistrement...' : 'Enregistrer le BSE' }}
+                    {{
+                        processing ? 'Enregistrement...' : 'Enregistrer le BSE'
+                    }}
                 </button>
             </div>
         </form>
@@ -444,7 +990,8 @@ function submit(): void {
 .analysis-form select {
     padding-right: 2rem;
 }
-.analysis-form :is(input:not([type='checkbox']):not([type='hidden']), select):focus {
+.analysis-form
+    :is(input:not([type='checkbox']):not([type='hidden']), select):focus {
     border-color: var(--primary);
     box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 22%, transparent);
     outline: none;

@@ -1,6 +1,26 @@
 <script setup lang="ts">
-import { Plus, Search, X } from 'lucide-vue-next';
-import { computed, reactive, ref, watch } from 'vue';
+import { Plus, Search } from 'lucide-vue-next';
+import {
+    ComboboxRoot,
+    ComboboxInput,
+    ComboboxContent,
+    ComboboxViewport,
+    ComboboxItem,
+    ComboboxEmpty,
+} from 'reka-ui';
+import { computed, nextTick, reactive, ref, watch } from 'vue';
+import InputError from '@/components/InputError.vue';
+import {
+    Dialog,
+    DialogTrigger,
+    DialogScrollContent,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription,
+} from '@/components/ui/dialog';
+import { focusFirstInvalidField } from '@/lib/formValidation';
+
+defineOptions({ inheritAttrs: false });
 
 export interface BreederOption {
     id: number;
@@ -39,6 +59,7 @@ const dropdownOpen = ref(false);
 const modalOpen = ref(false);
 const creating = ref(false);
 const createErrors = ref<FieldErrors>({});
+const createError = ref('');
 const newBreeder = reactive({
     name: '',
     city: '',
@@ -127,12 +148,9 @@ function handleInput(event: Event): void {
     }
 }
 
-function closeDropdownSoon(): void {
-    window.setTimeout(() => {
-        dropdownOpen.value = false;
-        query.value = selectedLabel.value;
-    }, 120);
-}
+watch(dropdownOpen, (open) => {
+    if (!open) query.value = selectedLabel.value;
+});
 
 function openCreateModal(): void {
     resetCreateForm();
@@ -147,6 +165,7 @@ function closeCreateModal(): void {
 
 function resetCreateForm(): void {
     createErrors.value = {};
+    createError.value = '';
     Object.assign(newBreeder, {
         name: '',
         city: '',
@@ -157,7 +176,9 @@ function resetCreateForm(): void {
 }
 
 async function createBreeder(): Promise<void> {
+    if (creating.value) return;
     createErrors.value = {};
+    createError.value = '';
     creating.value = true;
 
     try {
@@ -175,7 +196,14 @@ async function createBreeder(): Promise<void> {
         const data = await response.json().catch(() => ({}));
 
         if (!response.ok) {
-            createErrors.value = normalizeErrors(data.errors);
+            if (response.status === 422) {
+                createErrors.value = normalizeErrors(data.errors);
+                await nextTick(focusFirstInvalidField);
+            } else
+                createError.value =
+                    response.status === 419 || response.status === 401
+                        ? 'Votre session a expiré. Reconnectez-vous avant de réessayer.'
+                        : 'La création a échoué. Vos données sont conservées ; réessayez.';
             return;
         }
 
@@ -186,6 +214,9 @@ async function createBreeder(): Promise<void> {
         ].sort((a, b) => a.name.localeCompare(b.name));
         selectBreeder(breeder);
         closeCreateModal();
+    } catch {
+        createError.value =
+            'Connexion interrompue. Vos données sont conservées ; réessayez.';
     } finally {
         creating.value = false;
     }
@@ -237,189 +268,212 @@ function csrfHeader(): Record<string, string> {
             :value="modelValue ?? ''"
         />
 
-        <div class="relative min-w-0 flex-1">
+        <ComboboxRoot
+            v-model:open="dropdownOpen"
+            :model-value="selectedBreeder ?? null"
+            @update:model-value="
+                (breeder) => {
+                    if (breeder) selectBreeder(breeder);
+                }
+            "
+            open-on-focus
+            open-on-click
+            ignore-filter
+            :reset-search-term-on-select="false"
+            :reset-search-term-on-blur="false"
+            class="relative min-w-0 flex-1"
+        >
             <Search
                 class="pointer-events-none absolute top-1/2 left-3.5 z-10 size-4 -translate-y-1/2 text-muted-foreground"
             />
-            <input
+            <ComboboxInput
+                v-bind="$attrs"
                 :id="inputId"
                 type="text"
-                role="combobox"
-                :aria-expanded="dropdownOpen"
-                :value="query"
+                v-model="query"
                 :placeholder="placeholder"
                 :required="required"
                 class="h-10 w-full rounded-lg border border-border bg-background py-2 pr-3 pl-9! text-sm leading-5 text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-primary focus:outline-none"
                 autocomplete="off"
-                @focus="dropdownOpen = true"
-                @blur="closeDropdownSoon"
                 @input="handleInput"
-                @keydown.esc="dropdownOpen = false"
             />
 
-            <div
-                v-if="dropdownOpen"
+            <ComboboxContent
                 class="absolute z-30 mt-1 max-h-72 w-full overflow-auto rounded-lg border border-border bg-popover py-1 text-sm shadow-lg"
             >
-                <button
-                    v-for="breeder in filteredBreeders"
-                    :key="breeder.id"
-                    type="button"
-                    class="flex w-full flex-col px-3 py-2 text-left hover:bg-accent"
-                    @mousedown.prevent="selectBreeder(breeder)"
-                >
-                    <span class="font-medium text-foreground">{{
-                        breeder.name
-                    }}</span>
-                    <span class="text-xs text-muted-foreground">
-                        {{
-                            [breeder.city, breeder.herd_number]
-                                .filter(Boolean)
-                                .join(' - ') || '-'
-                        }}
-                    </span>
-                </button>
-                <p
-                    v-if="filteredBreeders.length === 0"
-                    class="px-3 py-2 text-sm text-muted-foreground"
-                >
-                    Aucun eleveur trouve.
-                </p>
-            </div>
-        </div>
+                <ComboboxViewport>
+                    <ComboboxItem
+                        v-for="breeder in filteredBreeders"
+                        :key="breeder.id"
+                        :value="breeder"
+                        class="flex min-h-11 w-full cursor-pointer flex-col px-3 py-2 text-left outline-none data-[highlighted]:bg-accent"
+                    >
+                        <span class="font-medium text-foreground">{{
+                            breeder.name
+                        }}</span>
+                        <span class="text-xs text-muted-foreground">
+                            {{
+                                [breeder.city, breeder.herd_number]
+                                    .filter(Boolean)
+                                    .join(' - ') || '-'
+                            }}
+                        </span>
+                    </ComboboxItem>
+                    <ComboboxEmpty
+                        class="px-3 py-2 text-sm text-muted-foreground"
+                    >
+                        Aucun eleveur trouve.
+                    </ComboboxEmpty>
+                </ComboboxViewport>
+            </ComboboxContent>
+        </ComboboxRoot>
 
-        <button
-            type="button"
-            class="breeder-create-btn inline-flex size-10 shrink-0 items-center justify-center rounded-lg border border-border text-foreground hover:bg-accent"
-            title="Nouvel eleveur"
-            @click="openCreateModal"
-        >
-            <Plus class="size-4" />
-        </button>
-    </div>
-
-    <div
-        v-if="modalOpen"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-4 backdrop-blur-sm"
-    >
-        <form
-            class="w-full max-w-lg rounded-lg border border-border bg-card p-5 shadow-xl"
-            @submit.prevent="createBreeder"
-        >
-            <div class="mb-5 flex items-start justify-between gap-3">
-                <div>
-                    <h2 class="text-lg font-semibold text-foreground">
-                        Nouvel eleveur
-                    </h2>
-                    <p class="text-sm text-muted-foreground">
-                        Creation rapide rattachee a votre compte.
-                    </p>
-                </div>
+        <Dialog v-model:open="modalOpen">
+            <DialogTrigger as-child>
                 <button
                     type="button"
-                    class="rounded p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground"
-                    title="Fermer"
-                    @click="closeCreateModal"
+                    class="breeder-create-btn inline-flex size-11 shrink-0 items-center justify-center rounded-lg border border-border text-foreground hover:bg-accent"
+                    aria-label="Créer un éleveur"
+                    title="Nouvel éleveur"
+                    @click="openCreateModal"
                 >
-                    <X class="size-4" />
+                    <Plus class="size-4" />
                 </button>
-            </div>
-
-            <div class="grid gap-4 sm:grid-cols-2">
-                <div class="grid gap-1.5 sm:col-span-2">
-                    <label class="text-sm font-medium" for="quick_breeder_name">
-                        Nom *
-                    </label>
-                    <input
-                        id="quick_breeder_name"
-                        v-model="newBreeder.name"
-                        class="h-10 rounded-lg border border-border bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:outline-none"
-                        required
-                    />
+            </DialogTrigger>
+            <DialogScrollContent>
+                <form
+                    class="grid gap-5"
+                    @submit.prevent.stop="createBreeder"
+                    :aria-busy="creating"
+                >
+                    <DialogHeader>
+                        <DialogTitle> Nouvel eleveur </DialogTitle>
+                        <DialogDescription>
+                            Creation rapide rattachee a votre compte.
+                        </DialogDescription>
+                    </DialogHeader>
                     <p
-                        v-if="createErrors.name"
+                        v-if="createError"
+                        role="alert"
                         class="text-sm text-destructive"
                     >
-                        {{ createErrors.name }}
+                        {{ createError }}
                     </p>
-                </div>
 
-                <div class="grid gap-1.5">
-                    <label class="text-sm font-medium" for="quick_breeder_city">
-                        Ville
-                    </label>
-                    <input
-                        id="quick_breeder_city"
-                        v-model="newBreeder.city"
-                        class="h-10 rounded-lg border border-border bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:outline-none"
-                    />
-                </div>
+                    <div class="grid gap-4 sm:grid-cols-2">
+                        <div class="grid gap-1.5 sm:col-span-2">
+                            <label
+                                class="text-sm font-medium"
+                                for="quick_breeder_name"
+                            >
+                                Nom *
+                            </label>
+                            <input
+                                :aria-invalid="Boolean(createErrors.name)"
+                                :aria-describedby="
+                                    createErrors.name
+                                        ? 'quick_breeder_name-error'
+                                        : undefined
+                                "
+                                id="quick_breeder_name"
+                                v-model="newBreeder.name"
+                                class="h-10 rounded-lg border border-border bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:outline-none"
+                                required
+                            />
+                            <InputError
+                                id="quick_breeder_name-error"
+                                :message="createErrors.name"
+                            />
+                        </div>
 
-                <div class="grid gap-1.5">
-                    <label class="text-sm font-medium" for="quick_breeder_herd">
-                        Numero cheptel
-                    </label>
-                    <input
-                        id="quick_breeder_herd"
-                        v-model="newBreeder.herd_number"
-                        class="h-10 rounded-lg border border-border bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:outline-none"
-                    />
-                </div>
+                        <div class="grid gap-1.5">
+                            <label
+                                class="text-sm font-medium"
+                                for="quick_breeder_city"
+                            >
+                                Ville
+                            </label>
+                            <input
+                                id="quick_breeder_city"
+                                v-model="newBreeder.city"
+                                class="h-10 rounded-lg border border-border bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:outline-none"
+                            />
+                        </div>
 
-                <div class="grid gap-1.5">
-                    <label
-                        class="text-sm font-medium"
-                        for="quick_breeder_phone"
+                        <div class="grid gap-1.5">
+                            <label
+                                class="text-sm font-medium"
+                                for="quick_breeder_herd"
+                            >
+                                Numero cheptel
+                            </label>
+                            <input
+                                id="quick_breeder_herd"
+                                v-model="newBreeder.herd_number"
+                                class="h-10 rounded-lg border border-border bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:outline-none"
+                            />
+                        </div>
+
+                        <div class="grid gap-1.5">
+                            <label
+                                class="text-sm font-medium"
+                                for="quick_breeder_phone"
+                            >
+                                Telephone
+                            </label>
+                            <input
+                                id="quick_breeder_phone"
+                                v-model="newBreeder.phone"
+                                class="h-10 rounded-lg border border-border bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:outline-none"
+                            />
+                        </div>
+
+                        <div class="grid gap-1.5">
+                            <label
+                                class="text-sm font-medium"
+                                for="quick_breeder_email"
+                            >
+                                Email
+                            </label>
+                            <input
+                                :aria-invalid="Boolean(createErrors.email)"
+                                :aria-describedby="
+                                    createErrors.email
+                                        ? 'quick_breeder_email-error'
+                                        : undefined
+                                "
+                                id="quick_breeder_email"
+                                v-model="newBreeder.email"
+                                type="email"
+                                class="h-10 rounded-lg border border-border bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:outline-none"
+                            />
+                            <InputError
+                                id="quick_breeder_email-error"
+                                :message="createErrors.email"
+                            />
+                        </div>
+                    </div>
+
+                    <div
+                        class="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"
                     >
-                        Telephone
-                    </label>
-                    <input
-                        id="quick_breeder_phone"
-                        v-model="newBreeder.phone"
-                        class="h-10 rounded-lg border border-border bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:outline-none"
-                    />
-                </div>
-
-                <div class="grid gap-1.5">
-                    <label
-                        class="text-sm font-medium"
-                        for="quick_breeder_email"
-                    >
-                        Email
-                    </label>
-                    <input
-                        id="quick_breeder_email"
-                        v-model="newBreeder.email"
-                        type="email"
-                        class="h-10 rounded-lg border border-border bg-background px-3 py-2 text-sm focus:ring-2 focus:ring-primary focus:outline-none"
-                    />
-                    <p
-                        v-if="createErrors.email"
-                        class="text-sm text-destructive"
-                    >
-                        {{ createErrors.email }}
-                    </p>
-                </div>
-            </div>
-
-            <div
-                class="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end"
-            >
-                <button
-                    type="button"
-                    class="rounded-lg border border-border px-4 py-2 text-sm font-medium hover:bg-accent"
-                    @click="closeCreateModal"
-                >
-                    Annuler
-                </button>
-                <button
-                    type="submit"
-                    :disabled="creating"
-                    class="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow hover:bg-primary/90 disabled:opacity-50"
-                >
-                    {{ creating ? 'Creation...' : 'Creer' }}
-                </button>
-            </div>
-        </form>
+                        <button
+                            type="button"
+                            class="rounded-lg border border-border px-4 py-2 text-sm font-medium hover:bg-accent"
+                            @click="closeCreateModal"
+                        >
+                            Annuler
+                        </button>
+                        <button
+                            type="submit"
+                            :disabled="creating"
+                            class="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow hover:bg-primary/90 disabled:opacity-50"
+                        >
+                            {{ creating ? 'Creation...' : 'Creer' }}
+                        </button>
+                    </div>
+                </form>
+            </DialogScrollContent>
+        </Dialog>
     </div>
 </template>

@@ -15,7 +15,7 @@ use App\Services\RationHelper;
 class Impact
 {
     /**
-     * Lait permis par l'énergie : UFL disponible pour le lait ramené à un coût énergétique par litre
+     * Lait permis par l'énergie : UFL disponible pour le lait ramené à un coût énergétique par unité de lait (kg bovin/caprin, litre ovin)
      * propre à l'espèce (vache ch. 17-18, chèvre ch. 21, brebis ch. 20).
      */
     public static function calculerLaitPermisParUF(Ration $ration): float
@@ -36,7 +36,7 @@ class Impact
 
     /**
      * Lait permis par les protéines : PDI disponibles pour le lait ramenées à un coût protéique par
-     * litre propre à l'espèce.
+     * unité de lait (kg bovin/caprin, litre ovin) propre à l'espèce.
      */
     public static function calculerLaitPermisParPDI(Ration $ration): float
     {
@@ -54,9 +54,13 @@ class Impact
         return $pdiDisponibleLait / $coutParLitre;
     }
 
-    /** Coût énergétique (UFL) d'un litre de lait, selon l'espèce. */
+    /** Coût énergétique par unité de lait : kg bovin/caprin, litre ovin. */
     private static function coutUFLParLitreLait(Ration $ration): float
     {
+        if (RationHelper::categorie($ration->categorie_animal ?? '') === CategorieAnimal::VacheAllaitante) {
+            return 0.44; // Éq. 18.23, UFL/kg de lait tété.
+        }
+
         return match (RationHelper::categorie($ration->categorie_animal ?? '')->espece()) {
             Espece::Caprin => CaprinBesoin::coutUFLParLitreLait($ration),
             Espece::Ovin => OvinBesoin::coutUFLParLitreLait($ration),
@@ -64,7 +68,7 @@ class Impact
         };
     }
 
-    /** Coût protéique (PDI) d'un litre de lait, selon l'espèce. */
+    /** Coût protéique par unité de lait : kg bovin/caprin, litre ovin. */
     private static function coutPDIParLitreLait(Ration $ration): float
     {
         return match (RationHelper::categorie($ration->categorie_animal ?? '')->espece()) {
@@ -78,7 +82,8 @@ class Impact
     private static function coutPDIParLitreLaitBovin(Ration $ration): float
     {
         $effPdi = Apport::calculerEffPDI($ration);
-        $TP = Besoin::calculerTP($ration);
+        $TP = RationHelper::categorie($ration->categorie_animal ?? '') === CategorieAnimal::VacheAllaitante
+            ? 34.0 : Besoin::calculerTP($ration);
 
         return $effPdi > 0 ? $TP / $effPdi : 0.0;
     }
@@ -128,7 +133,7 @@ class Impact
         $pourcentageMS = Apport::calculerApportMSParMB($ration) * 100;
         $fourragesMS = Apport::calculerApportFourragesMS($ration);
         $PFO = $apportTotalMS > 0 ? $fourragesMS / $apportTotalMS : 0.0;
-        $MATf = $apportTotalMS > 0 ? Apport::calculerApportFourragesMAT($ration) / $apportTotalMS : 0.0;
+        $MATf = $fourragesMS > 0 ? Apport::calculerApportFourragesMAT($ration) / $fourragesMS : 0.0;
 
         $eauBueTH = self::calculerEauBueTH($ration);
 
@@ -405,7 +410,7 @@ class Impact
         $productionLimitante = min($laitPermisParUF, $laitPermisParPDI);
         $deltaPL = $productionLimitante - $laitObjectif;
 
-        return (0.42 + (0.0053 * (Besoin::calculerTB($ration) - 40)) + (0.0032 * (Besoin::calculerTP($ration) - 31))) * $deltaPL;
+        return self::coutUFLParLitreLait($ration) * $deltaPL;
     }
 
     private static function calculerBesoinTotalUFPotentiel(Ration $ration, float $PLpot): float

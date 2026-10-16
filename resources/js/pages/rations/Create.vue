@@ -185,6 +185,14 @@ function submit(): void {
                             :key="option.value"
                             type="button"
                             :disabled="!isSelectable(option)"
+                            :aria-invalid="
+                                Boolean(form.errors.categorie_animal)
+                            "
+                            :aria-describedby="
+                                form.errors.categorie_animal
+                                    ? 'categorie_animal-error'
+                                    : undefined
+                            "
                             :aria-pressed="
                                 form.categorie_animal === option.value
                             "
@@ -233,6 +241,7 @@ function submit(): void {
                         </button>
                     </div>
                     <InputError
+                        id="categorie_animal-error"
                         class="mt-2"
                         :message="form.errors.categorie_animal"
                     />
@@ -250,6 +259,11 @@ function submit(): void {
                         </h2>
                     </div>
                     <input
+                        :aria-label="'Ex : Vaches laitières hautes productrices'"
+                        :aria-invalid="Boolean(form.errors.nom)"
+                        :aria-describedby="
+                            form.errors.nom ? 'nom-error' : undefined
+                        "
                         id="nom"
                         v-model="form.nom"
                         name="nom"
@@ -258,7 +272,11 @@ function submit(): void {
                         placeholder="Ex : Vaches laitières hautes productrices"
                         required
                     />
-                    <InputError class="mt-2" :message="form.errors.nom" />
+                    <InputError
+                        id="nom-error"
+                        class="mt-2"
+                        :message="form.errors.nom"
+                    />
                 </section>
 
                 <div class="flex flex-col gap-3 sm:flex-row">

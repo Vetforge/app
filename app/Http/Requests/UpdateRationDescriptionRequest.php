@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Http\Requests;
 
 use App\Enums\CategorieAnimal;
+use App\Services\Reference\BovinCroissanceReference;
+use App\Support\PetitRuminantParameters;
 use App\Support\RationScientificMatrix;
 use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
@@ -59,14 +61,37 @@ class UpdateRationDescriptionRequest extends FormRequest
             $clear += ['jours_lactation' => null, 'jours_gestation' => null];
         }
         if (! $croissance) {
-            $clear += ['gmq' => null, 'sexe' => null, 'age_jours' => null, 'poids_adulte' => null, 'reference_bovine' => null];
+            $clear += ['sexe' => null, 'age_jours' => null, 'reference_bovine' => null];
+            if (! in_array($categorie, [CategorieAnimal::BrebisLaitiere, CategorieAnimal::BrebisAllaitante], true)) {
+                $clear += ['gmq' => null, 'poids_adulte' => null];
+            }
+        }
+        if ($croissance) {
+            $clear += ['mois_lactation' => null, 'mois_gestation' => null, 'jours_lactation' => null];
+            if ($categorie !== CategorieAnimal::ChevretteCroissance) {
+                $clear += ['jours_gestation' => null];
+            }
         }
         if (! $femelleAdulte) {
             $clear += [
                 'lait_objectif' => null, 'lait_potentiel' => null, 'mfc' => null, 'mpc' => null,
-                'nombre_jeunes' => null, 'poids_portee' => null, 'gmq_portee' => null,
+                'gmq_portee' => null,
                 'parite' => null, 'nec_velage' => null, 'ecart_variation_reserve' => null,
             ];
+        }
+        if (! $femelleAdulte && $categorie !== CategorieAnimal::ChevretteCroissance) {
+            $clear += ['nombre_jeunes' => null, 'poids_portee' => null];
+        }
+        if (! in_array($categorie, [CategorieAnimal::VacheLaitiere, CategorieAnimal::ChevreLaitiere], true)) {
+            $clear += ['age_mois' => null];
+        }
+        if (! in_array($categorie, [CategorieAnimal::BrebisLaitiere, CategorieAnimal::BrebisAllaitante], true)) {
+            $clear += ['variation_nec' => null, 'duree_variation_nec_jours' => null];
+        } else {
+            $clear += ['ecart_variation_reserve' => null];
+        }
+        if ($petitRuminant && ! $croissance && (int) $this->input('jours_lactation', 0) === 0) {
+            $clear += ['lait_objectif' => null, 'lait_potentiel' => null, 'gmq_portee' => null];
         }
         $clear['type_production_ovin'] = RationScientificMatrix::ovineProduction($categorie);
         $clear['stade_physiologique'] = RationScientificMatrix::physiologicalStage(
@@ -93,6 +118,9 @@ class UpdateRationDescriptionRequest extends FormRequest
             'nec_velage' => ['nullable', 'numeric', 'min:0', 'max:5'],
             'ivv' => ['nullable', 'integer', 'min:0'],
             'poids_veau_naissance' => ['nullable', 'numeric', 'min:0'],
+            'age_mois' => ['nullable', 'numeric', 'min:1', 'max:240'],
+            'variation_nec' => ['nullable', 'numeric', 'min:-2', 'max:2'],
+            'duree_variation_nec_jours' => ['nullable', 'integer', 'min:1', 'max:730'],
             'age_velage' => ['nullable', 'integer', 'min:0'],
             'age_jours' => ['nullable', 'integer', 'min:1', 'max:5000'],
             'sexe' => ['nullable', Rule::in(['femelle', 'male', 'male_castre'])],
@@ -125,6 +153,9 @@ class UpdateRationDescriptionRequest extends FormRequest
         ];
 
         $categorie = CategorieAnimal::tryFromLoose((string) $this->input('categorie_animal'));
+        if ($categorie === CategorieAnimal::VacheLaitiere) {
+            $rules['age_mois'][] = 'min:24';
+        }
         if ($categorie !== null) {
             foreach (RationScientificMatrix::for($categorie)['champs_interdits'] as $field) {
                 if (isset($rules[$field])) {
@@ -168,37 +199,23 @@ class UpdateRationDescriptionRequest extends FormRequest
                     $required($field, "Le champ {$field} est requis par le modèle scientifique sélectionné.");
                 }
 
+                foreach (PetitRuminantParameters::errors($categorie, $this->all()) as $field => $message) {
+                    if (! $validator->errors()->has($field)) {
+                        $validator->errors()->add($field, $message);
+                    }
+                }
+
                 if ($categorie->estEnCroissance()) {
                     $required('gmq', 'Le GMQ est requis pour un animal en croissance ou à l\'engraissement.');
                 }
                 if (in_array($categorie, [CategorieAnimal::BovinCroissance, CategorieAnimal::BovinEngraissement], true)) {
-                    $required('reference_bovine', 'La référence bovine INRA (Table 19.2, catégories 1 à 14) est requise.');
-                    $reference = (int) $this->input('reference_bovine', 0);
-                    $valides = $categorie === CategorieAnimal::BovinEngraissement ? range(1, 9) : range(10, 14);
-                    if ($reference > 0 && ! in_array($reference, $valides, true)) {
-                        $validator->errors()->add('reference_bovine', 'La référence choisie ne correspond pas au système énergétique de cette catégorie.');
-                    }
-                }
-
-                if ($categorie === CategorieAnimal::BovinCroissance && (float) $this->input('gmq', 0) > 1000) {
-                    $validator->errors()->add('gmq', 'Au-delà de 1 000 g/j, utiliser la catégorie bovin à l\'engraissement (UFV).');
-                }
-                if ($categorie === CategorieAnimal::BovinEngraissement && (float) $this->input('gmq', 0) <= 1000) {
-                    $validator->errors()->add('gmq', 'La catégorie engraissement (UFV) exige un GMQ supérieur à 1 000 g/j.');
-                }
-
-                if (in_array($categorie, [CategorieAnimal::AgneauCroissance, CategorieAnimal::ChevretteCroissance], true)) {
-                    $required('age_jours', 'L\'âge réel (jours) est requis pour sélectionner les équations de croissance.');
-                    $required('sexe', 'Le sexe est requis pour un jeune animal.');
-                    $required('poids_adulte', 'Le poids adulte cible est requis pour les équations de maturité et de minéraux.');
-                }
-                if ($categorie === CategorieAnimal::ChevretteCroissance && $this->input('sexe') !== 'femelle') {
-                    $validator->errors()->add('sexe', 'Les équations 21.39 à 21.43 de cette catégorie concernent les chevrettes femelles ; le jeune mâle n\'est pas proposé sous un modèle inadéquat.');
-                }
-                if (in_array($categorie, [CategorieAnimal::ChevreLaitiere, CategorieAnimal::ChevretteCroissance], true)) {
-                    $required('race', 'La race est requise pour le modèle caprin (Alpine, Saanen ou Autre).');
-                    if (! in_array((string) $this->input('race'), ['alpine', 'saanen', 'autre'], true)) {
-                        $validator->errors()->add('race', 'Le modèle caprin accepte les races Alpine, Saanen ou Autre (calculée comme Alpine).');
+                    foreach (BovinCroissanceReference::parameterErrors(
+                        $categorie,
+                        $this->filled('reference_bovine') ? (int) $this->input('reference_bovine') : null,
+                        $this->filled('poids_vif') ? (float) $this->input('poids_vif') : null,
+                        $this->filled('gmq') ? (int) $this->input('gmq') : null,
+                    ) as $field => $message) {
+                        $validator->errors()->add($field, $message);
                     }
                 }
 
@@ -211,31 +228,6 @@ class UpdateRationDescriptionRequest extends FormRequest
                     $required('parite', 'La parité est requise pour cette femelle reproductrice.');
                 }
 
-                $joursGestation = (int) $this->input('jours_gestation', 0);
-                if ($categorie->espece()->value === 'ovin' && $joursGestation > 147) {
-                    $validator->errors()->add('jours_gestation', 'La gestation ovine est limitée à 147 jours dans ce modèle.');
-                }
-                if ($categorie->espece()->value === 'caprin' && $joursGestation > 150) {
-                    $validator->errors()->add('jours_gestation', 'La gestation caprine est limitée à 150 jours dans ce modèle.');
-                }
-                if ($categorie->espece()->value === 'ovin' && (int) $this->input('jours_lactation', 0) > 140) {
-                    $validator->errors()->add('jours_lactation', 'Les équations ovines implémentées sont limitées aux 20 premières semaines (140 jours).');
-                }
-
-                if ($joursGestation > 0 && in_array($categorie, [
-                    CategorieAnimal::BrebisLaitiere,
-                    CategorieAnimal::BrebisAllaitante,
-                    CategorieAnimal::ChevreLaitiere,
-                ], true)) {
-                    $required('nombre_jeunes', 'Le nombre de jeunes est requis pour une femelle gestante.');
-                    $required('poids_portee', 'Le poids attendu de la portée est requis pour une femelle gestante.');
-                }
-
-                if (in_array($categorie, [CategorieAnimal::BrebisLaitiere, CategorieAnimal::ChevreLaitiere], true)
-                    && (int) $this->input('jours_lactation', 0) > 0
-                ) {
-                    $required('lait_objectif', 'La production laitière est requise pendant la lactation.');
-                }
             },
         ];
     }

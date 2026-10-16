@@ -16,6 +16,10 @@ class Ration extends Model
     /** @use HasFactory<RationFactory> */
     use HasFactory;
 
+    protected $attributes = [
+        'age_mois' => null, 'variation_nec' => null, 'duree_variation_nec_jours' => null,
+    ];
+
     protected $fillable = [
         'plan_rationnement_id', 'nom', 'effectif', 'lait_potentiel305j', 'poids_vif',
         'pourcentage_primipare', 'nec', 'tb_annuel', 'tp_annuel', 'activite',
@@ -25,6 +29,7 @@ class Ration extends Model
         'ecart_variation_reserve', 'strategie', 'lait_objectif_auge', 'race',
         'mois_lactation', 'mois_gestation', 'categorie_animal',
         // Champs multi-espèces (INRA 2018)
+        'age_mois', 'variation_nec', 'duree_variation_nec_jours',
         'gmq', 'stade_physiologique', 'jours_gestation', 'jours_lactation',
         'nombre_jeunes', 'poids_portee', 'gmq_portee', 'mfc', 'mpc', 'type_production_ovin',
     ];
@@ -37,6 +42,9 @@ class Ration extends Model
             'lait_potentiel' => 'float',
             'poids_adulte' => 'float',
             'age_jours' => 'integer',
+            'age_mois' => 'float',
+            'variation_nec' => 'float',
+            'duree_variation_nec_jours' => 'integer',
             'parite' => 'integer',
             'reference_bovine' => 'integer',
             'mois_lactation' => 'float',

@@ -189,7 +189,7 @@ class BovinCroissanceBesoin
             $kmMaint = $km;
         } else {
             // Croissance lente : q' fonction du gain, expression en UFL via kls.
-            $qp = 0.62 - 0.262 * exp(-3.175 * self::adg($ration) / 1000.0);
+            $qp = 0.62 - 0.262 * exp(-3.175 * self::adg($ration));
             $kmMaint = 0.287 * $qp + 0.554;
             $conv = 0.65 + 0.247 * ($qp - 0.63); // kls
         }
@@ -226,6 +226,10 @@ class BovinCroissanceBesoin
 
     private static function bwAdulte(Ration $ration): float
     {
+        if ($ration->poids_adulte !== null && $ration->poids_adulte > 0) {
+            return (float) $ration->poids_adulte;
+        }
+
         $ref = self::reference($ration);
 
         return $ref['bw_initial'] * exp($ref['d1']);
