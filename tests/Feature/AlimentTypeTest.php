@@ -251,7 +251,7 @@ it('allows correcting a legacy type without changing incomplete nutritional valu
     ])->assertSessionHasNoErrors();
     expect($aliment->fresh()->type)->toBe($type)
         ->and($aliment->fresh()->libelle1)->toBe('Libellé conservé')
-        ->and((float) $aliment->fresh()->ms)->toBe(87.453)
+        ->and((float) $aliment->fresh()->ms)->toBe($type === 'mineral' ? 100.0 : 87.453)
         ->and((float) $aliment->fresh()->ufl)->toBe(0.854392)
         ->and($aliment->fresh()->ufv)->toBeNull();
     if ($type === 'mineral') {

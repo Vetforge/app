@@ -25,7 +25,7 @@ final class ReferenceRations
         'MO' => 'mo', 'dMO Ruminants°' => 'd_mo', 'EB' => 'eb', 'EM Ruminants°' => 'em',
         'UFL°' => 'ufl', 'PB [MAT]' => 'mat', 'DT6 N°' => 'dt6_n', 'PDIA°' => 'pdia',
         'PDI°' => 'pdi', 'BPR°' => 'bpr', 'LysDI°' => 'lys_di', 'MetDI°' => 'met_di',
-        'Amidon' => 'amidon', 'DT Amidon°' => 'dt6_ami', 'Sucres' => 'sucres',
+        'Amidon' => 'amidon', 'DT Amidon°' => 'dt_ami', 'Sucres' => 'sucres',
         'CB' => 'cb', 'NDF' => 'ndf', 'ADF' => 'adf', 'Ca' => 'ca',
         'Ca abs. Ruminants' => 'caabs', 'P' => 'p', 'P abs. Ruminants' => 'pabs', 'Mg' => 'mg', 'K' => 'k',
     ];
@@ -77,7 +77,7 @@ final class ReferenceRations
      * Les g/kg brut, kcal/kg brut, UF/kg brut et UE/kg brut passent en /kg MS.
      * Les pourcentages de digestibilité et %PDI restent inchangés ; MS passe de g/kg à %.
      *
-     * @param array<string, mixed> $feed
+     * @param  array<string, mixed>  $feed
      * @return array<string, float|null>
      */
     public static function attributes(array $feed): array
@@ -167,7 +167,7 @@ final class ReferenceRations
     }
 
     /** @param array<string, mixed> $report
-     * @param array<string, mixed> $row
+     * @param  array<string, mixed>  $row
      */
     public static function blockedReason(array $report, array $row): ?string
     {
@@ -244,8 +244,8 @@ final class ReferenceRations
      * Résultats comparables après complétion. Les champs réellement absents du catalogue et
      * les effets non exposés par le moteur restent explicites dans la liste des incomplets.
      *
-     * @param array<string, mixed> $report
-     * @param array<string, mixed> $row
+     * @param  array<string, mixed>  $report
+     * @param  array<string, mixed>  $row
      */
     public static function completedMetricKey(array $report, array $row): ?string
     {
@@ -265,6 +265,7 @@ final class ReferenceRations
                 return $label;
             }
         }
+
         return null;
     }
 

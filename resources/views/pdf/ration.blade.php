@@ -803,8 +803,9 @@
             && \App\Services\RationHelper::aProductionLaitierePrevue($ration);
         $minerauxValides = (bool) ($meta['mineraux_valides'] ?? false);
         $is2018 = ($resultats['inra'] ?? '2018') === '2018';
-        $normes = $normes ?? \App\Support\RationNormes::payloadForUser(request()->user());
+        $normes = $normes ?? \App\Support\RationNormes::payloadForUser(request()->user(), categorie: $ration->categorie());
         $activeNormes = $normes['active'] ?? [];
+        $metricStatuses = \App\Support\RationNormes::statuses($resultats, $activeNormes, $ration->lait_objectif);
         $normeDefinitions = [];
 
         foreach (($normes['editable'] ?? []) as $definition) {
@@ -906,209 +907,16 @@
             return $apport / $besoin;
         };
 
-        $coverageStatus = static function (?float $ratio): string {
-            if ($ratio === null) {
-                return 'neutral';
-            }
+        $normeStatus = static fn (string $key): string => $metricStatuses[$key] ?? 'neutral';
 
-            if ($ratio < 0.95) {
-                return 'alert';
-            }
+        $coverageStatus = static fn (?float $ratio, string $key = 'uf'): string => $ratio === null ? 'neutral' : $normeStatus('couverture_'.$key);
+        $goalStatus = static fn ($limitant, $objectif): string => $limitant === null || $objectif === null || $objectif <= 0 ? 'neutral' : $normeStatus('couverture_lait');
 
-            if ($ratio < 1 || $ratio > 1.15) {
-                return 'watch';
-            }
-
-            return 'ok';
-        };
-
-        $goalStatus = static function ($limitant, $objectif): string {
-            if ($limitant === null || $objectif === null) {
-                return 'neutral';
-            }
-
-            $limitant = (float) $limitant;
-            $objectif = (float) $objectif;
-
-            if ($objectif <= 0) {
-                return 'neutral';
-            }
-
-            if ($limitant < $objectif * 0.95) {
-                return 'alert';
-            }
-
-            if ($limitant < $objectif) {
-                return 'watch';
-            }
-
-            return 'ok';
-        };
-
-        $detailStatus = static function (array $row): string {
-            $value = $row['value'] ?? null;
-
-            if ($value === null || is_nan((float) $value)) {
-                return 'neutral';
-            }
-
-            if (array_key_exists('min', $row) && $row['min'] !== null && $value < $row['min']) {
-                return 'alert';
-            }
-
-            if (array_key_exists('max', $row) && $row['max'] !== null && $value > $row['max']) {
-                return 'alert';
-            }
-
-            if (array_key_exists('goodAbove', $row) && $row['goodAbove'] !== null && $value < $row['goodAbove']) {
-                return 'alert';
-            }
-
-            if (array_key_exists('goodBelow', $row) && $row['goodBelow'] !== null && $value > $row['goodBelow']) {
-                return 'alert';
-            }
-
-            if (
-                array_key_exists('min', $row)
-                || array_key_exists('max', $row)
-                || array_key_exists('goodAbove', $row)
-                || array_key_exists('goodBelow', $row)
-            ) {
-                return 'ok';
-            }
-
-            return 'neutral';
-        };
-
-        $healthDetailStatus = static function (array $row) use ($detailStatus): string {
-            $value = $row['value'] ?? null;
-            $metricKey = $row['metricKey'] ?? null;
-
-            if ($value === null || is_nan((float) $value)) {
-                return 'neutral';
-            }
-
-            // Sans borne configurée (les seuils par défaut ne sont pas des normes INRA
-            // universelles), l'indicateur reste informatif : pas d'alerte par défaut.
-            if (($row['min'] ?? null) === null && ($row['max'] ?? null) === null) {
-                return 'neutral';
-            }
-
-            if ($metricKey === 'be') {
-                if (($row['max'] ?? null) !== null && $value > $row['max']) {
-                    return 'ok';
-                }
-
-                if (($row['min'] ?? null) !== null && $value > $row['min']) {
-                    return 'watch';
-                }
-
-                return 'alert';
-            }
-
-            if (in_array($metricKey, ['amid_ru', 'pco_percent', 'ira'], true)) {
-                if (($row['min'] ?? null) !== null && $value < $row['min']) {
-                    return 'ok';
-                }
-
-                if (($row['max'] ?? null) !== null && $value < $row['max']) {
-                    return 'watch';
-                }
-
-                return 'alert';
-            }
-
-            if ($metricKey === 'ndf_total') {
-                if (($row['max'] ?? null) !== null && $value > $row['max']) {
-                    return 'ok';
-                }
-
-                if (($row['min'] ?? null) !== null && $value > $row['min']) {
-                    return 'watch';
-                }
-
-                return 'alert';
-            }
-
-            if ($metricKey === 'ph_ruminal') {
-                return (($row['min'] ?? null) !== null && $value < $row['min']) ? 'alert' : 'ok';
-            }
-
-            return $detailStatus($row);
-        };
-
-        $fiberDetailStatus = static function (array $row) use ($detailStatus): string {
-            $value = $row['value'] ?? null;
-            $label = $row['label'] ?? '';
-            $metricKey = $row['metricKey'] ?? null;
-
-            if ($value === null || is_nan((float) $value)) {
-                return 'neutral';
-            }
-
-            // Idem section fibres : pas de seuil configuré ⇒ information, pas d'alerte.
-            if (($row['min'] ?? null) === null && ($row['max'] ?? null) === null) {
-                return 'neutral';
-            }
-
-            if ($metricKey === 'cb_par_kg_ms') {
-                return (($row['min'] ?? null) !== null && $value < $row['min']) ? 'alert' : 'ok';
-            }
-
-            if (in_array($label, ['Apport en ADF', 'Apport en MS'], true)) {
-                return 'neutral';
-            }
-
-            if ($metricKey === 'ndf_total') {
-                if (($row['max'] ?? null) !== null && $value > $row['max']) {
-                    return 'ok';
-                }
-
-                if (($row['min'] ?? null) !== null && $value > $row['min']) {
-                    return 'watch';
-                }
-
-                return 'alert';
-            }
-
-            return $detailStatus($row);
-        };
-
-        $comparisonStatus = static function (array $row) use ($safeRatio): string {
-            $ratio = $safeRatio($row['apport'] ?? null, $row['besoin'] ?? null);
-
-            if ($ratio === null) {
-                return 'neutral';
-            }
-
-            if ($ratio < 0.95) {
-                return 'alert';
-            }
-
-            if ($ratio > 1.4) {
-                return 'watch';
-            }
-
-            return 'ok';
-        };
-
-        $balanceStatus = static function (array $row) use ($safeRatio): string {
-            $ratio = $safeRatio($row['apport'] ?? null, $row['besoin'] ?? null);
-
-            if ($ratio === null) {
-                return 'neutral';
-            }
-
-            if ($ratio <= 0.9) {
-                return 'alert';
-            }
-
-            if ($ratio >= 1.1) {
-                return 'watch';
-            }
-
-            return 'ok';
-        };
+        $detailStatus = static fn (array $row): string => $normeStatus($row['metricKey'] ?? '');
+        $healthDetailStatus = $detailStatus;
+        $fiberDetailStatus = $detailStatus;
+        $comparisonStatus = static fn (array $row): string => $normeStatus($row['metricKey'] ?? '');
+        $balanceStatus = $comparisonStatus;
 
         $statusLabel = static function (string $status): string {
             return match ($status) {
@@ -1324,43 +1132,43 @@
         $proteinsRows = $is2018 ? [
             ['label' => 'Apport PDI', 'value' => $apports['pdi'] ?? null, 'unit' => 'g/j', 'decimals' => 0],
             ['label' => 'Besoin PDI', 'value' => $besoins['pdi_total'] ?? null, 'unit' => 'g/j', 'decimals' => 0],
-            ['label' => 'PDI', 'value' => $indicateurs['pdi_par_kg_ms'] ?? null, 'unit' => 'g/kg MS', 'decimals' => 2],
+            ['metricKey' => 'pdi_par_kg_ms', 'label' => 'PDI', 'value' => $indicateurs['pdi_par_kg_ms'] ?? null, 'unit' => 'g/kg MS', 'decimals' => 2],
             ['metricKey' => 'eff_pdi', 'label' => $metricLabel('eff_pdi'), 'value' => isset($indicateurs['eff_pdi']) ? $indicateurs['eff_pdi'] * 100 : null, 'unit' => '%', 'decimals' => 0, ...$metricNorme('eff_pdi')],
             ['metricKey' => 'bpr', 'label' => $metricLabel('bpr'), 'value' => $indicateurs['bpr'] ?? null, 'unit' => 'g/kg MS', 'decimals' => 2, ...$metricNorme('bpr')],
             ['label' => 'Lait permis par les PDI', 'value' => $impacts['lait_par_pdi'] ?? null, 'unit' => $uniteLait, 'decimals' => 2],
             ['label' => 'Production laitière attendue', 'value' => $impacts['production_lait_attendue'] ?? null, 'unit' => $uniteLait, 'decimals' => 2],
-            ['label' => 'Azote urinaire', 'value' => $indicateurs['azote_urinaire'] ?? null, 'unit' => 'g/j', 'decimals' => 0],
-            ['label' => 'Azote fecale', 'value' => $indicateurs['azote_fecale'] ?? null, 'unit' => 'g/j', 'decimals' => 0],
+            ['metricKey' => 'azote_urinaire', 'label' => 'Azote urinaire', 'value' => $indicateurs['azote_urinaire'] ?? null, 'unit' => 'g/j', 'decimals' => 0],
+            ['metricKey' => 'azote_fecale', 'label' => 'Azote fecale', 'value' => $indicateurs['azote_fecale'] ?? null, 'unit' => 'g/j', 'decimals' => 0],
         ] : [];
 
         $healthRows = $is2018 ? [
             ['metricKey' => 'be', 'label' => $metricLabel('be'), 'value' => $indicateurs['be'] ?? null, 'unit' => 'mEq/kg MS', 'decimals' => 0, ...$metricNorme('be')],
-            ['label' => 'MOD des concentrés (proxy interne)', 'value' => $indicateurs['mod_concentre'] ?? null, 'unit' => 'g/kg MS', 'decimals' => 0],
+            ['metricKey' => 'mod_concentre', 'label' => 'MOD des concentrés (proxy interne)', 'value' => $indicateurs['mod_concentre'] ?? null, 'unit' => 'g/kg MS', 'decimals' => 0],
             ['metricKey' => 'amid_ru', 'label' => $metricLabel('amid_ru'), 'value' => $indicateurs['amid_ru'] ?? null, 'unit' => 'g/kg MS', 'decimals' => 0, ...$metricNorme('amid_ru')],
             ['metricKey' => 'pco_percent', 'label' => $metricLabel('pco_percent'), 'value' => $indicateurs['pco_percent'] ?? null, 'unit' => '% MS', 'decimals' => 0, ...$metricNorme('pco_percent')],
-            ['label' => 'NDF des fourrages (proxy NDFfo)', 'value' => $indicateurs['ndf_fourrages'] ?? null, 'unit' => 'g/kg MS', 'decimals' => 0],
+            ['metricKey' => 'ndf_fourrages', 'label' => 'NDF des fourrages (proxy NDFfo)', 'value' => $indicateurs['ndf_fourrages'] ?? null, 'unit' => 'g/kg MS', 'decimals' => 0],
             ['metricKey' => 'ndf_total', 'label' => $metricLabel('ndf_total'), 'value' => $indicateurs['ndf_total'] ?? null, 'unit' => 'g/kg MS', 'decimals' => 0, ...$metricNorme('ndf_total')],
             ['metricKey' => 'ira', 'label' => $metricLabel('ira'), 'value' => $indicateurs['ira'] ?? null, 'unit' => null, 'decimals' => 2, ...$metricNorme('ira')],
             ['metricKey' => 'ph_ruminal', 'label' => $metricLabel('ph_ruminal'), 'value' => $indicateurs['ph_ruminal'] ?? null, 'unit' => null, 'decimals' => 2, ...$metricNorme('ph_ruminal')],
         ] : [];
 
         $fiberRows = $is2018 ? [
-            ['label' => 'Apport en MS', 'value' => $apports['ms'] ?? null, 'unit' => 'kg', 'decimals' => 2],
+            ['metricKey' => 'ms', 'label' => 'Apport en MS', 'value' => $apports['ms'] ?? null, 'unit' => 'kg', 'decimals' => 2],
             ['metricKey' => 'cb_par_kg_ms', 'label' => $metricLabel('cb_par_kg_ms'), 'value' => $indicateurs['cb_par_kg_ms'] ?? null, 'unit' => 'g/kg MS', 'decimals' => 0, ...$metricNorme('cb_par_kg_ms')],
-            ['label' => 'Apport en ADF', 'value' => $indicateurs['adf_par_kg_ms'] ?? null, 'unit' => 'g/kg MS', 'decimals' => 0],
+            ['metricKey' => 'adf_par_kg_ms', 'label' => 'Apport en ADF', 'value' => $indicateurs['adf_par_kg_ms'] ?? null, 'unit' => 'g/kg MS', 'decimals' => 0],
             ['metricKey' => 'ndf_total', 'label' => $metricLabel('ndf_total'), 'value' => $indicateurs['ndf_total'] ?? null, 'unit' => 'g/kg MS', 'decimals' => 0, ...$metricNorme('ndf_total')],
-            ['label' => 'NDF des fourrages (proxy NDFfo)', 'value' => $indicateurs['ndf_fourrages'] ?? null, 'unit' => 'g/kg MS', 'decimals' => 0],
+            ['metricKey' => 'ndf_fourrages', 'label' => 'NDF des fourrages (proxy NDFfo)', 'value' => $indicateurs['ndf_fourrages'] ?? null, 'unit' => 'g/kg MS', 'decimals' => 0],
         ] : [];
 
         $energyRows = $is2018 ? [
             ['label' => 'Apport '.$uniteEnergie, 'value' => $apports['ufl'] ?? null, 'unit' => $uniteEnergie.'/j', 'decimals' => 2],
             ['label' => 'Besoin '.$uniteEnergie, 'value' => $besoins['uf_total'] ?? null, 'unit' => $uniteEnergie.'/j', 'decimals' => 2],
-            ['label' => 'Apport '.$uniteEnergie.'/kg MS', 'value' => $indicateurs['ufl_par_kg_ms'] ?? null, 'unit' => $uniteEnergie.'/kg MS', 'decimals' => 2],
+            ['metricKey' => 'ufl_par_kg_ms', 'label' => 'Apport '.$uniteEnergie.'/kg MS', 'value' => $indicateurs['ufl_par_kg_ms'] ?? null, 'unit' => $uniteEnergie.'/kg MS', 'decimals' => 2],
             ['metricKey' => 'bil_ufl', 'label' => $metricLabel('bil_ufl'), 'value' => $impacts['bil_ufl'] ?? null, 'unit' => $uniteEnergie.'/j', 'decimals' => 2, ...$metricNorme('bil_ufl')],
             ['label' => 'Lait permis par les '.$uniteEnergie, 'value' => $impacts['lait_par_ufl'] ?? null, 'unit' => $uniteLait, 'decimals' => 2],
             ['label' => 'PLPot', 'value' => $indicateurs['pl_pot'] ?? null, 'unit' => $uniteLait, 'decimals' => 2],
-            ['label' => 'Variation de poids estimée (énergie)', 'value' => $impacts['variation_poids_energie'] ?? null, 'unit' => 'kg/j', 'decimals' => 2],
-            ['label' => 'Production CH4', 'value' => $impacts['ch4'] ?? null, 'unit' => 'g/j', 'decimals' => 0],
+            ['metricKey' => 'variation_poids_energie', 'label' => 'Variation de poids estimée (énergie)', 'value' => $impacts['variation_poids_energie'] ?? null, 'unit' => 'kg/j', 'decimals' => 2],
+            ['metricKey' => 'ch4', 'label' => 'Production CH4', 'value' => $impacts['ch4'] ?? null, 'unit' => 'g/j', 'decimals' => 0],
         ] : [];
 
         if (! $estLaitiere) {
@@ -1377,31 +1185,32 @@
         }
 
         $mineralBalanceRows = $is2018 ? [
-            ['label' => 'BACA', 'value' => $indicateurs['baca'] ?? null, 'unit' => 'mEq/kg MS', 'decimals' => 0],
-            ['label' => 'Supplémentation vitamine A', 'value' => $supplementations['vit_a'] ?? null, 'unit' => 'UI/j', 'decimals' => 0],
-            ['label' => 'Supplémentation vitamine D', 'value' => $supplementations['vit_d'] ?? null, 'unit' => 'UI/j', 'decimals' => 0],
-            ['label' => 'Supplémentation vitamine E', 'value' => $supplementations['vit_e'] ?? null, 'unit' => 'UI/j', 'decimals' => 0],
+            ['metricKey' => 'baca', 'label' => 'BACA', 'value' => $indicateurs['baca'] ?? null, 'unit' => 'mEq/kg MS', 'decimals' => 0],
+            ['metricKey' => 'vit_a', 'label' => 'Supplémentation vitamine A', 'value' => $supplementations['vit_a'] ?? null, 'unit' => 'UI/j', 'decimals' => 0],
+            ['metricKey' => 'vit_d', 'label' => 'Supplémentation vitamine D', 'value' => $supplementations['vit_d'] ?? null, 'unit' => 'UI/j', 'decimals' => 0],
+            ['metricKey' => 'vit_e', 'label' => 'Supplémentation vitamine E', 'value' => $supplementations['vit_e'] ?? null, 'unit' => 'UI/j', 'decimals' => 0],
         ] : [];
 
         $mineralRows = $is2018 ? [
-            ['label' => 'Calcium abs', 'apport' => $apports['caabs'] ?? null, 'besoin' => $besoins['caabs'] ?? null, 'unit' => 'g/j', 'decimals' => 0],
-            ['label' => 'Phosphore abs', 'apport' => $apports['pabs'] ?? ($apports['p'] ?? null), 'besoin' => $besoins['pabs'] ?? null, 'unit' => 'g/j', 'decimals' => 0],
-            ['label' => 'Magnésium abs', 'apport' => $apports['mgabs'] ?? null, 'besoin' => $besoins['mgabs'] ?? null, 'unit' => 'g/j', 'decimals' => 0],
-            ['label' => 'Sodium', 'apport' => $apports['na'] ?? null, 'besoin' => $besoins['na'] ?? null, 'unit' => 'g/j', 'decimals' => 0],
-            ['label' => 'Chlore', 'apport' => $apports['cl'] ?? null, 'besoin' => $besoins['cl'] ?? null, 'unit' => 'g/j', 'decimals' => 0],
-            ['label' => 'Potassium', 'apport' => $apports['k'] ?? null, 'besoin' => $besoins['k'] ?? null, 'unit' => 'g/j', 'decimals' => 0],
-            ['label' => 'Soufre', 'apport' => $apports['s'] ?? null, 'besoin' => $besoins['s'] ?? null, 'unit' => 'g/j', 'decimals' => 0],
-            ['label' => 'Cobalt', 'apport' => $apports['co'] ?? null, 'besoin' => $besoins['co'] ?? null, 'unit' => 'mg/j', 'decimals' => 0],
-            ['label' => 'Selenium', 'apport' => $apports['se'] ?? null, 'besoin' => $besoins['se'] ?? null, 'unit' => 'mg/j', 'decimals' => 0],
-            ['label' => 'Zinc', 'apport' => $apports['zn'] ?? null, 'besoin' => $besoins['zn'] ?? null, 'unit' => 'mg/j', 'decimals' => 0],
-            ['label' => 'Manganèse', 'apport' => $apports['mn'] ?? null, 'besoin' => $besoins['mn'] ?? null, 'unit' => 'mg/j', 'decimals' => 0],
-            ['label' => 'Cuivre', 'apport' => $apports['cu'] ?? null, 'besoin' => $besoins['cu'] ?? null, 'unit' => 'mg/j', 'decimals' => 0],
-            ['label' => 'Iode', 'apport' => $apports['i'] ?? null, 'besoin' => $besoins['i'] ?? null, 'unit' => 'mg/j', 'decimals' => 0],
-            ['label' => 'Molybdène', 'apport' => $apports['molybdene'] ?? null, 'besoin' => $besoins['molybdene'] ?? null, 'unit' => 'mg/j', 'decimals' => 1],
+            ['metricKey' => 'couverture_caabs', 'label' => 'Calcium abs', 'apport' => $apports['caabs'] ?? null, 'besoin' => $besoins['caabs'] ?? null, 'unit' => 'g/j', 'decimals' => 0],
+            ['metricKey' => 'couverture_pabs', 'label' => 'Phosphore abs', 'apport' => $apports['pabs'] ?? ($apports['p'] ?? null), 'besoin' => $besoins['pabs'] ?? null, 'unit' => 'g/j', 'decimals' => 0],
+            ['metricKey' => 'couverture_mgabs', 'label' => 'Magnésium abs', 'apport' => $apports['mgabs'] ?? null, 'besoin' => $besoins['mgabs'] ?? null, 'unit' => 'g/j', 'decimals' => 0],
+            ['metricKey' => 'couverture_na', 'label' => 'Sodium', 'apport' => $apports['na'] ?? null, 'besoin' => $besoins['na'] ?? null, 'unit' => 'g/j', 'decimals' => 0],
+            ['metricKey' => 'couverture_cl', 'label' => 'Chlore', 'apport' => $apports['cl'] ?? null, 'besoin' => $besoins['cl'] ?? null, 'unit' => 'g/j', 'decimals' => 0],
+            ['metricKey' => 'couverture_k', 'label' => 'Potassium', 'apport' => $apports['k'] ?? null, 'besoin' => $besoins['k'] ?? null, 'unit' => 'g/j', 'decimals' => 0],
+            ['metricKey' => 'couverture_s', 'label' => 'Soufre', 'apport' => $apports['s'] ?? null, 'besoin' => $besoins['s'] ?? null, 'unit' => 'g/j', 'decimals' => 0],
+            ['metricKey' => 'couverture_co', 'label' => 'Cobalt', 'apport' => $apports['co'] ?? null, 'besoin' => $besoins['co'] ?? null, 'unit' => 'mg/j', 'decimals' => 0],
+            ['metricKey' => 'couverture_se', 'label' => 'Selenium', 'apport' => $apports['se'] ?? null, 'besoin' => $besoins['se'] ?? null, 'unit' => 'mg/j', 'decimals' => 0],
+            ['metricKey' => 'couverture_zn', 'label' => 'Zinc', 'apport' => $apports['zn'] ?? null, 'besoin' => $besoins['zn'] ?? null, 'unit' => 'mg/j', 'decimals' => 0],
+            ['metricKey' => 'couverture_mn', 'label' => 'Manganèse', 'apport' => $apports['mn'] ?? null, 'besoin' => $besoins['mn'] ?? null, 'unit' => 'mg/j', 'decimals' => 0],
+            ['metricKey' => 'couverture_cu', 'label' => 'Cuivre', 'apport' => $apports['cu'] ?? null, 'besoin' => $besoins['cu'] ?? null, 'unit' => 'mg/j', 'decimals' => 0],
+            ['metricKey' => 'couverture_i', 'label' => 'Iode', 'apport' => $apports['i'] ?? null, 'besoin' => $besoins['i'] ?? null, 'unit' => 'mg/j', 'decimals' => 0],
+            ['metricKey' => 'couverture_molybdene', 'label' => 'Molybdène', 'apport' => $apports['molybdene'] ?? null, 'besoin' => $besoins['molybdene'] ?? null, 'unit' => 'mg/j', 'decimals' => 1],
         ] : [];
 
         $balanceRows = [
             [
+                'metricKey' => 'bilan_uf',
                 'label' => $uniteEnergie,
                 'apport' => $apports['ufl'] ?? null,
                 'besoin' => $besoins['uf_total'] ?? null,
@@ -1409,6 +1218,7 @@
                 'decimals' => 2,
             ],
             [
+                'metricKey' => 'bilan_ue',
                 'label' => $uniteEncombrement.' (kg MS)',
                 'apport' => $apports['ue'] ?? null,
                 'besoin' => $besoins['ci'] ?? null,
@@ -1420,6 +1230,7 @@
 
         if ($is2018) {
             $balanceRows[] = [
+                'metricKey' => 'bilan_pdi',
                 'label' => 'PDI (g/j)',
                 'apport' => $apports['pdi'] ?? null,
                 'besoin' => $besoins['pdi_total'] ?? null,
@@ -1428,6 +1239,7 @@
             ];
         } else {
             $balanceRows[] = [
+                'metricKey' => 'bilan_pdi',
                 'label' => 'PDIE (g/j)',
                 'apport' => $apports['pdie'] ?? null,
                 'besoin' => $besoins['pdi_total'] ?? null,
@@ -1444,14 +1256,16 @@
         }
 
         $balanceRows[] = [
-            'label' => 'Ca abs (g/j)',
+            'metricKey' => 'bilan_caabs',
+                'label' => 'Ca abs (g/j)',
             'apport' => $apports['caabs'] ?? null,
             'besoin' => $besoins['caabs'] ?? null,
             'bilan' => $bilans['caabs'] ?? null,
             'decimals' => 1,
         ];
         $balanceRows[] = [
-            'label' => 'P abs (g/j)',
+            'metricKey' => 'bilan_pabs',
+                'label' => 'P abs (g/j)',
             'apport' => $apports['pabs'] ?? ($apports['p'] ?? null),
             'besoin' => $besoins['pabs'] ?? null,
             'bilan' => $bilans['pabs'] ?? null,
@@ -1459,10 +1273,10 @@
         ];
 
         $fattyAcidRows = $is2018 ? [
-            ['label' => 'Production AGV totale dans le rumen', 'value' => $indicateurs['prod_agvt_jour'] ?? null, 'unit' => 'mol/j', 'decimals' => 2],
-            ['label' => 'Acide acétique', 'value' => $indicateurs['acetate'] ?? null, 'unit' => 'mol/100 mol AGV', 'decimals' => 0],
-            ['label' => 'Acide propionique', 'value' => $indicateurs['propionate'] ?? null, 'unit' => 'mol/100 mol AGV', 'decimals' => 0],
-            ['label' => 'Acide butyrique', 'value' => $indicateurs['butyrate'] ?? null, 'unit' => 'mol/100 mol AGV', 'decimals' => 0],
+            ['metricKey' => 'prod_agvt_jour', 'label' => 'Production AGV totale dans le rumen', 'value' => $indicateurs['prod_agvt_jour'] ?? null, 'unit' => 'mol/j', 'decimals' => 2],
+            ['metricKey' => 'acetate', 'label' => 'Acide acétique', 'value' => $indicateurs['acetate'] ?? null, 'unit' => 'mol/100 mol AGV', 'decimals' => 0],
+            ['metricKey' => 'propionate', 'label' => 'Acide propionique', 'value' => $indicateurs['propionate'] ?? null, 'unit' => 'mol/100 mol AGV', 'decimals' => 0],
+            ['metricKey' => 'butyrate', 'label' => 'Acide butyrique', 'value' => $indicateurs['butyrate'] ?? null, 'unit' => 'mol/100 mol AGV', 'decimals' => 0],
         ] : [];
 
         $annotateRows = static function (array $rows, callable $resolver): array {
@@ -1510,14 +1324,14 @@
                 'valueLabel' => $proteinRatio === null ? '–' : $format($proteinRatio * 100, 0).' %',
                 'note' => $format($proteinApport, 0).' / '.$format($besoins['pdi_total'] ?? null, 0).' g',
                 'percent' => $ratioPercent($proteinRatio),
-                'status' => $coverageStatus($proteinRatio),
+                'status' => $coverageStatus($proteinRatio, 'pdi'),
             ],
             [
                 'label' => 'Ingestion',
                 'valueLabel' => $ueRatio === null ? '–' : $format($ueRatio * 100, 0).' %',
                 'note' => $format($apports['ue'] ?? null, 2).' / '.$format($besoins['ci'] ?? null, 2).' CI',
                 'percent' => $ratioPercent($ueRatio),
-                'status' => $coverageStatus($ueRatio),
+                'status' => $coverageStatus($ueRatio, 'ue'),
             ],
         ];
 
@@ -1543,15 +1357,15 @@
                 'label' => 'Rmic',
                 'valueLabel' => $format($impacts['rmic'] ?? null, 2),
                 'note' => 'Couverture microbienne',
-                'percent' => (($impacts['rmic'] ?? 0) >= 0) ? 100 : 35,
-                'status' => (($impacts['rmic'] ?? 0) >= 0) ? 'ok' : 'alert',
+                'percent' => $normeStatus('rmic') === 'ok' ? 100 : 35,
+                'status' => $normeStatus('rmic'),
             ];
             $technicalPanels[] = [
                 'label' => 'Minéraux',
                 'valueLabel' => $format($bilans['caabs'] ?? null, 1),
                 'note' => 'Lecture calcium absorbable',
                 'percent' => $ratioPercent($safeRatio($apports['caabs'] ?? null, $besoins['caabs'] ?? null)),
-                'status' => $coverageStatus($safeRatio($apports['caabs'] ?? null, $besoins['caabs'] ?? null)),
+                'status' => $coverageStatus($safeRatio($apports['caabs'] ?? null, $besoins['caabs'] ?? null), 'caabs'),
             ];
         }
 
@@ -1582,7 +1396,7 @@
                 'label' => 'Couverture protéines',
                 'valueLabel' => $proteinRatio === null ? '–' : $format($proteinRatio * 100, 0).' %',
                 'note' => $is2018 ? 'PDI' : 'PDIE / PDIN',
-                'status' => $coverageStatus($proteinRatio),
+                'status' => $coverageStatus($proteinRatio, 'pdi'),
             ],
             $is2018
                 ? [
@@ -1595,7 +1409,7 @@
                     'label' => 'Rmic',
                     'valueLabel' => $format($impacts['rmic'] ?? null, 2),
                     'note' => 'Bilan microbien',
-                    'status' => (($impacts['rmic'] ?? 0) >= 0) ? 'ok' : 'alert',
+                    'status' => $normeStatus('rmic'),
                 ],
         ]);
 
@@ -1622,14 +1436,14 @@
                 'label' => 'Protéines',
                 'valueLabel' => $proteinRatio === null ? '–' : $format($proteinRatio * 100, 0).' %',
                 'note' => $is2018 ? 'Couverture PDI' : 'Couverture PDIE / PDIN',
-                'status' => $coverageStatus($proteinRatio),
+                'status' => $coverageStatus($proteinRatio, 'pdi'),
                 'percent' => $ratioPercent($proteinRatio),
             ],
             [
                 'label' => 'Ingestion',
                 'valueLabel' => $ueRatio === null ? '–' : $format($ueRatio * 100, 0).' %',
                 'note' => $format($apports['ue'] ?? null, 2).' ingérés pour '.$format($besoins['ci'] ?? null, 2).' visés',
-                'status' => $coverageStatus($ueRatio),
+                'status' => $coverageStatus($ueRatio, 'ue'),
                 'percent' => $ratioPercent($ueRatio),
             ],
         ]);
@@ -1695,8 +1509,8 @@
                 'label' => 'Rmic',
                 'valueLabel' => $format($impacts['rmic'] ?? null, 2),
                 'note' => 'Bilan microbien',
-                'status' => (($impacts['rmic'] ?? 0) >= 0) ? 'ok' : 'alert',
-                'percent' => (($impacts['rmic'] ?? 0) >= 0) ? 100 : 35,
+                'status' => $normeStatus('rmic'),
+                'percent' => $normeStatus('rmic') === 'ok' ? 100 : 35,
             ];
         }
 
@@ -2044,7 +1858,7 @@
                             <div class="chart-rail">
                                 <table class="bar-table" role="presentation">
                                     <tr>
-                                        <td class="chart-fill {{ $statusBarClass((($impacts['rmic'] ?? 0) >= 0) ? 'ok' : 'alert') }}" width="{{ $percentAttr((($impacts['rmic'] ?? 0) >= 0) ? 100 : 35) }}"></td>
+                                        <td class="chart-fill {{ $statusBarClass($normeStatus('rmic')) }}" width="{{ $percentAttr($normeStatus('rmic') === 'ok' ? 100 : 35) }}"></td>
                                         <td></td>
                                     </tr>
                                 </table>

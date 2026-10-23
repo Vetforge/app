@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Aliment;
 use App\Models\Analysis;
 use App\Models\Breeder;
 use App\Models\PlanRationnement;
@@ -37,6 +38,25 @@ test('recent analysis elements expose their module for icon mapping', function (
             ->where('recent_elements.0.module', 'gaz-du-sang')
             ->etc()
         );
+});
+
+test('recent elements do not include aliments', function () {
+    $user = User::factory()->create();
+    $aliment = Aliment::factory()->create([
+        'user_id' => $user->id,
+        'libelle0' => 'Foin récent',
+    ]);
+
+    $this->actingAs($user);
+
+    $this->get(route('dashboard'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('recent_elements', [])
+            ->etc()
+        );
+
+    expect($aliment->fresh())->not->toBeNull();
 });
 
 test('legacy dashboard url redirects to the root dashboard url', function () {

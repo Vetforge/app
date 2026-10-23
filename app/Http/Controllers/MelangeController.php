@@ -39,7 +39,7 @@ class MelangeController extends Controller
 
         $validated = $request->validate([
             'nom' => ['nullable', 'string', 'max:255'],
-            'quantite' => ['nullable', 'required_unless:is_volonte,true', 'numeric', 'gt:0'],
+            'quantite' => ['nullable', 'required_unless:is_volonte,true', 'numeric', 'gte:0'],
             'is_volonte' => ['boolean'],
             'is_mb' => ['boolean'],
         ]);

@@ -8,6 +8,7 @@ use App\Models\Analysis;
 use App\Models\Breeder;
 use App\Models\PlanRationnement;
 use Illuminate\Console\Command;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -101,7 +102,7 @@ class DeduplicateBreedersCommand extends Command
      * Groupes d'éleveurs en double : même cabinet et même numéro de cheptel normalisé (non vide),
      * ne conservant que les groupes comptant au moins deux fiches.
      *
-     * @return Collection<string, Collection<int, Breeder>>
+     * @return Collection<int|string, EloquentCollection<int, Breeder>>
      */
     private function groupesDeDoublons(): Collection
     {
@@ -110,6 +111,7 @@ class DeduplicateBreedersCommand extends Command
             ->get()
             ->filter(fn (Breeder $breeder): bool => self::normaliserCheptel($breeder->herd_number) !== '')
             ->groupBy(fn (Breeder $breeder): string => $breeder->user_id.'|'.self::normaliserCheptel($breeder->herd_number))
+            ->toBase()
             ->filter(fn (Collection $group): bool => $group->count() > 1);
     }
 

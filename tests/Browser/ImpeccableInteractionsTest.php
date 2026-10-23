@@ -101,9 +101,9 @@ it('preserves zero mixture quantities and saves all three kinds of order from ke
         }
     JS);
     $page->fill('input[aria-label^="Quantité de Mélange ferme,"]', '0')->keys('input[aria-label^="Quantité de Mélange ferme,"]', 'Tab')->waitForEvent('networkidle');
-    $page->assertVisible('#ration-save-errors')->assertAttribute('input[aria-label^="Quantité de Mélange ferme,"]', 'aria-invalid', 'true');
+    $page->assertNotPresent('#ration-save-errors')->assertAttribute('input[aria-label^="Quantité de Mélange ferme,"]', 'aria-invalid', 'false');
     expect($page->script('window.lastQuantityPayload.quantite'))->toBe(0)
-        ->and((float) $mixOne->fresh()->quantite)->toBe(3.0);
+        ->and((float) $mixOne->fresh()->quantite)->toBe(0.0);
     $page->click('[aria-label="Déplier Mélange ferme"]')
         ->keys('[aria-label="Descendre Foin des Prés dans Mélange ferme"]', 'Enter')->assertSee('Ordre enregistré.');
     expect($ingredientOne->fresh()->ordre)->toBeGreaterThan($ingredientTwo->fresh()->ordre);

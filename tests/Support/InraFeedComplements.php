@@ -51,11 +51,11 @@ final class InraFeedComplements
 
     /**
      * Recette brut/brut : concentrations massiques pondérées par la MS, dMO par la MO,
-     * DT6_N par la MAT, dr_N par la MAT non dégradée à DT6_N, Lys/Met par les PDI.
+     * DT6_N par la MAT, DT6_Ami par l'amidon, dr_N par la MAT non dégradée à DT6_N, Lys/Met par les PDI.
      * L'agrégation reste une approximation des interactions entre ingrédients individuels.
      *
-     * @param array<string, float> $recipe
-     * @param array<string, array<string, mixed>> $profiles
+     * @param  array<string, float>  $recipe
+     * @param  array<string, array<string, mixed>>  $profiles
      * @return array<string, float>
      */
     private static function recipeAttributes(array $recipe, array $profiles): array
@@ -89,6 +89,7 @@ final class InraFeedComplements
                 $factor = match ($field) {
                     'd_mo' => $attributes['mo'],
                     'dt6_n' => $attributes['mat'],
+                    'dt6_ami' => $attributes['amidon'],
                     'dr_n' => $attributes['mat'] * (1 - $attributes['dt6_n'] / 100),
                     'lys_di', 'met_di' => $attributes['pdi'],
                     default => 1.0,

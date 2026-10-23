@@ -543,7 +543,11 @@ class Besoin
         };
     }
 
-    /** Table 8.1 (édition anglaise) : g/j ; lait en litres, GMQ en kg/j. */
+    /**
+     * Table 8.1 (édition anglaise) : g/j ; lait en litres, GMQ en kg/j.
+     *
+     * @return array{Espece, float, bool, float, bool}
+     */
     private static function contexteMineral(Ration $ration): array
     {
         $cat = RationHelper::categorie($ration->categorie_animal ?? '');

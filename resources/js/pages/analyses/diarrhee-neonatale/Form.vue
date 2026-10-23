@@ -216,7 +216,6 @@ function submit(): void {
                 <div class="analysis-section-heading">
                     <div>
                         <h2>Identification</h2>
-                        <p>Eleveur, animal et dates du dossier.</p>
                     </div>
                 </div>
                 <div class="grid gap-2 md:grid-cols-2 xl:grid-cols-12">
@@ -336,9 +335,6 @@ function submit(): void {
                 <div class="analysis-section-heading">
                     <div>
                         <h2>Diarrhée néonatale</h2>
-                        <p>
-                            Test, prelevement et lecture des agents recherches.
-                        </p>
                     </div>
                 </div>
 
@@ -424,7 +420,6 @@ function submit(): void {
                 <div class="analysis-section-heading">
                     <div>
                         <h2>Conseils et conclusion</h2>
-                        <p>Texte qui apparaitra dans le compte rendu.</p>
                     </div>
                 </div>
                 <div class="grid gap-1.5 md:grid-cols-2">

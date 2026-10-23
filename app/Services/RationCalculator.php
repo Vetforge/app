@@ -26,14 +26,14 @@ class RationCalculator
      *
      * @return array<string, mixed>
      */
-    public static function calculer(Ration $ration): array
+    public static function calculer(Ration $ration, ?array $normes = null): array
     {
         self::validateTypes($ration);
         $inra = $ration->planRationnement->inra ?? '2018';
 
         return $inra === '2007'
             ? self::calculer2007($ration)
-            : self::calculer2018($ration);
+            : self::calculer2018($ration, $normes);
     }
 
     /** @return list<string> */
@@ -219,12 +219,12 @@ class RationCalculator
     /**
      * @return array<string, mixed>
      */
-    private static function calculer2018(Ration $ration): array
+    private static function calculer2018(Ration $ration, ?array $normes = null): array
     {
         Apport2018::precompute($ration);
 
         try {
-            return self::calculer2018Inner($ration);
+            return self::calculer2018Inner($ration, $normes);
         } finally {
             Apport2018::clearCache();
         }
@@ -233,7 +233,7 @@ class RationCalculator
     /**
      * @return array<string, mixed>
      */
-    private static function calculer2018Inner(Ration $ration): array
+    private static function calculer2018Inner(Ration $ration, ?array $normes = null): array
     {
         // Apports
         $apportMS = Apport2018::calculerApportTotalMS($ration);
@@ -317,7 +317,7 @@ class RationCalculator
         $productionCH4 = Impact2018::calculerCH4($ration);
         $BE = Impact2018::calculerBE($ration);
         $BACA = Impact2018::calculerBACA($ration);
-        $IRA = Impact2018::calculerIRA($ration);
+        $IRA = Impact2018::calculerIRA($ration, $normes);
         $phRuminal = Impact2018::calculerPH($ration);
         $azoteUrinaire = Impact2018::calculerNU($ration);
         $azoteFecale = Impact2018::calculerNND($ration);

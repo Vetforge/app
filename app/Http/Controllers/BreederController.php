@@ -166,7 +166,7 @@ class BreederController extends Controller
         $breeder->update($request->validated());
 
         return redirect()->route('breeders.edit', $breeder)
-            ->with('success', 'Eleveur mis a jour.');
+            ->with('success', 'Eleveur mis à jour.');
     }
 
     public function destroy(Request $request, Breeder $breeder): RedirectResponse
@@ -175,7 +175,7 @@ class BreederController extends Controller
         $breeder->delete();
 
         return redirect()->route('breeders.index')
-            ->with('success', 'Eleveur supprime.');
+            ->with('success', 'Eleveur supprimé.');
     }
 
     public function importCsv(ImportBreedersRequest $request, BreederImporter $importer): RedirectResponse
@@ -183,7 +183,7 @@ class BreederController extends Controller
         $result = $importer->import($request->user(), $request->file('file'));
 
         return redirect()->route('breeders.index')
-            ->with('success', "{$result['created']} eleveur(s) crees, {$result['updated']} mis a jour, {$result['skipped']} ignores.")
+            ->with('success', "{$result['created']} éleveur(s) créés, {$result['updated']} mis à jour, {$result['skipped']} ignorés.")
             ->with('import_errors', $result['errors']);
     }
 

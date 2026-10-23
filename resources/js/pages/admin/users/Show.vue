@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { Head, Link } from '@inertiajs/vue3';
-import { Activity, AtSign, CalendarClock, Database, ShieldCheck, UserRound } from 'lucide-vue-next';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
+import { Activity, AtSign, CalendarClock, Database, ShieldCheck, Trash2, UserRound } from 'lucide-vue-next';
 import { computed } from 'vue';
-import { index as adminUsersIndex } from '@/actions/App/Http/Controllers/Admin/UserController';
+import { destroy as adminUsersDestroy, index as adminUsersIndex } from '@/actions/App/Http/Controllers/Admin/UserController';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { dashboard } from '@/routes';
 import type { BreadcrumbItem } from '@/types';
@@ -35,6 +35,19 @@ const props = defineProps<{
     user: AdminUser;
     analysisModules: AnalysisModuleCount[];
 }>();
+
+const page = usePage();
+const isSelf = computed(() => page.props.auth?.user?.id === props.user.id);
+
+function deleteUser(): void {
+    if (
+        confirm(
+            `Supprimer le compte de ${props.user.name} (${props.user.email}) ?\n\nLe compte n'aura plus accès à l'application et son email ne pourra plus être réutilisé. Ses analyses sont conservées.`,
+        )
+    ) {
+        router.delete(adminUsersDestroy(props.user.id).url);
+    }
+}
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Accueil', href: dashboard() },
@@ -84,12 +97,23 @@ function formatDate(value: string | null): string {
                     <p class="mt-1 text-sm text-muted-foreground">Compte #{{ user.id }}</p>
                 </div>
 
-                <Link
-                    :href="adminUsersIndex().url"
-                    class="inline-flex items-center justify-center rounded-md border border-border px-3 py-1.5 text-sm font-medium hover:bg-accent"
-                >
-                    Retour aux utilisateurs
-                </Link>
+                <div class="flex flex-wrap gap-2">
+                    <button
+                        v-if="!isSelf"
+                        type="button"
+                        class="inline-flex items-center justify-center gap-1.5 rounded-md border border-destructive/40 px-3 py-1.5 text-sm font-medium text-destructive hover:bg-destructive/10"
+                        @click="deleteUser"
+                    >
+                        <Trash2 class="size-4" />
+                        Supprimer le compte
+                    </button>
+                    <Link
+                        :href="adminUsersIndex().url"
+                        class="inline-flex items-center justify-center rounded-md border border-border px-3 py-1.5 text-sm font-medium hover:bg-accent"
+                    >
+                        Retour aux utilisateurs
+                    </Link>
+                </div>
             </div>
 
             <div class="grid gap-4 xl:grid-cols-[minmax(18rem,0.8fr)_1.2fr]">

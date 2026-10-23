@@ -98,7 +98,7 @@ function uploadCsv(): void {
                 <div>
                     <h1 class="text-2xl font-bold text-foreground">Eleveurs</h1>
                     <p class="text-sm text-muted-foreground">
-                        Base privee rattachee a votre compte.
+                        Base privée rattachée à votre compte.
                     </p>
                 </div>
                 <Link
@@ -106,7 +106,7 @@ function uploadCsv(): void {
                     class="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow hover:bg-primary/90"
                 >
                     <Plus class="size-4" />
-                    Nouvel eleveur
+                    Nouvel éleveur
                 </Link>
             </div>
 
@@ -267,7 +267,7 @@ function uploadCsv(): void {
                                     colspan="5"
                                     class="px-4 py-10 text-center text-sm text-muted-foreground"
                                 >
-                                    Aucun eleveur trouve.
+                                    Aucun éleveur trouve.
                                 </td>
                             </tr>
                         </tbody>

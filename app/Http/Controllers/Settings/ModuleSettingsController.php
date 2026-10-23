@@ -21,7 +21,7 @@ class ModuleSettingsController extends Controller
 
         return Inertia::render('settings/ModuleSettings', [
             'module' => ['slug' => $module, ...VeterinaryModules::get($module)],
-            'modules' => VeterinaryModules::navigation(),
+            'modules' => VeterinaryModules::settingsNavigation(),
             'settings' => VeterinaryModules::settingsForUser($request->user(), $module),
             'defaults' => VeterinaryModules::defaultSettings($module),
         ]);

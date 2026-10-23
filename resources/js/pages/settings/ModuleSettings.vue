@@ -8,6 +8,8 @@ import {
     update as moduleSettingsUpdate,
 } from '@/actions/App/Http/Controllers/Settings/ModuleSettingsController';
 import Heading from '@/components/Heading.vue';
+import RationNormesEditor from '@/components/rations/RationNormesEditor.vue';
+import type { RationNormesPayload } from '@/components/rations/types';
 import AppLayout from '@/layouts/AppLayout.vue';
 import SettingsLayout from '@/layouts/settings/Layout.vue';
 import { clonePlain } from '@/lib/utils';
@@ -28,6 +30,7 @@ const props = defineProps<{
     modules: ModuleInfo[];
     settings: LooseSettings;
     defaults: LooseSettings;
+    normes?: RationNormesPayload;
 }>();
 
 const processing = ref(false);
@@ -40,7 +43,7 @@ const newParametricSpecies = ref('');
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Accueil', href: dashboard() },
     {
-        title: 'Reglages modules',
+        title: 'Réglages modules',
         href: moduleSettingsEdit({ module: props.module.slug }).url,
     },
 ];
@@ -760,22 +763,28 @@ function deleteCustomSettings(): void {
 
 <template>
     <AppLayout :breadcrumbs="breadcrumbs">
-        <Head :title="`Reglages - ${module.label}`" />
+        <Head :title="`Réglages - ${module.label}`" />
 
         <SettingsLayout>
             <div class="space-y-6">
                 <Heading
                     variant="small"
                     :title="module.label"
-                    description="Ajustez les listes, seuils et references utilises lors de la creation des analyses."
+                    :description="module.description"
                 />
 
-                <div class="flex flex-wrap gap-2">
+                <nav
+                    class="flex gap-2 overflow-x-auto pb-1 md:flex-wrap md:overflow-visible md:pb-0"
+                    aria-label="Modules"
+                >
                     <Link
                         v-for="item in modules"
                         :key="item.slug"
                         :href="moduleSettingsEdit({ module: item.slug }).url"
-                        class="rounded-lg border px-3 py-2 text-sm"
+                        :aria-current="
+                            item.slug === module.slug ? 'page' : undefined
+                        "
+                        class="shrink-0 rounded-lg border px-3 py-2 text-sm"
                         :class="
                             item.slug === module.slug
                                 ? 'border-primary bg-primary/10 text-primary'
@@ -784,9 +793,14 @@ function deleteCustomSettings(): void {
                     >
                         {{ item.short_label }}
                     </Link>
-                </div>
+                </nav>
 
-                <form class="space-y-6" @submit.prevent="save">
+                <RationNormesEditor
+                    v-if="module.slug === 'ration' && normes"
+                    :normes="normes"
+                />
+
+                <form v-else class="space-y-6" @submit.prevent="save">
                     <section
                         v-if="module.slug === 'coproscopie-parasitaire'"
                         class="space-y-6"

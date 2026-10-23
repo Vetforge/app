@@ -100,3 +100,28 @@ it('accepts a zero quantity when zeroing out an aliment inside a melange', funct
 
     expect((float) $melangeAliment->fresh()->quantite)->toBe(0.0);
 });
+
+it('keeps a melange and its recipe when its ration quantity becomes zero', function () {
+    $user = User::factory()->create();
+    [$plan, $ration, , $aliment] = createRationWithAliment($user);
+    $melange = Melange::create(['ration_id' => $ration->id, 'quantite' => 2, 'is_volonte' => false, 'is_mb' => false]);
+    $ingredient = MelangeAliment::create(['melange_id' => $melange->id, 'aliment_id' => $aliment->id, 'quantite' => 3, 'is_mb' => false, 'ordre' => 1]);
+
+    $this->actingAs($user)->put(route('plans.rations.melanges.update', [$plan, $ration, $melange]), [
+        'quantite' => 0, 'is_mb' => false, 'is_volonte' => false,
+    ])->assertSessionHasNoErrors()->assertRedirect();
+
+    expect($melange->fresh()->quantite)->toBe(0.0)
+        ->and($ingredient->fresh()->quantite)->toBe(3.0)
+        ->and($melange->fresh()->effectiveContributionForAliment($ingredient))->toBe(['qty_ms' => 0.0, 'qty_mb' => 0.0]);
+});
+
+it('rejects negative or empty melange quantities without changing the recipe', function (?float $quantity) {
+    $user = User::factory()->create();
+    [$plan, $ration] = createRationWithAliment($user);
+    $melange = Melange::create(['ration_id' => $ration->id, 'quantite' => 2, 'is_volonte' => false]);
+    $this->actingAs($user)->put(route('plans.rations.melanges.update', [$plan, $ration, $melange]), [
+        'quantite' => $quantity, 'is_volonte' => false,
+    ])->assertSessionHasErrors('quantite');
+    expect($melange->fresh()->quantite)->toBe(2.0);
+})->with([-1.0, null]);

@@ -25,6 +25,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('settings/normes', [NormesController::class, 'edit'])->name('normes.edit');
     Route::patch('settings/normes', [NormesController::class, 'update'])->name('normes.update');
+    Route::get('settings/modules/ration', [NormesController::class, 'edit'])->name('ration-settings.edit');
+    Route::patch('settings/modules/ration', [NormesController::class, 'update'])->name('ration-settings.update');
+    Route::delete('settings/modules/ration', [NormesController::class, 'destroy'])->name('ration-settings.destroy');
     Route::get('settings/modules/{module}', [ModuleSettingsController::class, 'edit'])->name('module-settings.edit');
     Route::patch('settings/modules/{module}', [ModuleSettingsController::class, 'update'])->name('module-settings.update');
     Route::delete('settings/modules/{module}', [ModuleSettingsController::class, 'destroy'])->name('module-settings.destroy');

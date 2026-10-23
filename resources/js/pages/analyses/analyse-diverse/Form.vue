@@ -165,7 +165,6 @@ function submit(): void {
                 <div class="analysis-section-heading">
                     <div>
                         <h2>Identification</h2>
-                        <p>Eleveur, animal et dates du dossier.</p>
                     </div>
                 </div>
                 <div class="grid gap-2 md:grid-cols-2 xl:grid-cols-12">
@@ -245,7 +244,6 @@ function submit(): void {
                 <div class="analysis-section-heading">
                     <div>
                         <h2>Description</h2>
-                        <p>Espece, nombre d'analyses et commemoratifs.</p>
                     </div>
                 </div>
                 <div class="grid gap-2 md:grid-cols-3">
@@ -298,7 +296,6 @@ function submit(): void {
                 <div class="analysis-section-heading">
                     <div>
                         <h2>Resultats des analyses</h2>
-                        <p>Type et resultats pour chaque analyse.</p>
                     </div>
                 </div>
                 <div

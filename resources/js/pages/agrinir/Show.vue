@@ -61,6 +61,13 @@ interface Resultats {
     dmo: number;
     niref: number;
     dt_n: number;
+    dt6_n: number;
+    ag: number;
+    ee: number;
+    pf: number;
+    amidon: number | null;
+    dt6_ami: number | null;
+    dt_ami: number | null;
     dr_n: number;
     ufl: number;
     ufv: number;

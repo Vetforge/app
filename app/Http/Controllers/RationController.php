@@ -14,6 +14,7 @@ use App\Models\Melange;
 use App\Models\PlanRationnement;
 use App\Models\Ration;
 use App\Models\RationAliment;
+use App\Services\AlimentCalculationWarnings;
 use App\Services\Equations2007\Apport as Apport2007;
 use App\Services\Equations2007\Besoin as Besoin2007;
 use App\Services\Equations2018\Apport as Apport2018;
@@ -234,14 +235,14 @@ class RationController extends Controller
         ]);
 
         $iterationsVolonte = $this->calculerVolonte($ration);
-        $resultats = RationCalculator::calculer($ration);
+        $resultats = RationCalculator::calculer($ration, RationNormes::active(request()->user()->normes_personnalisees, $ration->categorie()));
 
         return Pdf::view('pdf.ration', [
             'plan' => $plan,
             'ration' => $ration,
             'resultats' => $resultats,
             'iterations_volonte' => $iterationsVolonte,
-            'normes' => RationNormes::payloadForUser(request()->user()),
+            'normes' => RationNormes::payloadForUser(request()->user(), $resultats, $ration->lait_objectif, $ration->categorie()),
             'clinicHeader' => PdfClinicHeader::forUser(request()->user()),
         ])
             ->format(Format::A4)
@@ -264,7 +265,8 @@ class RationController extends Controller
 
         $typeErrors = RationCalculator::typeErrors($ration);
         $iterationsVolonte = $typeErrors === [] ? $this->calculerVolonte($ration) : 0;
-        $resultats = $typeErrors === [] ? RationCalculator::calculer($ration) : null;
+        $resultats = $typeErrors === [] ? RationCalculator::calculer($ration, RationNormes::active(request()->user()->normes_personnalisees, $ration->categorie())) : null;
+        AlimentCalculationWarnings::annotate($ration);
         $categorie = $ration->categorie();
 
         return [
@@ -274,7 +276,7 @@ class RationController extends Controller
             'resultats' => $resultats,
             'erreurs_types' => $typeErrors,
             'iterations_volonte' => $iterationsVolonte,
-            'normes' => RationNormes::payloadForUser(request()->user()),
+            'normes' => RationNormes::payloadForUser(request()->user(), $resultats, $ration->lait_objectif, $categorie),
             'categorie_meta' => [
                 'value' => $categorie->value,
                 'label' => $categorie->label(),

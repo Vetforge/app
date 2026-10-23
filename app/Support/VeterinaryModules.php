@@ -114,6 +114,12 @@ final class VeterinaryModules
             ->all();
     }
 
+    /** @return array<int, array{slug: string, label: string, short_label: string, description: string, type: string}> */
+    public static function settingsNavigation(): array
+    {
+        return [RationNormes::module(), ...self::navigation()];
+    }
+
     /**
      * @return array<int, array{slug: string, label: string, short_label: string, description: string, type: string}>
      */

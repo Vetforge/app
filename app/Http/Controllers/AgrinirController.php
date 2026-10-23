@@ -102,7 +102,7 @@ class AgrinirController extends Controller
             default => 'ensile',
         };
 
-        $aliment->fill($this->agriNirValues($resultats2018, $resultats2007));
+        $aliment->fill($this->agriNirValues($resultats2018, $resultats2007, $referenceAliment));
         $aliment->save();
 
         return redirect()->route('aliments.index')
@@ -128,7 +128,7 @@ class AgrinirController extends Controller
      * @param  array<string, mixed>  $values2007
      * @return array<string, mixed>
      */
-    private function agriNirValues(array $values2018, array $values2007): array
+    private function agriNirValues(array $values2018, array $values2007, ?Aliment $referenceAliment): array
     {
         return [
             'ms' => $values2018['ms'] ?? null,
@@ -143,6 +143,13 @@ class AgrinirController extends Controller
             'd_e' => $values2018['de'] ?? null,
             'niref' => $values2018['niref'] ?? null,
             'dt_n' => $values2018['dt_n'] ?? null,
+            'dt6_n' => $values2018['dt6_n'] ?? null,
+            'ag' => $values2018['ag'] ?? null,
+            'ee' => $values2018['ee'] ?? null,
+            'pf' => $values2018['pf'] ?? null,
+            'amidon' => $values2018['amidon'] ?? $referenceAliment?->amidon,
+            'dt6_ami' => $values2018['dt6_ami'] ?? $referenceAliment?->dt6_ami,
+            'dt_ami' => $values2018['dt_ami'] ?? $referenceAliment?->dt_ami,
             'dr_n' => $values2018['dr_n'] ?? null,
             'ufl' => $values2018['ufl'] ?? null,
             'ufv' => $values2018['ufv'] ?? null,
@@ -202,7 +209,7 @@ class AgrinirController extends Controller
 
         foreach (['ca', 'p', 'mg'] as $field) {
             if (($params[$field] ?? null) === null) {
-                $params[$field] = $referenceAliment->{$field};
+                $params[$field] = $referenceAliment->{$field} === null ? null : (float) $referenceAliment->{$field} / 10.0;
             }
         }
 

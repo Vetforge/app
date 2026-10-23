@@ -15,6 +15,8 @@ use Illuminate\Validation\ValidationException;
  */
 class CalculValeur
 {
+    public const PRECURSEURS_DYNAMIQUES = ['mo', 'mat', 'd_mo', 'eb', 'dt6_n', 'dr_n'];
+
     private float $bpr;
 
     private int $maxIterations = 50;
@@ -199,11 +201,11 @@ class CalculValeur
 
     /**
      * Une valeur est recalculée uniquement lorsque le jeu de précurseurs est complet.
-     * Sinon UFL/PDI tabulées sont utilisées ensemble, sans contrat hybride silencieux.
+     * Sinon UFL/PDI/BPR tabulées sont utilisées ensemble, sans contrat hybride silencieux.
      */
     private function aPrecurseursDynamiques(): bool
     {
-        foreach (['mo', 'mat', 'd_mo', 'eb', 'dt6_n', 'dr_n'] as $champ) {
+        foreach (self::PRECURSEURS_DYNAMIQUES as $champ) {
             if ($this->aliment->{$champ} === null) {
                 return false;
             }
@@ -362,12 +364,17 @@ class CalculValeur
     }
 
     /**
-     * BPR (besoin protéique du rumen) de l'aliment en g/kg MS (itératif).
+     * BPR (balance protéique du rumen) en g/kg MS : dynamique si les précurseurs
+     * sont complets, sinon conservation de la valeur tabulée, sans assimiler une absence à zéro.
      */
     public function calculerBPRAliment(): float
     {
         if ($this->aliment->type === TypeAliment::Mineral->value) {
             return 0.0;
+        }
+
+        if (! $this->aPrecurseursDynamiques()) {
+            return $this->bpr;
         }
 
         $bpr = $this->bpr;

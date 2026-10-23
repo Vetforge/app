@@ -55,9 +55,27 @@ test('derives mixed concentrate complements from the printed fresh matter recipe
     expect($attributes['dr_n'])->toBeGreaterThan(79)->toBeLessThan(95);
     expect($attributes['ag'])->toBeGreaterThan(0);
     expect($attributes['eb'])->toEqualWithDelta(4100 / 0.878, 1e-9);
+    expect($attributes['dt6_ami'])->toEqualWithDelta(82.17854121216358, 1e-9);
     expect(InraFeedComplements::catalogue()['matches'][$feed['name']]['recipe'])->toBe([
         'CC0150' => 15.7, 'CC0020' => 19.9, 'CC0010' => 15.7, 'CC0130' => 15.7, 'CX0210' => 33,
     ]);
+});
+
+test('distinguishes printed starch DT from the INRA DT6 used by the dynamic equations', function () {
+    $feeds = ReferenceRations::reports()['laitiere']['feeds'];
+    $wheat = InraFeedComplements::attributes($feeds[2]);
+    $barley = InraFeedComplements::attributes($feeds[5]);
+
+    expect($wheat['dt_ami'])->toBe(90.1);
+    expect($wheat['dt6_ami'])->toBe(94.0);
+    expect($barley['dt_ami'])->toBe(86.0);
+    expect($barley['dt6_ami'])->toBe(89.0);
+    expect(ReferenceRations::attributes($feeds[2]))->not->toHaveKey('dt6_ami');
+
+    $production = InraFeedComplements::attributes($feeds[7]);
+    expect($production['dt_ami'])->toBe(90.1);
+    // Pondération par l'amidon de chaque ingrédient, et non par sa seule MS.
+    expect($production['dt6_ami'])->toEqualWithDelta(93.16413207105577, 1e-9);
 });
 
 test('uses the closest database mineral without overwriting the reported mineral percentages', function () {

@@ -290,7 +290,6 @@ function submit(): void {
                 <div class="analysis-section-heading">
                     <div>
                         <h2>Identification</h2>
-                        <p>Eleveur, animal et dates du dossier.</p>
                     </div>
                 </div>
                 <div class="grid gap-2 md:grid-cols-2 xl:grid-cols-12">
@@ -370,7 +369,6 @@ function submit(): void {
                 <div class="analysis-section-heading">
                     <div>
                         <h2>Description</h2>
-                        <p>Caracteristiques de l'animal autopsie.</p>
                     </div>
                 </div>
                 <div
@@ -498,10 +496,6 @@ function submit(): void {
                 <div class="analysis-section-heading">
                     <div>
                         <h2>Lesions</h2>
-                        <p>
-                            Description des lesions observees lors de
-                            l'autopsie.
-                        </p>
                     </div>
                     <button
                         type="button"

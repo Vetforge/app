@@ -6,13 +6,14 @@ namespace App\Concerns;
 
 use App\Models\User;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Unique;
 
 trait ProfileValidationRules
 {
     /**
      * Obtenir les règles de validation utilisées pour valider les profils utilisateur.
      *
-     * @return array<string, array<int, \Illuminate\Contracts\Validation\Rule|array<mixed>|string>>
+     * @return array<string, array<int, \Illuminate\Contracts\Validation\Rule|Unique|array<mixed>|string>>
      */
     protected function profileRules(?int $userId = null): array
     {
@@ -42,7 +43,7 @@ trait ProfileValidationRules
     /**
      * Obtenir les règles de validation utilisées pour valider les e-mails utilisateur.
      *
-     * @return array<int, \Illuminate\Contracts\Validation\Rule|array<mixed>|string>
+     * @return array<int, Unique|string>
      */
     protected function emailRules(?int $userId = null): array
     {

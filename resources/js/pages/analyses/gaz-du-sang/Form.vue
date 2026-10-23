@@ -444,7 +444,6 @@ watch(
                 <div class="analysis-section-heading">
                     <div>
                         <h2>Identification</h2>
-                        <p>Eleveur, animal et dates du dossier.</p>
                     </div>
                 </div>
                 <div class="grid gap-2 md:grid-cols-2 xl:grid-cols-12">
@@ -564,7 +563,6 @@ watch(
                 <div class="analysis-section-heading">
                     <div>
                         <h2>Gaz du sang</h2>
-                        <p>Saisie clinique, valeurs mesurees et perfusions.</p>
                     </div>
                 </div>
 

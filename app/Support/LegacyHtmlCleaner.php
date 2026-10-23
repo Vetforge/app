@@ -211,9 +211,7 @@ class LegacyHtmlCleaner
                         return '';
                     }
 
-                    $char = mb_chr($code, 'UTF-8');
-
-                    return $char === false ? '' : $char;
+                    return mb_chr($code, 'UTF-8');
                 },
                 $html,
             ) ?? $html;

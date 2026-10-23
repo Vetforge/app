@@ -42,6 +42,28 @@ function yOf(v: number): number {
     return PLOT_BOTTOM - (clamped / displayMax.value) * PLOT_H;
 }
 
+const thresholdMarkers = computed(() => {
+    const markers = props.thresholds
+        .map((value, index) => ({
+            value,
+            index,
+            y: yOf(value),
+            labelY: yOf(value),
+        }))
+        .sort((a, b) => a.y - b.y);
+
+    for (let i = 1; i < markers.length; i++) {
+        markers[i].labelY = Math.max(markers[i].y, markers[i - 1].labelY + 10);
+    }
+    const offset = markers.length
+        ? markers.reduce((sum, marker) => sum + marker.labelY - marker.y, 0) /
+          markers.length
+        : 0;
+    return markers
+        .map((marker) => ({ ...marker, labelY: marker.labelY - offset }))
+        .sort((a, b) => a.index - b.index);
+});
+
 const barY = computed(() =>
     props.value !== null ? yOf(props.value) : PLOT_BOTTOM,
 );
@@ -92,7 +114,7 @@ const formattedComparisonValue = computed(() => {
 </script>
 
 <template>
-    <div class="flex flex-col items-center gap-1">
+    <figure class="flex w-[88px] shrink-0 flex-col items-center gap-1">
         <svg
             role="img"
             :aria-label="`${label} : ${formattedValue}${hasComparison ? `, ${comparisonLabel} : ${formattedComparisonValue}` : ''}`"
@@ -102,24 +124,33 @@ const formattedComparisonValue = computed(() => {
             class="overflow-visible"
         >
             <!-- Threshold dashed lines and labels -->
-            <template v-for="(t, i) in thresholds" :key="i">
+            <template v-for="marker in thresholdMarkers" :key="marker.index">
                 <line
                     :x1="LABEL_X"
-                    :y1="yOf(t)"
+                    :y1="marker.y"
                     :x2="BAR_X + BAR_W + 4"
-                    :y2="yOf(t)"
+                    :y2="marker.y"
                     stroke="var(--muted-foreground)"
                     stroke-width="1"
                     stroke-dasharray="3,2"
                 />
+                <line
+                    v-if="Math.abs(marker.labelY - marker.y) > 0.5"
+                    :x1="LABEL_X - 4"
+                    :y1="marker.labelY"
+                    :x2="LABEL_X"
+                    :y2="marker.y"
+                    stroke="var(--muted-foreground)"
+                    stroke-width="0.75"
+                />
                 <text
-                    :x="LABEL_X - 2"
-                    :y="yOf(t) + 3"
+                    :x="LABEL_X - 6"
+                    :y="marker.labelY + 3"
                     text-anchor="end"
                     font-size="7.5"
                     fill="var(--muted-foreground)"
                 >
-                    {{ t }}{{ unit }}
+                    {{ marker.value }}{{ unit }}
                 </text>
             </template>
 
@@ -162,42 +193,23 @@ const formattedComparisonValue = computed(() => {
                     fill="var(--comparison)"
                 />
             </template>
-
-            <!-- Value label above bar -->
-            <text
-                v-if="value !== null"
-                :x="BAR_X + BAR_W / 2"
-                :y="barY - 3"
-                text-anchor="middle"
-                font-size="8.5"
-                font-weight="600"
-                :fill="fillColor"
+        </svg>
+        <figcaption class="flex w-full flex-col items-center gap-1 text-center">
+            <p
+                class="text-sm leading-tight font-semibold tabular-nums"
+                :style="{ color: fillColor }"
             >
                 {{ formattedValue }}
-            </text>
-
-            <!-- Null state -->
-            <text
-                v-else
-                :x="BAR_X + BAR_W / 2"
-                :y="PLOT_BOTTOM - 20"
-                text-anchor="middle"
-                font-size="9"
-                fill="var(--muted-foreground)"
+            </p>
+            <p class="text-[11px] leading-tight text-muted-foreground">
+                {{ label }}
+            </p>
+            <p
+                v-if="hasComparison"
+                class="text-[10px] leading-tight text-comparison"
             >
-                –
-            </text>
-        </svg>
-        <p
-            class="max-w-[88px] text-center text-[11px] leading-tight text-muted-foreground"
-        >
-            {{ label }}
-        </p>
-        <p
-            v-if="hasComparison"
-            class="max-w-[88px] text-center text-[10px] leading-tight text-comparison"
-        >
-            {{ comparisonLabel }}: {{ formattedComparisonValue }}
-        </p>
-    </div>
+                {{ comparisonLabel }}: {{ formattedComparisonValue }}
+            </p>
+        </figcaption>
+    </figure>
 </template>

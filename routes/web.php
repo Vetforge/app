@@ -113,6 +113,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('users', [UserController::class, 'index'])->name('users.index');
         Route::get('users/{user}', [UserController::class, 'show'])->name('users.show');
         Route::put('users/{user}', [UserController::class, 'update'])->name('users.update');
+        Route::delete('users/{user}', [UserController::class, 'destroy'])->name('users.destroy');
         Route::get('import', [ImportController::class, 'show'])->name('import.show');
         Route::post('import', [ImportController::class, 'import'])->middleware('throttle:5,1')->name('import.store');
     });

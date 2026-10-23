@@ -100,3 +100,49 @@ it('shows a user detail page with coordinates counts and analysis modules', func
             ->where('analysisModules.0.count', 1)
         );
 });
+
+it('soft deletes a user while keeping their analyses and blocks the email', function () {
+    $admin = User::factory()->create(['is_admin' => true]);
+    $user = User::factory()->create(['email' => 'gone@example.test']);
+    $breeder = Breeder::factory()->create(['user_id' => $user->id]);
+    $analysis = Analysis::factory()->create(['user_id' => $user->id, 'breeder_id' => $breeder->id, 'module' => 'autopsie']);
+
+    $this->actingAs($admin)
+        ->delete(route('admin.users.destroy', $user))
+        ->assertRedirect(route('admin.users.index'));
+
+    expect(User::query()->find($user->id))->toBeNull()
+        ->and(User::withTrashed()->find($user->id))->not->toBeNull()
+        ->and(Analysis::query()->find($analysis->id))->not->toBeNull();
+
+    $this->actingAs($admin)
+        ->get(route('admin.users.index'))
+        ->assertInertia(fn (Assert $page) => $page->where('totals.users', 1));
+
+    auth()->logout();
+    $this->post(route('register.store'), [
+        'name' => 'Autre',
+        'email' => 'gone@example.test',
+        'password' => 'password-Str0ng!x',
+        'password_confirmation' => 'password-Str0ng!x',
+    ])->assertSessionHasErrors('email');
+});
+
+it('prevents a deleted user from logging in', function () {
+    $user = User::factory()->create(['email' => 'gone@example.test', 'password' => 'password']);
+    $user->delete();
+
+    $this->post(route('login.store'), ['email' => 'gone@example.test', 'password' => 'password'])
+        ->assertSessionHasErrors();
+    $this->assertGuest();
+});
+
+it('forbids admins from deleting themselves and non admins from deleting users', function () {
+    $admin = User::factory()->create(['is_admin' => true]);
+    $other = User::factory()->create();
+
+    $this->actingAs($admin)->delete(route('admin.users.destroy', $admin));
+    expect(User::query()->find($admin->id))->not->toBeNull();
+
+    $this->actingAs($other)->delete(route('admin.users.destroy', $admin))->assertForbidden();
+});

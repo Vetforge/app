@@ -44,7 +44,7 @@ const props = withDefaults(
     {
         inputId: 'breeder_id',
         name: undefined,
-        placeholder: 'Rechercher un eleveur...',
+        placeholder: 'Rechercher un éleveur...',
         required: false,
     },
 );
@@ -322,7 +322,7 @@ function csrfHeader(): Record<string, string> {
                     <ComboboxEmpty
                         class="px-3 py-2 text-sm text-muted-foreground"
                     >
-                        Aucun eleveur trouve.
+                        Aucun éleveur trouve.
                     </ComboboxEmpty>
                 </ComboboxViewport>
             </ComboboxContent>
@@ -347,9 +347,9 @@ function csrfHeader(): Record<string, string> {
                     :aria-busy="creating"
                 >
                     <DialogHeader>
-                        <DialogTitle> Nouvel eleveur </DialogTitle>
+                        <DialogTitle> Nouvel éleveur </DialogTitle>
                         <DialogDescription>
-                            Creation rapide rattachee a votre compte.
+                            Creation rapide rattachee à votre compte.
                         </DialogDescription>
                     </DialogHeader>
                     <p

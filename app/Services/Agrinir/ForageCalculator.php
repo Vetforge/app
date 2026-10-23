@@ -185,9 +185,9 @@ class ForageCalculator
         $UEL = 140.0 / $MSVIL;
         $UEB = 95.0 / $MSVIB;
 
-        $ca = $params['ca'] ?? null;
-        $p = $params['p'] ?? null;
-        $mg = $params['mg'] ?? null;
+        $ca = isset($params['ca']) ? (float) $params['ca'] * 10.0 : null;
+        $p = isset($params['p']) ? (float) $params['p'] * 10.0 : null;
+        $mg = isset($params['mg']) ? (float) $params['mg'] * 10.0 : null;
 
         return [
             'ms' => round($MS100, 1),
@@ -202,6 +202,13 @@ class ForageCalculator
             'dmo' => round($dMO, 1),
             'niref' => round($NIref, 3),
             'dt_n' => round($DT_N, 1),
+            'dt6_n' => round($vars['DT6_N'], 1),
+            'ag' => round($AGgKgMS, 1),
+            'ee' => round($AGgKgMS, 1),
+            'pf' => round($PF, 1),
+            'amidon' => isset($params['amidon']) ? round((float) $params['amidon'] / $MS100 * 1000.0, 1) : null,
+            'dt6_ami' => $vars['DT6_Ami'] !== null ? round($vars['DT6_Ami'], 1) : null,
+            'dt_ami' => $vars['DT_Ami'] !== null ? round($vars['DT_Ami'], 1) : null,
             'dr_n' => round($dr_N, 1),
             'ufl' => round($UFL, 3),
             'ufv' => round($UFV, 3),
@@ -224,7 +231,7 @@ class ForageCalculator
     // ─────────────────────────────────────────────────────────────────────────
 
     /**
-     * @return array{dMO:float,dE:float,EBo:float,NIref:float,DT_N:float,dr_N:float,MSVIM:float,MSVIL:float,MSVIB:float,PANDI:float,PF:float,CBkgMS:float,Ami_int:float,caAbsFactor:float,pAbsFactor:float}
+     * @return array{dMO:float,dE:float,EBo:float,NIref:float,DT_N:float,dr_N:float,DT6_N:float,DT6_Ami:float|null,DT_Ami:float|null,MSVIM:float,MSVIL:float,MSVIB:float,PANDI:float,PF:float,CBkgMS:float,Ami_int:float,caAbsFactor:float,pAbsFactor:float}
      */
     private static function typeVars(
         string $type,
@@ -296,15 +303,16 @@ class ForageCalculator
     /** Construit le tableau de retour. */
     private static function v(
         float $dMO, float $dE, float $EBo, float $NIref,
-        float $DT_N, float $dr_N,
+        float $DT_N, float $dr_N, float $DT6_N,
         float $MSVIM, float $MSVIL, float $MSVIB,
         float $PANDI, float $PF, float $CBkgMS,
         float $Ami_int = 0.0,
         float $caAbsFactor = 0.4, float $pAbsFactor = 0.6,
+        ?float $DT6_Ami = null, ?float $DT_Ami = null,
     ): array {
         return compact(
             'dMO', 'dE', 'EBo', 'NIref',
-            'DT_N', 'dr_N',
+            'DT_N', 'dr_N', 'DT6_N', 'DT6_Ami', 'DT_Ami',
             'MSVIM', 'MSVIL', 'MSVIB',
             'PANDI', 'PF', 'CBkgMS', 'Ami_int',
             'caAbsFactor', 'pAbsFactor'
@@ -330,7 +338,7 @@ class ForageCalculator
         $DT_N = self::dtN($DT6_N, $NIref);
         $dr_N = self::drN($MAT, $DT_N, $PANDI);
 
-        return self::v($dMO, $dE, $EBo, $NIref, $DT_N, $dr_N, $MSVIM, $MSVIL, $MSVIB, $PANDI, 95.0, $CB, 0.0, 0.4, 0.6);
+        return self::v($dMO, $dE, $EBo, $NIref, $DT_N, $dr_N, $DT6_N, $MSVIM, $MSVIL, $MSVIB, $PANDI, 95.0, $CB, 0.0, 0.4, 0.6);
     }
 
     private static function herbeGE1Sans(float $MS100, float $MAT, float $ADF, float $MATo): array
@@ -348,7 +356,7 @@ class ForageCalculator
         $DT_N = self::dtN($DT6_N, $NIref);
         $dr_N = self::drN($MAT, $DT_N, $PANDI);
 
-        return self::v($dMO, $dE, $EBo, $NIref, $DT_N, $dr_N, $MSVIM, $MSVIL, $MSVIB, $PANDI, 165.0, $CB, 0.0, 0.4, 0.6);
+        return self::v($dMO, $dE, $EBo, $NIref, $DT_N, $dr_N, $DT6_N, $MSVIM, $MSVIL, $MSVIB, $PANDI, 165.0, $CB, 0.0, 0.4, 0.6);
     }
 
     private static function herbeGE2Avec(float $MS100, float $MAT, float $ADF, float $MATo): array
@@ -366,7 +374,7 @@ class ForageCalculator
         $DT_N = self::dtN($DT6_N, $NIref);
         $dr_N = self::drN($MAT, $DT_N, $PANDI);
 
-        return self::v($dMO, $dE, $EBo, $NIref, $DT_N, $dr_N, $MSVIM, $MSVIL, $MSVIB, $PANDI, 95.0, $CB, 0.0, 0.4, 0.6);
+        return self::v($dMO, $dE, $EBo, $NIref, $DT_N, $dr_N, $DT6_N, $MSVIM, $MSVIL, $MSVIB, $PANDI, 95.0, $CB, 0.0, 0.4, 0.6);
     }
 
     private static function herbeGE2Sans(float $MS100, float $MAT, float $ADF, float $MATo): array
@@ -384,7 +392,7 @@ class ForageCalculator
         $DT_N = self::dtN($DT6_N, $NIref);
         $dr_N = self::drN($MAT, $DT_N, $PANDI);
 
-        return self::v($dMO, $dE, $EBo, $NIref, $DT_N, $dr_N, $MSVIM, $MSVIL, $MSVIB, $PANDI, 165.0, $CB, 0.0, 0.4, 0.6);
+        return self::v($dMO, $dE, $EBo, $NIref, $DT_N, $dr_N, $DT6_N, $MSVIM, $MSVIL, $MSVIB, $PANDI, 165.0, $CB, 0.0, 0.4, 0.6);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -430,7 +438,7 @@ class ForageCalculator
         $DT_N = self::dtN($DT6_N, $NIref);
         $dr_N = self::drN($MAT, $DT_N, $PANDI);
 
-        return self::v($dMO, $dE, $EBo, $NIref, $DT_N, $dr_N, $MSVIM, $MSVIL, $MSVIB, $PANDI, $PF, $CB, 0.0, 0.4, 0.6);
+        return self::v($dMO, $dE, $EBo, $NIref, $DT_N, $dr_N, $DT6_N, $MSVIM, $MSVIL, $MSVIB, $PANDI, $PF, $CB, 0.0, 0.4, 0.6);
     }
 
     private static function herbeGEnrub2(float $MS100, float $MAT, float $ADF, float $MATo): array
@@ -472,7 +480,7 @@ class ForageCalculator
         $DT_N = self::dtN($DT6_N, $NIref);
         $dr_N = self::drN($MAT, $DT_N, $PANDI);
 
-        return self::v($dMO, $dE, $EBo, $NIref, $DT_N, $dr_N, $MSVIM, $MSVIL, $MSVIB, $PANDI, $PF, $CB, 0.0, 0.4, 0.6);
+        return self::v($dMO, $dE, $EBo, $NIref, $DT_N, $dr_N, $DT6_N, $MSVIM, $MSVIL, $MSVIB, $PANDI, $PF, $CB, 0.0, 0.4, 0.6);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -494,7 +502,7 @@ class ForageCalculator
         $DT_N = self::dtN($DT6_N, $NIref);
         $dr_N = self::drN($MAT, $DT_N, $PANDI);
 
-        return self::v($dMO, $dE, $EBo, $NIref, $DT_N, $dr_N, $MSVIM, $MSVIL, $MSVIB, $PANDI, 0.0, $CB, 0.0, 0.4, 0.65);
+        return self::v($dMO, $dE, $EBo, $NIref, $DT_N, $dr_N, $DT6_N, $MSVIM, $MSVIL, $MSVIB, $PANDI, 0.0, $CB, 0.0, 0.4, 0.65);
     }
 
     private static function herbeGF2(float $MS100, float $MAT, float $ADF, float $MATo): array
@@ -512,7 +520,7 @@ class ForageCalculator
         $DT_N = self::dtN($DT6_N, $NIref);
         $dr_N = self::drN($MAT, $DT_N, $PANDI);
 
-        return self::v($dMO, $dE, $EBo, $NIref, $DT_N, $dr_N, $MSVIM, $MSVIL, $MSVIB, $PANDI, 0.0, $CB, 0.0, 0.4, 0.65);
+        return self::v($dMO, $dE, $EBo, $NIref, $DT_N, $dr_N, $DT6_N, $MSVIM, $MSVIL, $MSVIB, $PANDI, 0.0, $CB, 0.0, 0.4, 0.65);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -534,7 +542,7 @@ class ForageCalculator
         $DT_N = self::dtN($DT6_N, $NIref);
         $dr_N = self::drN($MAT, $DT_N, $PANDI);
 
-        return self::v($dMO, $dE, $EBo, $NIref, $DT_N, $dr_N, $MSVIM, $MSVIL, $MSVIB, $PANDI, 0.0, $CB, 0.0, 0.4, 0.6);
+        return self::v($dMO, $dE, $EBo, $NIref, $DT_N, $dr_N, $DT6_N, $MSVIM, $MSVIL, $MSVIB, $PANDI, 0.0, $CB, 0.0, 0.4, 0.6);
     }
 
     private static function herbeGFV2(float $MS100, float $MAT, float $ADF, float $MATo): array
@@ -552,7 +560,7 @@ class ForageCalculator
         $DT_N = self::dtN($DT6_N, $NIref);
         $dr_N = self::drN($MAT, $DT_N, $PANDI);
 
-        return self::v($dMO, $dE, $EBo, $NIref, $DT_N, $dr_N, $MSVIM, $MSVIL, $MSVIB, $PANDI, 0.0, $CB, 0.0, 0.4, 0.6);
+        return self::v($dMO, $dE, $EBo, $NIref, $DT_N, $dr_N, $DT6_N, $MSVIM, $MSVIL, $MSVIB, $PANDI, 0.0, $CB, 0.0, 0.4, 0.6);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -574,7 +582,7 @@ class ForageCalculator
         $DT_N = self::dtN($DT6_N, $NIref);
         $dr_N = self::drN($MAT, $DT_N, $PANDI);
 
-        return self::v($dMO, $dE, $EBo, $NIref, $DT_N, $dr_N, $MSVIM, $MSVIL, $MSVIB, $PANDI, 95.0, $CB, 0.0, 0.35, 0.6);
+        return self::v($dMO, $dE, $EBo, $NIref, $DT_N, $dr_N, $DT6_N, $MSVIM, $MSVIL, $MSVIB, $PANDI, 95.0, $CB, 0.0, 0.35, 0.6);
     }
 
     private static function herbePPE1Sans(float $MS100, float $MAT, float $ADF, float $MATo): array
@@ -592,7 +600,7 @@ class ForageCalculator
         $DT_N = self::dtN($DT6_N, $NIref);
         $dr_N = self::drN($MAT, $DT_N, $PANDI);
 
-        return self::v($dMO, $dE, $EBo, $NIref, $DT_N, $dr_N, $MSVIM, $MSVIL, $MSVIB, $PANDI, 165.0, $CB, 0.0, 0.35, 0.6);
+        return self::v($dMO, $dE, $EBo, $NIref, $DT_N, $dr_N, $DT6_N, $MSVIM, $MSVIL, $MSVIB, $PANDI, 165.0, $CB, 0.0, 0.35, 0.6);
     }
 
     private static function herbePPE2Avec(float $MS100, float $MAT, float $ADF, float $MATo): array
@@ -610,7 +618,7 @@ class ForageCalculator
         $DT_N = self::dtN($DT6_N, $NIref);
         $dr_N = self::drN($MAT, $DT_N, $PANDI);
 
-        return self::v($dMO, $dE, $EBo, $NIref, $DT_N, $dr_N, $MSVIM, $MSVIL, $MSVIB, $PANDI, 95.0, $CB, 0.0, 0.35, 0.6);
+        return self::v($dMO, $dE, $EBo, $NIref, $DT_N, $dr_N, $DT6_N, $MSVIM, $MSVIL, $MSVIB, $PANDI, 95.0, $CB, 0.0, 0.35, 0.6);
     }
 
     private static function herbePPE2Sans(float $MS100, float $MAT, float $ADF, float $MATo): array
@@ -628,7 +636,7 @@ class ForageCalculator
         $DT_N = self::dtN($DT6_N, $NIref);
         $dr_N = self::drN($MAT, $DT_N, $PANDI);
 
-        return self::v($dMO, $dE, $EBo, $NIref, $DT_N, $dr_N, $MSVIM, $MSVIL, $MSVIB, $PANDI, 165.0, $CB, 0.0, 0.35, 0.6);
+        return self::v($dMO, $dE, $EBo, $NIref, $DT_N, $dr_N, $DT6_N, $MSVIM, $MSVIL, $MSVIB, $PANDI, 165.0, $CB, 0.0, 0.35, 0.6);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -674,7 +682,7 @@ class ForageCalculator
         $DT_N = self::dtN($DT6_N, $NIref);
         $dr_N = self::drN($MAT, $DT_N, $PANDI);
 
-        return self::v($dMO, $dE, $EBo, $NIref, $DT_N, $dr_N, $MSVIM, $MSVIL, $MSVIB, $PANDI, $PF, $CB, 0.0, 0.35, 0.6);
+        return self::v($dMO, $dE, $EBo, $NIref, $DT_N, $dr_N, $DT6_N, $MSVIM, $MSVIL, $MSVIB, $PANDI, $PF, $CB, 0.0, 0.35, 0.6);
     }
 
     private static function herbePPEnrub2(float $MS100, float $MAT, float $ADF, float $MATo): array
@@ -716,7 +724,7 @@ class ForageCalculator
         $DT_N = self::dtN($DT6_N, $NIref);
         $dr_N = self::drN($MAT, $DT_N, $PANDI);
 
-        return self::v($dMO, $dE, $EBo, $NIref, $DT_N, $dr_N, $MSVIM, $MSVIL, $MSVIB, $PANDI, $PF, $CB, 0.0, 0.35, 0.6);
+        return self::v($dMO, $dE, $EBo, $NIref, $DT_N, $dr_N, $DT6_N, $MSVIM, $MSVIL, $MSVIB, $PANDI, $PF, $CB, 0.0, 0.35, 0.6);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -738,7 +746,7 @@ class ForageCalculator
         $DT_N = self::dtN($DT6_N, $NIref);
         $dr_N = self::drN($MAT, $DT_N, $PANDI);
 
-        return self::v($dMO, $dE, $EBo, $NIref, $DT_N, $dr_N, $MSVIM, $MSVIL, $MSVIB, $PANDI, 0.0, $CB, 0.0, 0.35, 0.65);
+        return self::v($dMO, $dE, $EBo, $NIref, $DT_N, $dr_N, $DT6_N, $MSVIM, $MSVIL, $MSVIB, $PANDI, 0.0, $CB, 0.0, 0.35, 0.65);
     }
 
     private static function herbePPF2(float $MS100, float $MAT, float $ADF, float $MATo): array
@@ -756,7 +764,7 @@ class ForageCalculator
         $DT_N = self::dtN($DT6_N, $NIref);
         $dr_N = self::drN($MAT, $DT_N, $PANDI);
 
-        return self::v($dMO, $dE, $EBo, $NIref, $DT_N, $dr_N, $MSVIM, $MSVIL, $MSVIB, $PANDI, 0.0, $CB, 0.0, 0.35, 0.65);
+        return self::v($dMO, $dE, $EBo, $NIref, $DT_N, $dr_N, $DT6_N, $MSVIM, $MSVIL, $MSVIB, $PANDI, 0.0, $CB, 0.0, 0.35, 0.65);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -778,7 +786,7 @@ class ForageCalculator
         $DT_N = self::dtN($DT6_N, $NIref);
         $dr_N = self::drN($MAT, $DT_N, $PANDI);
 
-        return self::v($dMO, $dE, $EBo, $NIref, $DT_N, $dr_N, $MSVIM, $MSVIL, $MSVIB, $PANDI, 0.0, $CB, 0.0, 0.35, 0.7);
+        return self::v($dMO, $dE, $EBo, $NIref, $DT_N, $dr_N, $DT6_N, $MSVIM, $MSVIL, $MSVIB, $PANDI, 0.0, $CB, 0.0, 0.35, 0.7);
     }
 
     private static function herbePPFV2(float $MS100, float $MAT, float $ADF, float $MATo): array
@@ -796,7 +804,7 @@ class ForageCalculator
         $DT_N = self::dtN($DT6_N, $NIref);
         $dr_N = self::drN($MAT, $DT_N, $PANDI);
 
-        return self::v($dMO, $dE, $EBo, $NIref, $DT_N, $dr_N, $MSVIM, $MSVIL, $MSVIB, $PANDI, 0.0, $CB, 0.0, 0.35, 0.7);
+        return self::v($dMO, $dE, $EBo, $NIref, $DT_N, $dr_N, $DT6_N, $MSVIM, $MSVIL, $MSVIB, $PANDI, 0.0, $CB, 0.0, 0.35, 0.7);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -818,7 +826,7 @@ class ForageCalculator
         $DT_N = self::dtN($DT6_N, $NIref);
         $dr_N = self::drN($MAT, $DT_N, $PANDI);
 
-        return self::v($dMO, $dE, $EBo, $NIref, $DT_N, $dr_N, $MSVIM, $MSVIL, $MSVIB, $PANDI, 80.0, $CB, 0.0, 0.3, 0.65);
+        return self::v($dMO, $dE, $EBo, $NIref, $DT_N, $dr_N, $DT6_N, $MSVIM, $MSVIL, $MSVIB, $PANDI, 80.0, $CB, 0.0, 0.3, 0.65);
     }
 
     private static function luzerneESans(float $MS100, float $MAT, float $ADF, float $MATo): array
@@ -836,7 +844,7 @@ class ForageCalculator
         $DT_N = self::dtN($DT6_N, $NIref);
         $dr_N = self::drN($MAT, $DT_N, $PANDI);
 
-        return self::v($dMO, $dE, $EBo, $NIref, $DT_N, $dr_N, $MSVIM, $MSVIL, $MSVIB, $PANDI, 155.0, $CB, 0.0, 0.3, 0.65);
+        return self::v($dMO, $dE, $EBo, $NIref, $DT_N, $dr_N, $DT6_N, $MSVIM, $MSVIL, $MSVIB, $PANDI, 155.0, $CB, 0.0, 0.3, 0.65);
     }
 
     private static function luzerneEnrub(float $MS100, float $MAT, float $ADF, float $MATo): array
@@ -878,7 +886,7 @@ class ForageCalculator
         $DT_N = self::dtN($DT6_N, $NIref);
         $dr_N = self::drN($MAT, $DT_N, $PANDI);
 
-        return self::v($dMO, $dE, $EBo, $NIref, $DT_N, $dr_N, $MSVIM, $MSVIL, $MSVIB, $PANDI, $PF, $CB, 0.0, 0.3, 0.65);
+        return self::v($dMO, $dE, $EBo, $NIref, $DT_N, $dr_N, $DT6_N, $MSVIM, $MSVIL, $MSVIB, $PANDI, $PF, $CB, 0.0, 0.3, 0.65);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -900,7 +908,7 @@ class ForageCalculator
         $DT_N = self::dtN($DT6_N, $NIref);
         $dr_N = self::drN($MAT, $DT_N, $PANDI);
 
-        return self::v($dMO, $dE, $EBo, $NIref, $DT_N, $dr_N, $MSVIM, $MSVIL, $MSVIB, $PANDI, 0.0, $CB, 0.0, 0.3, 0.6);
+        return self::v($dMO, $dE, $EBo, $NIref, $DT_N, $dr_N, $DT6_N, $MSVIM, $MSVIL, $MSVIB, $PANDI, 0.0, $CB, 0.0, 0.3, 0.6);
     }
 
     private static function luzerneFV(float $MS100, float $MAT, float $ADF, float $MATo): array
@@ -918,7 +926,7 @@ class ForageCalculator
         $DT_N = self::dtN($DT6_N, $NIref);
         $dr_N = self::drN($MAT, $DT_N, $PANDI);
 
-        return self::v($dMO, $dE, $EBo, $NIref, $DT_N, $dr_N, $MSVIM, $MSVIL, $MSVIB, $PANDI, 0.0, $CB, 0.0, 0.3, 0.7);
+        return self::v($dMO, $dE, $EBo, $NIref, $DT_N, $dr_N, $DT6_N, $MSVIM, $MSVIL, $MSVIB, $PANDI, 0.0, $CB, 0.0, 0.3, 0.7);
     }
 
     private static function luzerneD(float $MS100, float $MAT, float $ADF, float $MATo): array
@@ -936,7 +944,7 @@ class ForageCalculator
         $DT_N = self::dtN($DT6_N, $NIref);
         $dr_N = self::drN($MAT, $DT_N, $PANDI);
 
-        return self::v($dMO, $dE, $EBo, $NIref, $DT_N, $dr_N, $MSVIM, $MSVIL, $MSVIB, $PANDI, 0.0, $CB, 0.0, 0.3, 0.6);
+        return self::v($dMO, $dE, $EBo, $NIref, $DT_N, $dr_N, $DT6_N, $MSVIM, $MSVIL, $MSVIB, $PANDI, 0.0, $CB, 0.0, 0.3, 0.6);
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -978,7 +986,7 @@ class ForageCalculator
         };
         $PANDI = 0.0; // not used for fixed DT_N path
 
-        return self::v($dMO, $dE, $EBo, $NIref, $DT_N, $dr_N, $MSVIM, $MSVIL, $MSVIB, $PANDI, $PF, $CB, $Ami_int, 0.4, 0.7);
+        return self::v($dMO, $dE, $EBo, $NIref, $DT_N, $dr_N, $DT6_N, $MSVIM, $MSVIL, $MSVIB, $PANDI, $PF, $CB, $Ami_int, 0.4, 0.7, $DT6_Ami, $DT_Ami);
     }
 
     private static function maisFV(float $MS100, float $MAT, float $ADF, float $MATo, array $params): array
@@ -1006,7 +1014,7 @@ class ForageCalculator
         $Ami_int = 0.826 * $AmidonKgMS * (1.0 - 0.01 * $DT_Ami);
         $PANDI = 0.0;
 
-        return self::v($dMO, $dE, $EBo, $NIref, $DT_N, $dr_N, $MSVIM, $MSVIL, $MSVIB, $PANDI, 0.0, $CB, $Ami_int, 0.4, 0.7);
+        return self::v($dMO, $dE, $EBo, $NIref, $DT_N, $dr_N, $DT6_N, $MSVIM, $MSVIL, $MSVIB, $PANDI, 0.0, $CB, $Ami_int, 0.4, 0.7, $DT6_Ami, $DT_Ami);
     }
 
     private static function sorghoE(float $MS100, float $MAT, float $ADF, float $MATo, array $params): array
@@ -1041,7 +1049,7 @@ class ForageCalculator
         };
         $PANDI = 0.0;
 
-        return self::v($dMO, $dE, $EBo, $NIref, $DT_N, $dr_N, $MSVIM, $MSVIL, $MSVIB, $PANDI, $PF, $CB, $Ami_int, 0.4, 0.66);
+        return self::v($dMO, $dE, $EBo, $NIref, $DT_N, $dr_N, $DT6_N, $MSVIM, $MSVIL, $MSVIB, $PANDI, $PF, $CB, $Ami_int, 0.4, 0.66, $DT6_Ami, $DT_Ami);
     }
 
     private static function sorghoFV(float $MS100, float $MAT, float $ADF, float $MATo, array $params): array
@@ -1069,7 +1077,7 @@ class ForageCalculator
         $Ami_int = 0.826 * $AmidonKgMS * (1.0 - 0.01 * $DT_Ami);
         $PANDI = 0.0;
 
-        return self::v($dMO, $dE, $EBo, $NIref, $DT_N, $dr_N, $MSVIM, $MSVIL, $MSVIB, $PANDI, 0.0, $CB, $Ami_int, 0.4, 0.66);
+        return self::v($dMO, $dE, $EBo, $NIref, $DT_N, $dr_N, $DT6_N, $MSVIM, $MSVIL, $MSVIB, $PANDI, 0.0, $CB, $Ami_int, 0.4, 0.66, $DT6_Ami, $DT_Ami);
     }
 
     // ─────────────────────────────────────────────────────────────────────────

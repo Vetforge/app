@@ -8,7 +8,12 @@ use Database\Factories\AnalysisFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Carbon;
 
+/**
+ * @property Carbon|null $sampled_at
+ * @property Carbon|null $analyzed_at
+ */
 class Analysis extends Model
 {
     /** @use HasFactory<AnalysisFactory> */

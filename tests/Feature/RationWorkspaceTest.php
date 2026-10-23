@@ -1,5 +1,7 @@
 <?php
 
+use App\Enums\CategorieAnimal;
+use App\Enums\Espece;
 use App\Models\Aliment;
 use App\Models\PlanRationnement;
 use App\Models\Ration;
@@ -129,7 +131,7 @@ it('exposes composition and results props on the composition route', function ()
             ->where('iterations_volonte', 0)
             // La valeur n'est active que parce que l'utilisateur l'a définie comme préférence locale.
             ->where('normes.active.ph_ruminal.min', 6.4)
-            ->has('normes.editable', 10)
+            ->has('normes.editable', count(RationNormes::definitions()))
             ->has('aliments_disponibles')
             ->has('ration.ration_aliments', 2)
         );
@@ -154,7 +156,7 @@ it('exposes composition and results props on the results route', function () {
             ->where('iterations_volonte', 0)
             ->where('normes.active.bpr.min', 1)
             ->where('normes.active.bpr.max', 4)
-            ->has('normes.editable', 10)
+            ->has('normes.editable', count(RationNormes::definitions()))
             ->has('aliments_disponibles')
             ->has('ration.ration_aliments', 2)
         );
@@ -304,10 +306,11 @@ it('exposes editable norms on the settings route', function () {
         ->get(route('normes.edit'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
-            ->component('settings/Normes')
+            ->component('settings/ModuleSettings')
+            ->where('module.slug', 'ration')
             ->where('normes.active.ira.min', 0.7)
             ->where('normes.active.ira.max', 1.1)
-            ->has('normes.editable', 10)
+            ->has('normes.editable', count(RationNormes::definitions()))
         );
 });
 
@@ -328,7 +331,7 @@ it('updates custom norms for the authenticated user', function () {
         ])
         ->assertRedirect(route('normes.edit'));
 
-    expect($user->fresh()->normes_personnalisees)->toMatchArray([
+    expect($user->fresh()->normes_personnalisees['categories']['vache_laitiere'])->toMatchArray([
         'bpr' => ['min' => 1, 'max' => 4],
         'ira' => ['min' => 0.7, 'max' => 1.1],
         'ph_ruminal' => ['min' => 6.4, 'max' => null],
@@ -548,3 +551,87 @@ it('renders custom norm labels in the ration pdf', function () {
     expect($html)->toContain('pH ruminal estimé via AmiD_ru (6,4)');
     expect($html)->not->toContain('BPR (0 - 3)');
 });
+
+it('uses personal IRA scoring and evaluated upper bounds throughout the ration workspace', function () {
+    $normes = ['ph_ruminal' => ['min' => null, 'max' => 0]];
+    foreach (['be', 'amid_ru', 'pco_percent', 'ndf_fourrages', 'ndf_total'] as $key) {
+        $normes['ira_'.$key] = ['min' => null, 'max' => null];
+    }
+    $user = User::factory()->create(['normes_personnalisees' => $normes]);
+    [$plan, $ration] = createWorkspaceRation($user);
+
+    foreach (['plans.rations.composition', 'plans.rations.resultats'] as $route) {
+        $this->actingAs($user)->get(route($route, [$plan, $ration]))
+            ->assertOk()->assertInertia(fn (Assert $page) => $page
+            ->where('resultats.indicateurs.ira', 0)
+            ->where('normes.statuses.ph_ruminal', 'alert')
+            );
+    }
+
+    $resultats = RationCalculator::calculer($ration, RationNormes::active($normes));
+    $html = view('pdf.ration', [
+        'plan' => $plan, 'ration' => $ration, 'resultats' => $resultats,
+        'iterations_volonte' => 0, 'normes' => RationNormes::payloadForUser($user),
+    ])->render();
+
+    expect($html)->toMatch('/<tr[^>]*class="status-row-alert"[^>]*>\s*<td[^>]*>\s*pH ruminal estimé via AmiD_ru \(0\)/');
+});
+
+it('uses the animal category profile for composition results IRA and PDF instead of another profile', function (string $inra, CategorieAnimal $categorie) {
+    Pdf::fake();
+    $selected = ['bpr' => ['min' => 1.25, 'max' => 4.75], 'ph_ruminal' => ['min' => null, 'max' => 0]];
+    foreach (['be', 'amid_ru', 'pco_percent', 'ndf_fourrages', 'ndf_total'] as $key) {
+        $selected['ira_'.$key] = ['min' => null, 'max' => null];
+    }
+    $other = $categorie === CategorieAnimal::VacheLaitiere ? CategorieAnimal::ChevreLaitiere : CategorieAnimal::VacheLaitiere;
+    $user = User::factory()->create(['normes_personnalisees' => ['categories' => [
+        $categorie->value => $selected,
+        $other->value => ['bpr' => ['min' => 10, 'max' => 20], 'ph_ruminal' => ['min' => null, 'max' => 99]],
+    ]]]);
+    [$plan, $ration] = createWorkspaceRation($user);
+    $plan->update(['inra' => $inra]);
+    $parameters = match ($categorie) {
+        CategorieAnimal::BovinCroissance => ['gmq' => 800, 'reference_bovine' => 10],
+        CategorieAnimal::BovinEngraissement => ['gmq' => 1400, 'reference_bovine' => 1],
+        CategorieAnimal::BrebisLaitiere => ['jours_lactation' => 60, 'lait_objectif' => 2],
+        CategorieAnimal::BrebisAllaitante => ['jours_lactation' => 30, 'nombre_jeunes' => 2, 'gmq_portee' => 300],
+        CategorieAnimal::AgneauCroissance => ['gmq' => 300, 'age_jours' => 150, 'sexe' => 'femelle', 'poids_adulte' => 70],
+        CategorieAnimal::ChevreLaitiere => ['jours_lactation' => 60, 'lait_objectif' => 3],
+        CategorieAnimal::ChevretteCroissance => ['gmq' => 85, 'age_jours' => 300, 'sexe' => 'femelle', 'poids_adulte' => 70],
+        default => [],
+    };
+    $ration->update([
+        'categorie_animal' => $categorie->value, 'poids_vif' => $categorie->poidsParDefaut(),
+        'nec' => 3, 'parite' => 2, 'jours_lactation' => 0, 'jours_gestation' => 0,
+        'mois_gestation' => null, 'ecart_variation_reserve' => null,
+        'race' => match ($categorie->espece()) {
+            Espece::Bovin => 'montbeliarde', Espece::Ovin => 'lacaune', Espece::Caprin => 'alpine',
+        },
+        ...$parameters,
+    ]);
+
+    foreach (['plans.rations.composition', 'plans.rations.resultats'] as $route) {
+        $this->actingAs($user)->get(route($route, [$plan, $ration]))->assertOk()
+            ->assertInertia(function (Assert $page) use ($inra, $categorie) {
+                $page->where('categorie_meta.value', $categorie->value)
+                    ->where('normes.active.bpr.min', 1.25)->where('normes.active.bpr.max', 4.75)
+                    ->where('normes.active.ph_ruminal.max', 0);
+                if ($inra === '2018') {
+                    $page->where('resultats.indicateurs.ira', 0)->where('normes.statuses.ph_ruminal', 'alert');
+                }
+            });
+    }
+    $this->get(route('plans.rations.pdf', [$plan, $ration]))->assertOk();
+    Pdf::assertRespondedWithPdf(function ($pdf) use ($inra) {
+        expect($pdf->viewData['normes']['active']['bpr'])->toBe(['min' => 1.25, 'max' => 4.75]);
+        if ($inra === '2018') {
+            expect($pdf->viewData['resultats']['indicateurs']['ira'])->toEqual(0)
+                ->and($pdf->viewData['normes']['statuses']['ph_ruminal'])->toBe('alert');
+        }
+
+        return true;
+    });
+})->with([
+    '2007 dairy cow' => ['2007', CategorieAnimal::VacheLaitiere],
+    ...array_map(fn (CategorieAnimal $category) => ['2018', $category], CategorieAnimal::cases()),
+]);

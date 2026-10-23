@@ -719,6 +719,7 @@
     }
   },
   "merge_policy": "Uniquement les champs absents ou nulls ; chaque valeur imprimée, même zéro, reste prioritaire. Les valeurs attendues Larelev ne sont jamais recalculées.",
+  "starch_degradability_note": "DT Amidon° dans les rapports est conservée comme dt_ami, distincte de dt6_ami. La DT6 manquante des concentrés est complétée depuis les profils INRA ; celle des mélanges est pondérée par les masses d’amidon des ingrédients, et non par leur seule MS.",
   "remaining_limits": [
     "NIref non fourni pour les concentrés : le moteur conserve son repli existant à 2,0 ; aucune valeur analytique INRA n’est inventée.",
     "PF et sucres absents des CSV et de PostgreSQL : les champs restent absents. Le moteur utilise son repli existant à zéro pour PF ; les résultats qui en dépendent restent des comparaisons avec entrées approchées.",

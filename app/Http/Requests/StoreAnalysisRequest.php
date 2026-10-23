@@ -49,7 +49,7 @@ class StoreAnalysisRequest extends FormRequest
                     ->exists();
 
                 if (! $belongsToUser) {
-                    $validator->errors()->add('breeder_id', 'Cet eleveur est introuvable.');
+                    $validator->errors()->add('breeder_id', 'Cet éleveur est introuvable.');
                 }
 
                 $this->validateComparisonAnalysis($validator);
@@ -85,7 +85,7 @@ class StoreAnalysisRequest extends FormRequest
             ->exists();
 
         if (! $exists) {
-            $validator->errors()->add('payload.comparison_analysis_id', 'Ancien bilan introuvable pour cet eleveur.');
+            $validator->errors()->add('payload.comparison_analysis_id', 'Ancien bilan introuvable pour cet éleveur.');
         }
     }
 }

@@ -14,6 +14,7 @@ use App\Support\VeterinaryModules;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -82,6 +83,21 @@ class UserController extends Controller
         $user->update($validated);
 
         return back()->with('success', 'Utilisateur mis à jour.');
+    }
+
+    public function destroy(Request $request, User $user): RedirectResponse
+    {
+        if ($request->user()->is($user)) {
+            return back()->with('error', 'Vous ne pouvez pas supprimer votre propre compte.');
+        }
+
+        DB::transaction(function () use ($user): void {
+            // Coupe les sessions actives ; les analyses et données du compte sont conservées.
+            DB::table('sessions')->where('user_id', $user->id)->delete();
+            $user->delete();
+        });
+
+        return to_route('admin.users.index')->with('success', 'Utilisateur supprimé.');
     }
 
     /**

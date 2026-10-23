@@ -13,6 +13,7 @@ export interface Aliment {
 }
 
 export interface RationAliment {
+    calculation_warnings?: string[];
     id: number;
     aliment_id: number;
     aliment: Aliment;
@@ -22,6 +23,7 @@ export interface RationAliment {
 }
 
 export interface MelangeAliment {
+    calculation_warnings?: string[];
     id: number;
     aliment: Aliment;
     quantite: number | null;
@@ -29,6 +31,7 @@ export interface MelangeAliment {
 }
 
 export interface Melange {
+    calculation_warnings?: string[];
     id: number;
     nom: string | null;
     quantite: number | null;
@@ -63,6 +66,14 @@ export interface RationNormeDefinition {
 export interface RationNormesPayload {
     active: Record<string, RationNormeValue>;
     editable: RationNormeDefinition[];
+    statuses?: Record<string, 'ok' | 'watch' | 'alert' | 'neutral'>;
+    categorie_animal?: string;
+    categories?: {
+        espece: string;
+        label: string;
+        categories: { value: string; label: string }[];
+    }[];
+    profiles?: Record<string, Record<string, RationNormeValue>>;
 }
 
 export interface Ration {

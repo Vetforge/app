@@ -674,7 +674,6 @@ watch(
                 <div class="analysis-section-heading">
                     <div>
                         <h2>Identification</h2>
-                        <p>Eleveur, animal et dates du dossier.</p>
                     </div>
                 </div>
 
@@ -802,7 +801,6 @@ watch(
                 <div class="analysis-section-heading">
                     <div>
                         <h2>Coproscopie parasitaire</h2>
-                        <p>Echantillons et cotations par parasite.</p>
                     </div>
                 </div>
 
@@ -978,9 +976,6 @@ watch(
                 <div class="analysis-section-heading">
                     <div>
                         <h2>Diarrhée néonatale</h2>
-                        <p>
-                            Test, prelevement et lecture des agents recherches.
-                        </p>
                     </div>
                 </div>
 
@@ -1071,7 +1066,6 @@ watch(
                 <div class="analysis-section-heading">
                     <div>
                         <h2>Gaz du sang</h2>
-                        <p>Saisie clinique, valeurs mesurees et perfusions.</p>
                     </div>
                 </div>
 
@@ -1636,7 +1630,6 @@ watch(
                 <div class="analysis-section-heading">
                     <div>
                         <h2>Comptage cellulaire</h2>
-                        <p>Prelevement et comptage par echantillon.</p>
                     </div>
                 </div>
 
@@ -1729,7 +1722,6 @@ watch(
                 <div class="analysis-section-heading">
                     <div>
                         <h2>Diagnostic bacteriologique</h2>
-                        <p>Prelevement, germes et antibiogramme.</p>
                     </div>
                 </div>
 
@@ -1912,7 +1904,6 @@ watch(
                 <div class="analysis-section-heading">
                     <div>
                         <h2>Conseils et conclusion</h2>
-                        <p>Texte qui apparaitra dans le compte rendu.</p>
                     </div>
                 </div>
 

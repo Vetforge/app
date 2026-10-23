@@ -44,6 +44,9 @@ class Aliment extends Model
             } elseif (! $aliment->exists || $aliment->isDirty('type')) {
                 throw ValidationException::withMessages(['type' => "Le type de l'aliment doit être fourrage, concentre ou mineral."]);
             }
+            if ($type === TypeAliment::Mineral) {
+                $aliment->ms = 100.0;
+            }
         });
     }
 
@@ -79,6 +82,18 @@ class Aliment extends Model
 
                 return $canonical;
             },
+        );
+    }
+
+    /**
+     * Les minéraux sont exprimés à 100 % MS, y compris dans les anciennes données.
+     *
+     * @return Attribute<float|int|string|null, float|int|string|null>
+     */
+    protected function ms(): Attribute
+    {
+        return Attribute::make(
+            get: fn (float|int|string|null $value): float|int|string|null => $this->type === TypeAliment::Mineral->value ? 100.0 : $value,
         );
     }
 

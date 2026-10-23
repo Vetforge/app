@@ -26,6 +26,7 @@ interface DetailRow {
 }
 
 interface ComparisonRow {
+    metricKey?: string;
     label: string;
     apport: number | undefined;
     besoin: number | undefined;
@@ -34,6 +35,7 @@ interface ComparisonRow {
 }
 
 interface BalanceRow {
+    metricKey?: string;
     label: string;
     apport: number | undefined;
     besoin: number | undefined;
@@ -42,12 +44,8 @@ interface BalanceRow {
     besoinSuffix?: string;
 }
 
-interface TechnicalPanel {
-    label: string;
-    valueLabel: string;
-    note: string;
-    percent: number;
-    status: StatusTone;
+interface TechnicalPanel extends CircleMetric {
+    percent?: number;
 }
 
 interface InsightItem {
@@ -60,6 +58,7 @@ interface InsightItem {
 interface CircleMetric {
     label: string;
     valueLabel: string;
+    unit?: string;
     note: string;
     status: StatusTone;
 }
@@ -182,20 +181,8 @@ function safeRatio(
     return apport / besoin;
 }
 
-function coverageStatus(ratio: number | undefined): StatusTone {
-    if (ratio === undefined) {
-        return 'neutral';
-    }
-
-    if (ratio < 0.95) {
-        return 'alert';
-    }
-
-    if (ratio < 1 || ratio > 1.15) {
-        return 'watch';
-    }
-
-    return 'ok';
+function coverageStatus(ratio: number | undefined, key = 'uf'): StatusTone {
+    return ratio === undefined ? 'neutral' : normeStatus(`couverture_${key}`);
 }
 
 function goalStatus(
@@ -211,192 +198,31 @@ function goalStatus(
         return 'neutral';
     }
 
-    if (limitant < objectif * 0.95) {
-        return 'alert';
-    }
-
-    if (limitant < objectif) {
-        return 'watch';
-    }
-
-    return 'ok';
+    return normeStatus('couverture_lait');
 }
 
-function rangeStatus(row: DetailRow): StatusTone {
-    if (
-        row.value === undefined ||
-        row.value === null ||
-        Number.isNaN(row.value)
-    ) {
-        return 'neutral';
-    }
-
-    if (row.min !== undefined && row.value < row.min) {
-        return 'alert';
-    }
-
-    if (row.max !== undefined && row.value > row.max) {
-        return 'alert';
-    }
-
-    if (row.goodAbove !== undefined && row.value < row.goodAbove) {
-        return 'alert';
-    }
-
-    if (row.goodBelow !== undefined && row.value > row.goodBelow) {
-        return 'alert';
-    }
-
-    return row.min !== undefined ||
-        row.max !== undefined ||
-        row.goodAbove !== undefined ||
-        row.goodBelow !== undefined
-        ? 'ok'
-        : 'neutral';
+function normeStatus(key: string): StatusTone {
+    return props.normes.statuses?.[key] ?? 'neutral';
 }
 
 function detailStatus(row: DetailRow): StatusTone {
-    return rangeStatus(row);
+    return row.metricKey ? normeStatus(row.metricKey) : 'neutral';
 }
 
 function healthDetailStatus(row: DetailRow): StatusTone {
-    if (
-        row.value === undefined ||
-        row.value === null ||
-        Number.isNaN(row.value)
-    ) {
-        return 'neutral';
-    }
-
-    // Sans borne configurée (les seuils par défaut ne sont pas des normes INRA universelles),
-    // l'indicateur reste informatif : on ne déclenche pas d'alerte tant que l'utilisateur n'a
-    // pas défini de préférence dans Réglages › Normes.
-    if (row.min === undefined && row.max === undefined) {
-        return 'neutral';
-    }
-
-    if (row.metricKey === 'be') {
-        if (row.max !== undefined && row.value > row.max) {
-            return 'ok';
-        }
-
-        if (row.min !== undefined && row.value > row.min) {
-            return 'watch';
-        }
-
-        return 'alert';
-    }
-
-    if (
-        row.metricKey === 'amid_ru' ||
-        row.metricKey === 'pco_percent' ||
-        row.metricKey === 'ira'
-    ) {
-        if (row.min !== undefined && row.value < row.min) {
-            return 'ok';
-        }
-
-        if (row.max !== undefined && row.value < row.max) {
-            return 'watch';
-        }
-
-        return 'alert';
-    }
-
-    if (row.metricKey === 'ndf_total') {
-        if (row.max !== undefined && row.value > row.max) {
-            return 'ok';
-        }
-
-        if (row.min !== undefined && row.value > row.min) {
-            return 'watch';
-        }
-
-        return 'alert';
-    }
-
-    if (row.metricKey === 'ph_ruminal') {
-        return row.min !== undefined && row.value < row.min ? 'alert' : 'ok';
-    }
-
     return detailStatus(row);
 }
 
 function fiberDetailStatus(row: DetailRow): StatusTone {
-    if (
-        row.value === undefined ||
-        row.value === null ||
-        Number.isNaN(row.value)
-    ) {
-        return 'neutral';
-    }
-
-    // Idem section fibres : pas de seuil configuré ⇒ information, pas d'alerte.
-    if (row.min === undefined && row.max === undefined) {
-        return 'neutral';
-    }
-
-    if (row.metricKey === 'cb_par_kg_ms') {
-        return row.min !== undefined && row.value < row.min ? 'alert' : 'ok';
-    }
-
-    if (
-        row.label === 'Apport en ADF' ||
-        row.label === 'Apport en NDF' ||
-        row.label === 'Apport en MS'
-    ) {
-        return 'neutral';
-    }
-
-    if (row.metricKey === 'ndf_total') {
-        if (row.max !== undefined && row.value > row.max) {
-            return 'ok';
-        }
-
-        if (row.min !== undefined && row.value > row.min) {
-            return 'watch';
-        }
-
-        return 'alert';
-    }
-
     return detailStatus(row);
 }
 
 function comparisonStatus(row: ComparisonRow): StatusTone {
-    const ratio = safeRatio(row.apport, row.besoin);
-
-    if (ratio === undefined) {
-        return 'neutral';
-    }
-
-    if (ratio < 0.95) {
-        return 'alert';
-    }
-
-    if (ratio > 1.4) {
-        return 'watch';
-    }
-
-    return 'ok';
+    return row.metricKey ? normeStatus(row.metricKey) : 'neutral';
 }
 
 function balanceStatus(row: BalanceRow): StatusTone {
-    const ratio = safeRatio(row.apport, row.besoin);
-
-    if (ratio === undefined) {
-        return 'neutral';
-    }
-
-    if (ratio <= 0.9) {
-        return 'alert';
-    }
-
-    if (ratio >= 1.1) {
-        return 'watch';
-    }
-
-    return 'ok';
+    return row.metricKey ? normeStatus(row.metricKey) : 'neutral';
 }
 
 function statusLabel(status: StatusTone): string {
@@ -536,15 +362,7 @@ function bilanClass(val: number | undefined): string {
         return '';
     }
 
-    if (val > 0.5) {
-        return 'text-emerald-600 dark:text-emerald-400';
-    }
-
-    if (val < -0.5) {
-        return 'text-rose-600 dark:text-rose-400';
-    }
-
-    return 'text-muted-foreground';
+    return toneTextClass(normeStatus('rmic'));
 }
 
 function bilanSign(val: number | undefined, decimals = 1): string {
@@ -713,6 +531,7 @@ const proteinsRows = computed<DetailRow[]>(() => {
             decimals: 0,
         },
         {
+            metricKey: 'pdi_par_kg_ms',
             label: 'PDI',
             value: props.resultats.indicateurs?.pdi_par_kg_ms,
             unit: 'g/kg MS',
@@ -751,12 +570,14 @@ const proteinsRows = computed<DetailRow[]>(() => {
               ]
             : []),
         {
+            metricKey: 'azote_urinaire',
             label: 'Azote urinaire',
             value: props.resultats.indicateurs?.azote_urinaire,
             unit: 'g/j',
             decimals: 0,
         },
         {
+            metricKey: 'azote_fecale',
             label: 'Azote fecale',
             value: props.resultats.indicateurs?.azote_fecale,
             unit: 'g/j',
@@ -780,6 +601,7 @@ const healthRows = computed<DetailRow[]>(() => {
             ...metricThresholds('be'),
         },
         {
+            metricKey: 'mod_concentre',
             label: 'MOD des concentrés (proxy interne)',
             value: props.resultats.indicateurs?.mod_concentre,
             unit: 'g/kg MS',
@@ -802,6 +624,7 @@ const healthRows = computed<DetailRow[]>(() => {
             ...metricThresholds('pco_percent'),
         },
         {
+            metricKey: 'ndf_fourrages',
             label: 'NDF des fourrages (proxy NDFfo)',
             value: props.resultats.indicateurs?.ndf_fourrages,
             unit: 'g/kg MS',
@@ -839,6 +662,7 @@ const fiberRows = computed<DetailRow[]>(() => {
 
     return [
         {
+            metricKey: 'ms',
             label: 'Apport en MS',
             value: props.resultats.apports.ms,
             unit: 'kg',
@@ -853,6 +677,7 @@ const fiberRows = computed<DetailRow[]>(() => {
             ...metricThresholds('cb_par_kg_ms'),
         },
         {
+            metricKey: 'adf_par_kg_ms',
             label: 'Apport en ADF',
             value: props.resultats.indicateurs?.adf_par_kg_ms,
             unit: 'g/kg MS',
@@ -867,6 +692,7 @@ const fiberRows = computed<DetailRow[]>(() => {
             ...metricThresholds('ndf_total'),
         },
         {
+            metricKey: 'ndf_fourrages',
             label: 'NDF des fourrages (proxy NDFfo)',
             value: props.resultats.indicateurs?.ndf_fourrages,
             unit: 'g/kg MS',
@@ -895,6 +721,7 @@ const energyRows = computed<DetailRow[]>(() => {
             decimals: 2,
         },
         {
+            metricKey: 'ufl_par_kg_ms',
             label: `Apport ${ue}/kg MS`,
             value: props.resultats.indicateurs?.ufl_par_kg_ms,
             unit: `${ue}/kg MS`,
@@ -932,12 +759,14 @@ const energyRows = computed<DetailRow[]>(() => {
               ]
             : []),
         {
+            metricKey: 'variation_poids_energie',
             label: 'Variation de poids estimée (énergie)',
             value: props.resultats.impacts.variation_poids_energie,
             unit: 'kg/j',
             decimals: 2,
         },
         {
+            metricKey: 'ch4',
             label: 'Production CH4',
             value: props.resultats.impacts.ch4,
             unit: 'g/j',
@@ -955,24 +784,28 @@ const mineralBalanceRows = computed<DetailRow[]>(() => {
 
     return [
         {
+            metricKey: 'baca',
             label: 'BACA',
             value: props.resultats.indicateurs?.baca,
             unit: 'mEq/kg MS',
             decimals: 0,
         },
         {
+            metricKey: 'vit_a',
             label: 'Supplémentation vitamine A',
             value: props.resultats.supplementations?.vit_a,
             unit: 'UI/j',
             decimals: 0,
         },
         {
+            metricKey: 'vit_d',
             label: 'Supplémentation vitamine D',
             value: props.resultats.supplementations?.vit_d,
             unit: 'UI/j',
             decimals: 0,
         },
         {
+            metricKey: 'vit_e',
             label: 'Supplémentation vitamine E',
             value: props.resultats.supplementations?.vit_e,
             unit: 'UI/j',
@@ -988,6 +821,7 @@ const mineralRows = computed<ComparisonRow[]>(() => {
 
     return [
         {
+            metricKey: 'couverture_caabs',
             label: 'Calcium abs',
             apport: props.resultats.apports.caabs,
             besoin: props.resultats.besoins.caabs,
@@ -995,6 +829,7 @@ const mineralRows = computed<ComparisonRow[]>(() => {
             decimals: 0,
         },
         {
+            metricKey: 'couverture_pabs',
             label: 'Phosphore abs',
             apport: props.resultats.apports.pabs ?? props.resultats.apports.p,
             besoin: props.resultats.besoins.pabs,
@@ -1002,6 +837,7 @@ const mineralRows = computed<ComparisonRow[]>(() => {
             decimals: 0,
         },
         {
+            metricKey: 'couverture_mgabs',
             label: 'Magnésium abs',
             apport: props.resultats.apports.mgabs,
             besoin: props.resultats.besoins.mgabs,
@@ -1009,6 +845,7 @@ const mineralRows = computed<ComparisonRow[]>(() => {
             decimals: 0,
         },
         {
+            metricKey: 'couverture_na',
             label: 'Sodium',
             apport: props.resultats.apports.na,
             besoin: props.resultats.besoins.na,
@@ -1016,6 +853,7 @@ const mineralRows = computed<ComparisonRow[]>(() => {
             decimals: 0,
         },
         {
+            metricKey: 'couverture_cl',
             label: 'Chlore',
             apport: props.resultats.apports.cl,
             besoin: props.resultats.besoins.cl,
@@ -1023,6 +861,7 @@ const mineralRows = computed<ComparisonRow[]>(() => {
             decimals: 0,
         },
         {
+            metricKey: 'couverture_k',
             label: 'Potassium',
             apport: props.resultats.apports.k,
             besoin: props.resultats.besoins.k,
@@ -1030,6 +869,7 @@ const mineralRows = computed<ComparisonRow[]>(() => {
             decimals: 0,
         },
         {
+            metricKey: 'couverture_s',
             label: 'Soufre',
             apport: props.resultats.apports.s,
             besoin: props.resultats.besoins.s,
@@ -1037,6 +877,7 @@ const mineralRows = computed<ComparisonRow[]>(() => {
             decimals: 0,
         },
         {
+            metricKey: 'couverture_co',
             label: 'Cobalt',
             apport: props.resultats.apports.co,
             besoin: props.resultats.besoins.co,
@@ -1044,6 +885,7 @@ const mineralRows = computed<ComparisonRow[]>(() => {
             decimals: 0,
         },
         {
+            metricKey: 'couverture_se',
             label: 'Selenium',
             apport: props.resultats.apports.se,
             besoin: props.resultats.besoins.se,
@@ -1051,6 +893,7 @@ const mineralRows = computed<ComparisonRow[]>(() => {
             decimals: 0,
         },
         {
+            metricKey: 'couverture_zn',
             label: 'Zinc',
             apport: props.resultats.apports.zn,
             besoin: props.resultats.besoins.zn,
@@ -1058,6 +901,7 @@ const mineralRows = computed<ComparisonRow[]>(() => {
             decimals: 0,
         },
         {
+            metricKey: 'couverture_mn',
             label: 'Manganèse',
             apport: props.resultats.apports.mn,
             besoin: props.resultats.besoins.mn,
@@ -1065,6 +909,7 @@ const mineralRows = computed<ComparisonRow[]>(() => {
             decimals: 0,
         },
         {
+            metricKey: 'couverture_cu',
             label: 'Cuivre',
             apport: props.resultats.apports.cu,
             besoin: props.resultats.besoins.cu,
@@ -1072,6 +917,7 @@ const mineralRows = computed<ComparisonRow[]>(() => {
             decimals: 0,
         },
         {
+            metricKey: 'couverture_i',
             label: 'Iode',
             apport: props.resultats.apports.i,
             besoin: props.resultats.besoins.i,
@@ -1079,6 +925,7 @@ const mineralRows = computed<ComparisonRow[]>(() => {
             decimals: 0,
         },
         {
+            metricKey: 'couverture_molybdene',
             label: 'Molybdène',
             apport: props.resultats.apports.molybdene,
             besoin: props.resultats.besoins.molybdene,
@@ -1091,6 +938,7 @@ const mineralRows = computed<ComparisonRow[]>(() => {
 const balanceRows = computed<BalanceRow[]>(() => {
     const rows: BalanceRow[] = [
         {
+            metricKey: 'bilan_uf',
             label: uniteEnergie.value,
             apport: props.resultats.apports.ufl,
             besoin: props.resultats.besoins.uf_total,
@@ -1098,6 +946,7 @@ const balanceRows = computed<BalanceRow[]>(() => {
             decimals: 2,
         },
         {
+            metricKey: 'bilan_ue',
             label: `${uniteEncombrement.value} (kg MS)`,
             apport: props.resultats.apports.ue,
             besoin: props.resultats.besoins.ci,
@@ -1110,6 +959,7 @@ const balanceRows = computed<BalanceRow[]>(() => {
     if (props.resultats.inra === '2007') {
         rows.push(
             {
+                metricKey: 'bilan_pdi',
                 label: 'PDIE (g/j)',
                 apport: props.resultats.apports.pdie,
                 besoin: props.resultats.besoins.pdi_total,
@@ -1126,6 +976,7 @@ const balanceRows = computed<BalanceRow[]>(() => {
         );
     } else {
         rows.push({
+            metricKey: 'bilan_pdi',
             label: 'PDI (g/j)',
             apport: props.resultats.apports.pdi,
             besoin: props.resultats.besoins.pdi_total,
@@ -1136,6 +987,7 @@ const balanceRows = computed<BalanceRow[]>(() => {
 
     rows.push(
         {
+            metricKey: 'bilan_caabs',
             label: 'Ca abs (g/j)',
             apport: props.resultats.apports.caabs,
             besoin: props.resultats.besoins.caabs,
@@ -1143,6 +995,7 @@ const balanceRows = computed<BalanceRow[]>(() => {
             decimals: 1,
         },
         {
+            metricKey: 'bilan_pabs',
             label: 'P abs (g/j)',
             apport: props.resultats.apports.pabs ?? props.resultats.apports.p,
             besoin: props.resultats.besoins.pabs,
@@ -1161,24 +1014,28 @@ const fattyAcidRows = computed<DetailRow[]>(() => {
 
     return [
         {
+            metricKey: 'prod_agvt_jour',
             label: 'Production AGV totale dans le rumen',
             value: props.resultats.indicateurs?.prod_agvt_jour,
             unit: 'mol/j',
             decimals: 2,
         },
         {
+            metricKey: 'acetate',
             label: 'Acide acétique',
             value: props.resultats.indicateurs?.acetate,
             unit: 'mol/100 mol AGV',
             decimals: 0,
         },
         {
+            metricKey: 'propionate',
             label: 'Acide propionique',
             value: props.resultats.indicateurs?.propionate,
             unit: 'mol/100 mol AGV',
             decimals: 0,
         },
         {
+            metricKey: 'butyrate',
             label: 'Acide butyrique',
             value: props.resultats.indicateurs?.butyrate,
             unit: 'mol/100 mol AGV',
@@ -1215,6 +1072,18 @@ const mineralIssueCount = computed(() =>
         : 0,
 );
 
+const bprMetric = computed<CircleMetric>(() => {
+    const row = proteinsRows.value.find((item) => item.metricKey === 'bpr');
+
+    return {
+        label: 'BPR',
+        valueLabel: bilanSign(props.resultats.indicateurs?.bpr, 2),
+        unit: 'g/kg MS',
+        note: metricNormNote('bpr'),
+        status: row ? detailStatus(row) : 'neutral',
+    };
+});
+
 const technicalPanels = computed<TechnicalPanel[]>(() => {
     const panels: TechnicalPanel[] = [
         {
@@ -1241,8 +1110,9 @@ const technicalPanels = computed<TechnicalPanel[]>(() => {
                 proteinRatio.value === undefined
                     ? 0
                     : clamp(proteinRatio.value * 100, 0, 100),
-            status: coverageStatus(proteinRatio.value),
+            status: coverageStatus(proteinRatio.value, 'pdi'),
         },
+        ...(props.resultats.inra === '2018' ? [bprMetric.value] : []),
         {
             label: 'Ingestion',
             valueLabel:
@@ -1254,7 +1124,7 @@ const technicalPanels = computed<TechnicalPanel[]>(() => {
                 ueRatio.value === undefined
                     ? 0
                     : clamp(ueRatio.value * 100, 0, 100),
-            status: coverageStatus(ueRatio.value),
+            status: coverageStatus(ueRatio.value, 'ue'),
         },
     ];
 
@@ -1290,13 +1160,8 @@ const technicalPanels = computed<TechnicalPanel[]>(() => {
                 label: 'Rmic',
                 valueLabel: fmt(props.resultats.impacts.rmic, 2),
                 note: 'Couverture microbienne',
-                percent: clamp(
-                    (props.resultats.impacts.rmic ?? 0) >= 0 ? 100 : 35,
-                    0,
-                    100,
-                ),
-                status:
-                    (props.resultats.impacts.rmic ?? 0) >= 0 ? 'ok' : 'alert',
+                percent: clamp(normeStatus('rmic') === 'ok' ? 100 : 35, 0, 100),
+                status: normeStatus('rmic'),
             },
             {
                 label: 'Minéraux',
@@ -1315,6 +1180,7 @@ const technicalPanels = computed<TechnicalPanel[]>(() => {
                         props.resultats.apports.caabs,
                         props.resultats.besoins.caabs,
                     ),
+                    'caabs',
                 ),
             },
         );
@@ -1331,7 +1197,7 @@ const topMetrics = computed<CircleMetric[]>(() => {
             label: 'Variation de poids estimée',
             valueLabel: `${bilanSign(variationPoids, 2)} kg/j`,
             note: 'Estimation selon le bilan énergétique',
-            status: 'neutral',
+            status: normeStatus('variation_poids_energie'),
         });
     }
     if (hasLaitMetrics.value) {
@@ -1382,7 +1248,7 @@ const topMetrics = computed<CircleMetric[]>(() => {
                 props.resultats.inra === '2018'
                     ? 'Lecture PDI'
                     : 'Lecture PDIE / PDIN',
-            status: coverageStatus(proteinRatio.value),
+            status: coverageStatus(proteinRatio.value, 'pdi'),
         },
     );
 
@@ -1391,6 +1257,7 @@ const topMetrics = computed<CircleMetric[]>(() => {
             (row) => row.metricKey === 'ph_ruminal',
         );
 
+        metrics.push(bprMetric.value);
         metrics.push({
             label: 'Santé ruminale',
             valueLabel: fmt(props.resultats.indicateurs?.ph_ruminal, 2),
@@ -1402,7 +1269,7 @@ const topMetrics = computed<CircleMetric[]>(() => {
             label: 'Rmic',
             valueLabel: fmt(props.resultats.impacts.rmic, 2),
             note: 'Couverture microbienne',
-            status: (props.resultats.impacts.rmic ?? 0) >= 0 ? 'ok' : 'alert',
+            status: normeStatus('rmic'),
         });
     }
 
@@ -1445,7 +1312,7 @@ const insightCandidates = computed<InsightItem[]>(() => {
                 props.resultats.inra === '2018'
                     ? 'Couverture PDI'
                     : 'Couverture PDIE / PDIN',
-            status: coverageStatus(proteinRatio.value),
+            status: coverageStatus(proteinRatio.value, 'pdi'),
         },
         {
             label: 'Ingestion',
@@ -1454,7 +1321,7 @@ const insightCandidates = computed<InsightItem[]>(() => {
                     ? '–'
                     : `${fmt(ueRatio.value * 100, 0)} %`,
             note: `${fmt(ueApport.value, 2)} ingérés pour ${fmt(ueBesoin.value, 2)} visés`,
-            status: coverageStatus(ueRatio.value),
+            status: coverageStatus(ueRatio.value, 'ue'),
         },
     );
 
@@ -1513,7 +1380,7 @@ const insightCandidates = computed<InsightItem[]>(() => {
             label: 'Rmic',
             valueLabel: fmt(props.resultats.impacts.rmic, 2),
             note: 'Bilan microbien',
-            status: (props.resultats.impacts.rmic ?? 0) >= 0 ? 'ok' : 'alert',
+            status: normeStatus('rmic'),
         });
     }
 
@@ -1582,6 +1449,7 @@ const strengthInsights = computed(() =>
                         <div
                             v-for="panel in technicalPanels"
                             :key="panel.label"
+                            :data-technical-panel="panel.label"
                             class="rounded-2xl border p-4"
                             :class="tonePanelClass(panel.status)"
                         >
@@ -1607,6 +1475,11 @@ const strengthInsights = computed(() =>
                                     class="text-2xl font-semibold tracking-tight text-foreground"
                                 >
                                     {{ panel.valueLabel }}
+                                    <span
+                                        v-if="panel.unit"
+                                        class="text-xs font-normal text-muted-foreground"
+                                        >{{ panel.unit }}</span
+                                    >
                                 </p>
                                 <p
                                     class="text-xs tracking-[0.18em] text-muted-foreground uppercase"
@@ -1615,6 +1488,7 @@ const strengthInsights = computed(() =>
                                 </p>
                             </div>
                             <div
+                                v-if="panel.percent !== undefined"
                                 class="mt-3 h-2 overflow-hidden rounded-full bg-muted"
                             >
                                 <div
@@ -1629,25 +1503,36 @@ const strengthInsights = computed(() =>
             </div>
 
             <div
-                class="relative mt-8 grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5"
+                class="relative mt-8 grid grid-cols-2 gap-4 md:grid-cols-3"
+                :class="
+                    topMetrics.length > 5 ? 'xl:grid-cols-6' : 'xl:grid-cols-5'
+                "
             >
                 <div
                     v-for="metric in topMetrics"
                     :key="metric.label"
-                    class="flex aspect-square min-h-44 flex-col items-center justify-center rounded-full border-8 p-5 text-center shadow-sm"
+                    :data-circle-metric="metric.label"
+                    class="flex aspect-square min-w-0 flex-col items-center justify-center rounded-full border-8 p-3 text-center shadow-sm sm:p-5"
                     :class="toneCircleClass(metric.status)"
                 >
                     <p
-                        class="text-[11px] font-semibold tracking-[0.24em] text-muted-foreground uppercase"
+                        class="text-[10px] font-semibold tracking-[0.16em] text-muted-foreground uppercase sm:text-[11px] sm:tracking-[0.24em]"
                     >
                         {{ metric.label }}
                     </p>
                     <p
-                        class="mt-3 text-2xl font-semibold tracking-tight text-foreground"
+                        class="mt-2 text-xl font-semibold tracking-tight text-foreground sm:mt-3 sm:text-2xl"
                     >
                         {{ metric.valueLabel }}
+                        <span
+                            v-if="metric.unit"
+                            class="mt-1 block text-xs font-normal text-muted-foreground"
+                            >{{ metric.unit }}</span
+                        >
                     </p>
-                    <p class="mt-2 text-xs leading-5 text-muted-foreground">
+                    <p
+                        class="mt-1 text-[10px] leading-4 text-muted-foreground sm:mt-2 sm:text-xs sm:leading-5"
+                    >
                         {{ metric.note }}
                     </p>
                 </div>
@@ -2643,9 +2528,7 @@ const strengthInsights = computed(() =>
                         EffPDI
                     </p>
                     <p class="mt-2 text-2xl font-semibold text-foreground">
-                        {{
-                            fmt((resultats.indicateurs.eff_pdi ?? 0) * 100, 1)
-                        }}
+                        {{ fmt((resultats.indicateurs.eff_pdi ?? 0) * 100, 1) }}
                         %
                     </p>
                 </div>

@@ -280,27 +280,10 @@ class DashboardController extends Controller
                 'url' => route('plans.rations.composition', ['plan' => $r->plan_rationnement_id, 'ration' => $r->id], false),
             ]);
 
-        $aliments = Aliment::query()
-            ->where('user_id', $user->id)
-            ->tap($filter)
-            ->latest()
-            ->limit($limit)
-            ->get()
-            ->map(fn (Aliment $a) => [
-                'type' => 'aliment',
-                'type_label' => 'Aliment',
-                'id' => $a->id,
-                'label' => $a->libelle0 ?: $a->libelle1,
-                'sub' => $a->type,
-                'updated_at' => $a->updated_at,
-                'url' => route('aliments.edit', $a, false),
-            ]);
-
         $all = collect($analyses->all())
             ->merge($breeders)
             ->merge($plans)
             ->merge($rations)
-            ->merge($aliments)
             ->sortByDesc('updated_at');
 
         $page = $all->take($perPage)->values();

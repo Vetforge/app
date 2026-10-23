@@ -5,7 +5,6 @@ import { useCurrentUrl } from '@/composables/useCurrentUrl';
 import { toUrl } from '@/lib/utils';
 import { edit as editAppearance } from '@/routes/appearance';
 import { edit as editModuleSettings } from '@/routes/module-settings';
-import { edit as editNormes } from '@/routes/normes';
 import { edit as editProfile } from '@/routes/profile';
 import { show } from '@/routes/two-factor';
 import { edit as editPassword } from '@/routes/user-password';
@@ -25,12 +24,8 @@ const sidebarNavItems: NavItem[] = [
         href: show(),
     },
     {
-        title: 'Normes',
-        href: editNormes(),
-    },
-    {
-        title: 'Modules analyses',
-        href: editModuleSettings({ module: 'coproscopie-parasitaire' }),
+        title: 'Réglages modules',
+        href: editModuleSettings({ module: 'ration' }),
     },
     {
         title: 'Apparence',
@@ -58,7 +53,9 @@ const { isCurrentOrParentUrl } = useCurrentUrl();
                 :href="item.href"
                 class="relative px-4 py-2.5 text-sm font-medium transition-colors"
                 :class="
-                    isCurrentOrParentUrl(item.href)
+                    isCurrentOrParentUrl(item.href) ||
+                    (item.title === 'Réglages modules' &&
+                        isCurrentOrParentUrl('/settings/modules'))
                         ? 'text-foreground after:absolute after:inset-x-0 after:-bottom-px after:h-0.5 after:bg-primary'
                         : 'text-muted-foreground hover:text-foreground'
                 "

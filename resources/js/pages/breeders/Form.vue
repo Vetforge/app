@@ -30,17 +30,17 @@ const isEdit = !!props.breeder;
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Accueil', href: dashboard() },
     { title: 'Eleveurs', href: breedersIndex() },
-    { title: isEdit ? 'Modifier' : 'Nouvel eleveur', href: '#' },
+    { title: isEdit ? 'Modifier' : 'Nouveléleveur', href: '#' },
 ];
 </script>
 
 <template>
-    <Head :title="isEdit ? 'Modifier eleveur' : 'Nouvel eleveur'" />
+    <Head :title="isEdit ? 'Modifier éleveur' : 'Nouvel éleveur'" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <div class="mx-auto w-full max-w-2xl min-w-0 p-4 sm:p-6">
             <h1 class="mb-6 text-2xl font-bold text-foreground">
-                {{ isEdit ? 'Modifier eleveur' : 'Nouvel eleveur' }}
+                {{ isEdit ? 'Modifier éleveur' : 'Nouvel éleveur' }}
             </h1>
 
             <Form

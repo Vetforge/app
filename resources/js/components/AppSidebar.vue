@@ -57,7 +57,7 @@ const rapportNavItems: NavItem[] = [
 
 const accountNavItems: NavItem[] = [
     { title: 'Eleveurs', href: breedersIndex().url, icon: Users },
-    { title: 'Reglages analyses', href: moduleSettingsEdit({ module: 'coproscopie-parasitaire' }).url, icon: Settings },
+    { title: 'Réglages modules', href: moduleSettingsEdit({ module: 'ration' }).url, icon: Settings },
 ];
 
 const adminNavItems = computed<NavItem[]>(() => (

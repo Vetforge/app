@@ -110,12 +110,12 @@ it('requires a date and a breeder when storing a plan', function () {
 
     $this->actingAs($user)
         ->post(route('plans.store'), [
-            'nom' => 'Plan sans date ni eleveur',
+            'nom' => 'Plan sans date ni éleveur',
             'inra' => '2018',
         ])
         ->assertSessionHasErrors(['date', 'breeder_id']);
 
-    expect(PlanRationnement::query()->where('nom', 'Plan sans date ni eleveur')->exists())->toBeFalse();
+    expect(PlanRationnement::query()->where('nom', 'Plan sans date ni éleveur')->exists())->toBeFalse();
 });
 
 it('requires a date and a breeder when updating a plan', function () {

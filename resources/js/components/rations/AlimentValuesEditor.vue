@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { watch } from 'vue';
 import InputError from '@/components/InputError.vue';
 import { alimentEditableFieldGroups } from '@/components/rations/alimentEditableFields';
 import type { Aliment } from '@/components/rations/types';
@@ -6,6 +7,14 @@ import { ALIMENT_TYPES } from '@/types/aliment';
 
 const aliment = defineModel<Aliment>('aliment', { required: true });
 defineProps<{ errors?: Record<string, string> }>();
+
+watch(
+    () => aliment.value.type,
+    (type) => {
+        if (type === 'mineral') aliment.value.ms = 100;
+    },
+    { immediate: true },
+);
 </script>
 
 <template>
@@ -66,6 +75,14 @@ defineProps<{ errors?: Record<string, string> }>();
                         "
                         v-model.number="aliment[field.key]"
                         :name="field.key"
+                        :readonly="
+                            field.key === 'ms' && aliment.type === 'mineral'
+                        "
+                        :title="
+                            field.key === 'ms' && aliment.type === 'mineral'
+                                ? 'Les minéraux sont calculés à 100 % de matière sèche.'
+                                : undefined
+                        "
                         type="number"
                         :step="field.step"
                         class="rounded border border-border bg-background px-2 py-1 text-sm focus:ring-2 focus:ring-primary focus:outline-none"

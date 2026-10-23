@@ -8,6 +8,7 @@ use App\Enums\CategorieAnimal;
 use App\Enums\Espece;
 use App\Models\Ration;
 use App\Services\RationHelper;
+use App\Support\RationNormes;
 
 /**
  * Calculs des impacts nutritionnels INRA 2018 (lait permis, eau, coût…).
@@ -296,54 +297,18 @@ class Impact
         return $MS > 0 ? (($K / 39) + ($Na / 23) - ($Cl / 35.5) - ($S / 16)) / $MS * 1000 : 0.0;
     }
 
-    public static function calculerIRA(Ration $ration): float
+    /**
+     * @param  array<string, array{min: float|int|null, max: float|int|null}>|null  $normes
+     */
+    public static function calculerIRA(Ration $ration, ?array $normes = null): float
     {
-        $BE = self::calculerBE($ration);
-        if ($BE < 200) {
-            $iraBE = 2;
-        } elseif ($BE < 250) {
-            $iraBE = 1;
-        } else {
-            $iraBE = 0;
-        }
-
-        $amidonRumen = Apport::calculerApportAmiD_ru($ration);
-        if ($amidonRumen < 200) {
-            $iraAmidon = 0;
-        } elseif ($amidonRumen < 250) {
-            $iraAmidon = 1;
-        } else {
-            $iraAmidon = 2;
-        }
-
-        $PCO = Apport::calculerPCO($ration);
-        if ($PCO < 0.4) {
-            $iraPCO = 0;
-        } elseif ($PCO < 0.5) {
-            $iraPCO = 1;
-        } else {
-            $iraPCO = 2;
-        }
-
-        $ndfFourrages = Apport::calculerApportNDFf($ration);
-        if ($ndfFourrages < 250) {
-            $iraNdfFourrages = 2;
-        } elseif ($ndfFourrages < 300) {
-            $iraNdfFourrages = 1;
-        } else {
-            $iraNdfFourrages = 0;
-        }
-
-        $ndfTotal = Apport::calculerApportNDFParKgMS($ration);
-        if ($ndfTotal < 300) {
-            $iraNdfTotal = 2;
-        } elseif ($ndfTotal < 350) {
-            $iraNdfTotal = 1;
-        } else {
-            $iraNdfTotal = 0;
-        }
-
-        return ($iraBE + $iraAmidon + $iraPCO + $iraNdfFourrages + $iraNdfTotal) / 5;
+        return RationNormes::ira([
+            'be' => self::calculerBE($ration),
+            'amid_ru' => Apport::calculerApportAmiD_ru($ration),
+            'pco_percent' => Apport::calculerPCO($ration) * 100,
+            'ndf_fourrages' => Apport::calculerApportNDFf($ration),
+            'ndf_total' => Apport::calculerApportNDFParKgMS($ration),
+        ], $normes);
     }
 
     public static function calculerPourcentageAcetate(Ration $ration): float

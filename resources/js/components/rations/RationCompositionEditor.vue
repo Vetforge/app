@@ -27,6 +27,7 @@ import {
     updateAlimentValeurs,
     reorderAliments,
 } from '@/actions/App/Http/Controllers/RationController';
+import AlimentCalculationWarning from '@/components/rations/AlimentCalculationWarning.vue';
 import {
     alimentEditableKeys,
     alimentEditableNumericKeys,
@@ -69,7 +70,8 @@ const quantityErrorContext = ref('');
 const saveErrors = computed(() =>
     Object.entries(page.props.errors).map(([field, message]) =>
         field === 'quantite' && message.startsWith('validation.')
-            ? quantityErrorContext.value.startsWith('ma-')
+            ? quantityErrorContext.value.startsWith('ma-') ||
+              quantityErrorContext.value.startsWith('mix-')
                 ? 'Saisissez une quantité supérieure ou égale à zéro.'
                 : 'Saisissez une quantité supérieure à zéro ou activez « À volonté » pour un fourrage.'
             : formatValidationError(message),
@@ -820,9 +822,17 @@ function onMelangeAlimentDragEnd() {
                     <div
                         class="order-first min-w-0 basis-full sm:order-none sm:flex-1 sm:basis-auto"
                     >
-                        <p class="truncate text-sm font-medium text-foreground">
-                            {{ ra.aliment.libelle0 }}
-                        </p>
+                        <div class="flex min-w-0 items-center gap-1">
+                            <p
+                                class="truncate text-sm font-medium text-foreground"
+                            >
+                                {{ ra.aliment.libelle0 }}
+                            </p>
+                            <AlimentCalculationWarning
+                                :warnings="ra.calculation_warnings"
+                                :label="ra.aliment.libelle0"
+                            />
+                        </div>
                         <p class="text-xs text-muted-foreground">
                             <span
                                 v-if="ra.aliment.libelle1"
@@ -1008,6 +1018,10 @@ function onMelangeAlimentDragEnd() {
                             )
                         "
                     />
+                    <AlimentCalculationWarning
+                        :warnings="melange.calculation_warnings"
+                        :label="melange.nom || 'ce mélange'"
+                    />
                     <input
                         :aria-label="`Nom du mélange ${index + 1}`"
                         :value="melange.nom"
@@ -1190,9 +1204,15 @@ function onMelangeAlimentDragEnd() {
                             <div
                                 class="order-first min-w-0 basis-full sm:order-none sm:flex-1 sm:basis-auto"
                             >
-                                <p class="truncate text-sm text-foreground">
-                                    {{ ma.aliment.libelle0 }}
-                                </p>
+                                <div class="flex min-w-0 items-center gap-1">
+                                    <p class="truncate text-sm text-foreground">
+                                        {{ ma.aliment.libelle0 }}
+                                    </p>
+                                    <AlimentCalculationWarning
+                                        :warnings="ma.calculation_warnings"
+                                        :label="ma.aliment.libelle0"
+                                    />
+                                </div>
                                 <p class="text-xs text-muted-foreground">
                                     <span
                                         v-if="ma.aliment.libelle1"

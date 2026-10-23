@@ -67,6 +67,8 @@ const props = defineProps<{
     sourceAliment?: SourceAliment | null;
 }>();
 
+const selectedType = ref(props.aliment?.type ?? '');
+const dryMatter = ref(formatNumberInput(props.aliment?.ms));
 const breederId = ref<string | number | null>(props.aliment?.breeder_id ?? '');
 const page = usePage();
 
@@ -316,7 +318,7 @@ function submit(event: Event) {
                         <select
                             id="type"
                             name="type"
-                            :value="aliment?.type"
+                            v-model="selectedType"
                             required
                             class="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-primary focus:outline-none"
                         >
@@ -400,7 +402,19 @@ function submit(event: Event) {
                             name="ms"
                             type="number"
                             step="0.01"
-                            :value="formatNumberInput(aliment?.ms)"
+                            :value="
+                                selectedType === 'mineral' ? '100' : dryMatter
+                            "
+                            :readonly="selectedType === 'mineral'"
+                            :title="
+                                selectedType === 'mineral'
+                                    ? 'Les minéraux sont calculés à 100 % de matière sèche.'
+                                    : undefined
+                            "
+                            @input="
+                                dryMatter = ($event.target as HTMLInputElement)
+                                    .value
+                            "
                             class="rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-primary focus:outline-none"
                         />
                     </div>

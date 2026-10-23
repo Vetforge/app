@@ -91,8 +91,8 @@ it('uses reference aliment minerals for agrinir calculations when omitted', func
         'mg' => null,
     ]);
     $effectiveParams = array_replace($params, [
-        'p' => $reference->p,
-        'mg' => $reference->mg,
+        'p' => (float) $reference->p / 10,
+        'mg' => (float) $reference->mg / 10,
     ]);
 
     $this->actingAs($user)
@@ -103,7 +103,7 @@ it('uses reference aliment minerals for agrinir calculations when omitted', func
             'params' => $params,
         ])
         ->assertOk()
-        ->assertJsonPath('resultats.ca', ForageCalculator::calculer2018('maisE', $effectiveParams)['ca'])
+        ->assertJsonPath('resultats.ca', fn ($value) => (float) $value === ForageCalculator::calculer2018('maisE', $effectiveParams)['ca'])
         ->assertJsonPath('resultats.caabs', ForageCalculator::calculer2018('maisE', $effectiveParams)['caabs'])
         ->assertJsonPath('resultats.p', ForageCalculator::calculer2018('maisE', $effectiveParams)['p'])
         ->assertJsonPath('resultats.pabs', ForageCalculator::calculer2018('maisE', $effectiveParams)['pabs'])
@@ -137,7 +137,7 @@ it('calculates agrinir 2018 equations for every supported type', function (strin
     expect(array_keys($resultats))
         ->toEqual([
             'ms', 'mat', 'ndf', 'adf', 'mo', 'cb', 'eb', 'em', 'de', 'dmo',
-            'niref', 'dt_n', 'dr_n', 'ufl', 'ufv', 'pdia', 'pdi', 'bpr',
+            'niref', 'dt_n', 'dt6_n', 'ag', 'ee', 'pf', 'amidon', 'dt6_ami', 'dt_ami', 'dr_n', 'ufl', 'ufv', 'pdia', 'pdi', 'bpr',
             'uem', 'uel', 'ueb', 'ca', 'caabs', 'p', 'pabs', 'mg',
         ]);
 
@@ -229,9 +229,9 @@ it('creates an agrinir aliment from a reference aliment when one is selected', f
 
     $aliment = Aliment::query()->where('user_id', $user->id)->sole();
     $effectiveParams = array_replace($payload['params'], [
-        'ca' => $reference->ca,
-        'p' => $reference->p,
-        'mg' => $reference->mg,
+        'ca' => (float) $reference->ca / 10,
+        'p' => (float) $reference->p / 10,
+        'mg' => (float) $reference->mg / 10,
     ]);
     $resultats2018 = ForageCalculator::calculer2018($payload['type'], $effectiveParams);
     $resultats2007 = ForageCalculator::calculer2007($payload['type'], $effectiveParams);
@@ -304,4 +304,80 @@ it('rejects another users breeder during agrinir creation', function () {
     $this->actingAs($user)->post(route('agrinir.sauvegarder'), agrinirPayload(['breeder_id' => $breeder->id]))
         ->assertSessionHasErrors('breeder_id');
     expect(Aliment::count())->toBe(0);
+});
+
+it('persists every calculated agrinir nutrient for each type with or without a reference', function (string $type, bool $withReference) {
+    $user = User::factory()->create();
+    $reference = $withReference ? Aliment::factory()->systemique()->create([
+        'code_inra' => 'REF', 'dt6_n' => 1, 'ag' => 1, 'ee' => 1, 'pf' => 1,
+        'amidon' => 1, 'dt6_ami' => 1, 'dt_ami' => 1,
+    ]) : null;
+    $params = agrinirParamsForType($type);
+    $payload = agrinirPayload(['type' => $type, 'params' => $params, 'aliment_de_reference_id' => $reference?->id]);
+    // The server must recalculate rather than trust the client or retain stale reference values.
+    foreach (['dt6_n', 'ag', 'ee', 'pf', 'amidon', 'dt6_ami', 'dt_ami'] as $key) {
+        $payload['valeurs'][$key] = 999;
+    }
+
+    $this->actingAs($user)->post(route('agrinir.sauvegarder'), $payload)
+        ->assertSessionHasNoErrors()->assertRedirect(route('aliments.index'));
+
+    $aliment = Aliment::query()->where('user_id', $user->id)->sole();
+    $expected = array_merge(ForageCalculator::calculer2018($type, $params), ForageCalculator::calculer2007($type, $params));
+    $columns = ['dmo' => 'd_mo', 'de' => 'd_e', 'dmo2007' => 'd_mo2007', 'dma2007' => 'd_ma2007'];
+    foreach ($expected as $field => $value) {
+        $column = $columns[$field] ?? $field;
+        if ($value === null && $withReference && in_array($field, ['amidon', 'dt6_ami', 'dt_ami'], true)) {
+            $value = (float) $reference->{$field};
+        }
+        if ($value === null) {
+            expect($aliment->{$column}, $type.': '.$column)->toBeNull();
+        } else {
+            expect((float) $aliment->{$column}, $type.': '.$column)->toEqualWithDelta($value, 0.0001);
+        }
+    }
+})->with(agrinirTypes())->with([false, true]);
+
+it('exports the computed maize precursors and converts mineral percentages to grams per kg DM', function () {
+    $values = ForageCalculator::calculer2018('maisE', agrinirParams());
+    expect($values['dt6_n'])->toBe(72.0)
+        ->and($values['dt_n'])->toBe(75.0)
+        ->and($values['amidon'])->toBe(452.5)
+        ->and($values['ag'])->toBe(50.6)
+        ->and($values['ee'])->toBe(50.6)
+        ->and($values['pf'])->toBe(60.0)
+        ->and($values['dt6_ami'])->toBe(54.6)
+        ->and($values['dt_ami'])->toBe(66.1)
+        ->and($values['ca'])->toBe(3.4)
+        ->and($values['caabs'])->toBe(1.36)
+        ->and($values['p'])->toBe(2.5)
+        ->and($values['pabs'])->toBe(1.75)
+        ->and($values['mg'])->toBe(1.1);
+});
+
+it('preserves known zero minerals and leaves unknown minerals null', function () {
+    $values = ForageCalculator::calculer2018('maisE', agrinirParams(['ca' => 0, 'p' => null, 'mg' => 0]));
+    expect($values['ca'])->toBe(0.0)->and($values['caabs'])->toBe(0.0)
+        ->and($values['p'])->toBeNull()->and($values['pabs'])->toBeNull()->and($values['mg'])->toBe(0.0);
+});
+
+it('saves the hay DT6 equation and preserves zero minerals while supplementing unknown minerals from INRA', function () {
+    $user = User::factory()->create();
+    $reference = Aliment::factory()->systemique()->create(['code_inra' => 'FOIN', 'ca' => 7.2, 'p' => 3.4, 'mg' => 2.1]);
+    $this->actingAs($user)->post(route('agrinir.sauvegarder'), agrinirPayload([
+        'type' => 'herbePPF1', 'aliment_de_reference_id' => $reference->id,
+        'params' => ['humidite' => 20, 'proteine' => 12, 'amidon' => null, 'ca' => 0, 'p' => null, 'mg' => 0],
+    ]))->assertSessionHasNoErrors()->assertRedirect();
+
+    $aliment = Aliment::query()->where('user_id', $user->id)->sole();
+    // MAT = 150 g/kg DM; the hay DT6 equation gives 52.7 + 18 - 4.05 = 66.65%.
+    expect(round((float) $aliment->dt6_n, 1))->toBe(66.7)
+        ->and((float) $aliment->ms)->toBe(80.0)
+        ->and((float) $aliment->mat)->toBe(150.0)
+        ->and((float) $aliment->pf)->toBe(0.0)
+        ->and((float) $aliment->ca)->toBe(0.0)
+        ->and((float) $aliment->caabs)->toBe(0.0)
+        ->and(round((float) $aliment->p, 2))->toBe(3.4)
+        ->and(round((float) $aliment->pabs, 2))->toBe(2.21)
+        ->and((float) $aliment->mg)->toBe(0.0);
 });
